@@ -145,11 +145,11 @@ class Datum(Object):
 class Igod(Object):
     def __init__(self, m):
         self.chunk_assert(m, b'igod')
-        size = struct.unpack("<L", m.read(4))[0]
+        self.size = struct.unpack("<L", m.read(4))[0]
 
         self.s = m.tell()
         self.datums = []
-        while m.tell() - self.s < size:
+        while m.tell() - self.s < self.size:
             self.datums.append(Datum(m, self))
 
         if m.tell() % 2 == 1:
@@ -159,7 +159,7 @@ class Igod(Object):
             logging.debug(d)
 
     def __repr__(self):
-        return "<Igod: s: 0x{:0>12x}, l: {:04>d}>".format(self.s, len(self.datums))
+        return "<Igod: s: 0x{:0>12x}, S: 0x:{0>6x}, l: {:04>d}>".format(self.s, self.size, len(self.datums))
 
 class Riff(Object):
     def __init__(self, m):
