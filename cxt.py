@@ -154,11 +154,24 @@ class Igod(Object):
         if m.tell() % 2 == 1:
             m.read(1)
 
+        self.log()
+
+    @property
+    def t(self):
+        return self.datums[3]
+
+    @property
+    def r(self):
+        return self.datums[4]
+
+    def log(self):
         for d in self.datums:
             logging.debug(d)
 
     def __repr__(self):
-        return "<Igod: s: 0x{:0>12x}, S: 0x:{0>6x}, l: {:04>d}>".format(self.s, self.size, len(self.datums))
+        return "<Igod: id: 0x{:0>4x} ({:0>4d}), t: 0x{:0>4x} (s: 0x{:0>12x}, S: 0x{:0>6x}, l: {:0>4d})>".format(
+            self.r.d, self.r.d, self.t.d, self.s, self.size, len(self.datums)
+        )
 
 class Riff(Object):
     def __init__(self, m):
