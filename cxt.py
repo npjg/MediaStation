@@ -133,7 +133,7 @@ class Datum(Object):
 
         try:
             if len(self.d) > 0x12 and not isinstance(self.d, str):
-                data = "l: 0x{:0>6x}>".format(len(self.d))
+                data = "<l: 0x{:0>6x}>>".format(len(self.d))
             else:
                 data = "d: {}>".format(self.d)
         except:
