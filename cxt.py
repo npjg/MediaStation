@@ -20,8 +20,9 @@ class DatumType(IntEnum):
 
 class Object:
     def chunk_assert(self, m, target):
+        s = m.tell()
         ax = m.read(len(target))
-        assert ax == target, "Expected chunk {}, received {}".format(target, ax)
+        assert ax == target, "(@ 0x{:0>12x}) Expected chunk {}, received {}".format(s, target, ax)
 
     def __format__(self, spec):
         return self.__repr__()
@@ -44,8 +45,10 @@ class Refs(Object):
         m.seek(m.tell() - 2)
 
     def __repr__(self):
-        return "<Refs: d: {}>".format(
-            [r["astring"] for r in self.refs]
+        return "{}<Refs: d: {}, l: {}>".format(
+            "\n -- " if len(self.refs) > 1 else "",
+            [r["astring"] for r in self.refs],
+            ["0x{:0>4x}".format(r["id"].d) for r in self.refs] 
         )
 
 class Polygon(Object):
@@ -123,7 +126,7 @@ class Datum(Object):
         elif self.t == DatumType.BBOX:
             self.d = Bbox(m)
         else:
-            logging.warning("Unknown datum type: 0x{:0>4x} at 0x{:0>12x}. Assuming UINT16".format(self.t, m.tell() - 2))
+            logging.warning("(@ 0x{:0>12x}) Unknown datum type: 0x{:0>4x}. Assuming UINT16".format(m.tell() - 2, self.t))
             self.d = struct.unpack("<H", m.read(2))[0]
 
     def __repr__(self):
