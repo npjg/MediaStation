@@ -19,6 +19,10 @@ class DatumType(IntEnum):
     G_UNK1  = 0x001e
 
 class Object:
+    def chunk_assert(self, m, target):
+        ax = m.read(len(target))
+        assert ax == target, "Expected chunk {}, received {}".format(target, ax)
+
     def __format__(self, spec):
         return self.__repr__()
 
@@ -63,14 +67,11 @@ class Polygon(Object):
 
 class Bbox(Object):
     def __init__(self, m):
-        check_chunk(m, b'\x0d\x00')
-        check_chunk(m, b'\x0e\x00')
-        # assert m.read(2) == b'\x0d\x00'
-        # assert m.read(2) == b'\x0e\x00'
+        self.chunk_assert(m, b'\x0d\x00')
+        self.chunk_assert(m, b'\x0e\x00')
         self.point = Point(m)
 
-        check_chunk(m, b'\x0f\x00')
-        # assert m.read(2) == b'\x0f\x00'
+        self.chunk_assert(m, b'\x0f\x00')
         self.dims = Point(m)
 
     def __repr__(self):
@@ -143,7 +144,7 @@ class Datum(Object):
 
 class Igod(Object):
     def __init__(self, m):
-        check_chunk(m, b'igod')
+        self.chunk_assert(m, b'igod')
         size = struct.unpack("<L", m.read(4))[0]
 
         self.s = m.tell()
@@ -163,39 +164,43 @@ class Igod(Object):
 class Riff(Object):
     def __init__(self, m):
         logging.debug("#### RIFF: {:0>12x} ####".format(m.tell()))
-        check_chunk(m, b'RIFF')
+        self.chunk_assert(m, b'RIFF')
         size1 = struct.unpack("<L", m.read(4))[0]
 
-        check_chunk(m, b'IMTS')
-        check_chunk(m, b'rate')
+        self.chunk_assert(m, b'IMTS')
+        self.chunk_assert(m, b'rate')
 
         unk1 = Datum(m)
         m.read(2) # 00 00
 
-        check_chunk(m, b'LIST')
+        self.chunk_assert(m, b'LIST')
         size2 = struct.unpack("<L", m.read(4))[0]
         # assert size1 - size2 == 0x24, "Unexpected chunk size"
 
         start = m.tell()
-        check_chunk(m, b'data')
+        self.chunk_assert(m, b'data')
 
         self.igods = []
         while m.tell() - start < size2:
             logging.debug("---- IGOD: {:0>12x} ----".format(m.tell()))
             self.igods.append(Igod(m))
 
-def check_chunk(m, target):
-    ax = m.read(len(target))
-    assert ax == target, "Expected chunk {}, received {}".format(target, ax)
+class Cxt(Object):
+    def __init__(self, infile):
+        with open(infile, mode='rb') as f:
+            self.m = mmap.mmap(f.fileno(), length=0, access=mmap.ACCESS_READ)
+            logging.debug("Opened context %s" % (infile))
+            
+            assert self.m.read(2) == b'II', "Incorrect file signature"
+            self.m.read(0x0e) # File size information?
+
+    def parse(self):
+        # TODO: Parse more RIFF chunks
+        r = Riff(self.m)
 
 def main(infile):
-    with open(infile, mode='rb') as f:
-        m = mmap.mmap(f.fileno(), length=0, access=mmap.ACCESS_READ)
-        logging.debug("Opened context %s" % (infile))
-        
-        assert m.read(2) == b'II', "Incorrect file signature"
-        m.read(0x0e) # File size information?
-        r = Riff(m)
+    c = Cxt(infile)
+    c.parse()
 
 logging.basicConfig(level=logging.DEBUG)
 
