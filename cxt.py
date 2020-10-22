@@ -14,7 +14,7 @@ class DatumType(IntEnum):
     STRING  = 0x0012,
     PALETTE = 0x05aa,
     ASTR    = 0x001b,
-    BBOX    = 0x001c,
+    BBOX    = 0x000d,
     POLY    = 0x001d,
     G_UNK1  = 0x001e
 
@@ -56,7 +56,7 @@ class Polygon(Object):
         size = Datum(m)
 
         self.points = []
-        while m.read(2) == b'\0e\00':
+        while m.read(2) == b'\x0e\x00':
             self.points.append(Point(m))
 
         m.seek(m.tell() - 2)
@@ -70,7 +70,6 @@ class Polygon(Object):
 
 class Bbox(Object):
     def __init__(self, m):
-        self.chunk_assert(m, b'\x0d\x00')
         self.chunk_assert(m, b'\x0e\x00')
         self.point = Point(m)
 
@@ -85,10 +84,10 @@ class Bbox(Object):
 
 class Point(Object):
     def __init__(self, m):
-        m.read(2) # 10 00
+        self.chunk_assert(m, b'\x10\x00')
         self.x = struct.unpack("<H", m.read(2))[0]
 
-        m.read(2) # 10 00
+        self.chunk_assert(m, b'\x10\x00')
         self.y = struct.unpack("<H", m.read(2))[0]
 
 class Datum(Object):
@@ -109,15 +108,12 @@ class Datum(Object):
             elif self.d == DatumType.ASTR:
                 self.t = self.d
                 self.d = Refs(m)
-            elif self.d == DatumType.BBOX:
-                self.t = self.d
-                self.d = Bbox(m)
             elif self.d == DatumType.POLY:
                 self.t = self.d
                 self.d = Polygon(m)
             elif self.d == DatumType.G_UNK1:
                 self.t = self.d
-                self.d = Placeholder(m, 0x2e)
+                self.d = Placeholder(m, 0x0b)
         elif self.t == DatumType.UINT32:
             self.d = struct.unpack("<L", m.read(4))[0]
         elif self.t == DatumType.STRING:
