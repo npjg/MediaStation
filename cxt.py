@@ -195,7 +195,13 @@ class Riff(Object):
         self.igods = []
         while m.tell() - start < size2:
             logging.debug("---- IGOD: {:0>12x} ----".format(m.tell()))
-            self.igods.append(Igod(m))
+            try:
+                self.igods.append(Igod(m))
+                if len(self.igods[-1].datums) > 4:
+                    logging.debug("End: {}".format(self.igods[-1]))
+            except AssertionError as e:
+                logging.warning(e)
+                m.seek(int(input("Next chunk address: "), 16))
 
 class Cxt(Object):
     def __init__(self, infile):
