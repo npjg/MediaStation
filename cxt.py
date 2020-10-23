@@ -277,12 +277,17 @@ class Cxt(Object):
             self.m = mmap.mmap(f.fileno(), length=0, access=mmap.ACCESS_READ)
             logging.debug("Opened context %s" % (infile))
             
-            assert self.m.read(2) == b'II', "Incorrect file signature"
-            self.m.read(0x0e) # File size information?
+            assert self.m.read(4) == b'II\x00\x00', "Incorrect file signature"
+            struct.unpack("<L", self.m.read(4))[0]
+            self.riff_count = struct.unpack("<L", self.m.read(4))[0]
+            self.size = struct.unpack("<L", self.m.read(4))[0]
+
+            self.riffs = []
 
     def parse(self):
-        # TODO: Parse more RIFF chunks
-        r = Riff(self.m)
+        s = self.m.tell()
+        while self.m.tell() - s < self.size:
+            self.riffs.append(Riff(self.m))
 
 def main(infile):
     c = Cxt(infile)
