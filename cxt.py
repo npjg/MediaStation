@@ -308,6 +308,13 @@ class Cxt(Object):
     def assets(self):
         raise NotImplementedError
 
+    def __repr__(self):
+        root = self.riffs[0].chunks[0].d
+        return "<Cxt: i: {}{}>".format(
+            root.datums[2].d,
+            ", n: {}".format(root.datums[5].d) if len(root.datums) > 5 else ""
+        )
+
 def main(infile):
     c = Cxt(infile)
     c.parse()
