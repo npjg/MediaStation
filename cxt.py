@@ -13,7 +13,7 @@ class DatumType(IntEnum):
     UINT32  = 0x0004,
     STRING  = 0x0012,
     PALETTE = 0x05aa,
-    ASTR    = 0x001b,
+    REF     = 0x001b,
     BBOX    = 0x000d,
     POLY    = 0x001d,
     G_UNK1  = 0x001e
@@ -34,22 +34,22 @@ class Placeholder(Object):
     def __repr__(self):
         return "<Placeholder: l: {}>".format(len(self.data))
 
-class Refs(Object):
-    def __init__(self, m):
-        self.refs = []
+class Ref(Object):
+    def __init__(self, m, get_id=True):
+        self.chunk_assert(m, b'\x1b\x00')
 
-        while struct.unpack("<H", m.read(2))[0] == DatumType.ASTR:
-            r = {"astring": m.read(4).decode("utf-8"), "id": Datum(m)}
-            self.refs.append(r)
-
-        m.seek(m.tell() - 2)
+        self.a = m.read(4).decode("utf-8")
+        self.i = Datum(m) if get_id else 0
 
     def __repr__(self):
-        return "{}<Refs: d: {}, l: {}>".format(
-            "\n -- " if len(self.refs) > 1 else "",
-            [r["astring"] for r in self.refs],
-            ["0x{:0>4x}".format(r["id"].d) for r in self.refs] 
-        )
+        return("<Ref: a: {}, i: 0x{:0>4x} (0x{:0>4d})>".format(self.a, self.i.d, self.i.d))
+
+class MovieRef(Object):
+    def __init__(self, m):
+        self.refs = [Ref(m), Ref(m), Ref(m, get_id=False)]
+
+    def __repr__(self):
+        return("<MovieRef: a: {}>".format([r.a for r in self.refs]))
 
 class Polygon(Object):
     def __init__(self, m):
@@ -105,9 +105,19 @@ class Datum(Object):
             if self.d == DatumType.PALETTE:
                 self.t = self.d
                 self.d = m.read(0x300)
-            elif self.d == DatumType.ASTR:
-                self.t = self.d
-                self.d = Refs(m)
+            elif self.d == DatumType.REF:
+                try:
+                    d = None
+                    if parent.t.d == IgodType.MOV:
+                        d = MovieRef(m)
+                    else:
+                        d = Ref(m)
+
+                    self.t = self.d
+                    self.d = d
+                except AssertionError:
+                    m.seek(m.tell() - 2)
+                    pass
             elif self.d == DatumType.POLY:
                 self.t = self.d
                 self.d = Polygon(m)
