@@ -8,7 +8,13 @@ import struct
 import subprocess
 import mmap
 
+class IgodType(IntEnum):
+    IMG  = 0x0007,
+    MOV  = 0x0016,
+    HSP  = 0x000b
+
 class DatumType(IntEnum):
+    UINT8   = 0x0002,
     UINT16  = 0x0003,
     UINT32  = 0x0004,
     STRING  = 0x0012,
@@ -16,7 +22,10 @@ class DatumType(IntEnum):
     REF     = 0x001b,
     BBOX    = 0x000d,
     POLY    = 0x001d,
-    G_UNK1  = 0x001e
+    G_UNK1  = 0x001e,
+    G_UNK2  = 0x001f,
+    G_UNK3  = 0x05dc,
+    A_UNK1  = 0x0011
 
 class Object:
     def chunk_assert(self, m, target):
@@ -98,7 +107,9 @@ class Datum(Object):
         self.d = None
         self.t = struct.unpack("<H", m.read(2))[0]
 
-        if self.t == DatumType.UINT16:
+        if self.t == DatumType.UINT8:
+            self.d = int.from_bytes(m.read(1), byteorder='little')
+        elif self.t == DatumType.UINT16:
             self.d = struct.unpack("<H", m.read(2))[0]
 
             # TODO: Replace with parent types.
@@ -123,7 +134,15 @@ class Datum(Object):
                 self.d = Polygon(m)
             elif self.d == DatumType.G_UNK1:
                 self.t = self.d
-                self.d = Placeholder(m, 0x0b)
+                self.chunk_assert(m, b'\x10\x00')
+                self.d = struct.unpack("<H", m.read(2))[0]
+            elif self.d == DatumType.G_UNK2:
+                self.t = self.d
+                self.chunk_assert(m, b'\x02\x00')
+                self.d = int.from_bytes(m.read(1), byteorder='little')
+            elif self.d == DatumType.G_UNK3:
+                self.t = self.d
+                self.d = Placeholder(m, 0x0a)
         elif self.t == DatumType.UINT32:
             self.d = struct.unpack("<L", m.read(4))[0]
         elif self.t == DatumType.STRING:
@@ -131,6 +150,8 @@ class Datum(Object):
             self.d = m.read(size.d).decode("utf-8")
         elif self.t == DatumType.BBOX:
             self.d = Bbox(m)
+        elif self.t == DatumType.A_UNK1:
+            self.d = Placeholder(m, 0x08)
         else:
             logging.warning("(@ 0x{:0>12x}) Unknown datum type: 0x{:0>4x}. Assuming UINT16".format(m.tell() - 2, self.t))
             self.d = struct.unpack("<H", m.read(2))[0]
