@@ -29,9 +29,15 @@ class DatumType(IntEnum):
 
 class Object:
     def chunk_assert(self, m, target):
-        s = m.tell()
-        ax = m.read(len(target))
+        ax = m
+        try:
+            s = m.tell()
+            ax = m.read(len(target))
+        except TypeError:
+            pass
+
         assert ax == target, "(@ 0x{:0>12x}) Expected chunk {}, received {}".format(s, target, ax)
+        return ax
 
     def __format__(self, spec):
         return self.__repr__()
