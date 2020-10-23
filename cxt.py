@@ -48,7 +48,7 @@ class Placeholder(Object):
         self.data = m.read(l)
 
     def __repr__(self):
-        return "<Placeholder: l: {}>".format(len(self.data))
+        return "<Placeholder: l: {} \n -- {}>".format(len(self.data), " ".join("%02x" % b for b in self.data))
 
 class Ref(Object):
     def __init__(self, m, get_id=True):
@@ -134,7 +134,7 @@ class Raw(Object):
         self.data = m.read(self.parent.size - (m.tell() - self.parent.s))
 
     def __repr__(self):
-        return "<Raw: l: {}>".format(len(self.data))
+        return "<Raw: i: {}, l: {}>".format(self.parent.cc, len(self.data))
 
 class Datum(Object):
     def __init__(self, m, parent=None):
@@ -262,20 +262,14 @@ class Riff(Object):
 
         self.chunks = []
         while m.tell() - start < size2:
-            logging.debug("---- IGOD: {:0>12x} ----".format(m.tell()))
-            try:
-                if len(self.igods[-1].datums) > 4:
-                    logging.debug("End: {}".format(self.igods[-1]))
-            except AssertionError as e:
-                logging.warning(e)
-                m.seek(int(input("Next chunk address: "), 16))
+            logging.debug("---- CHUNK: {:0>12x} ----".format(m.tell()))
             self.chunks.append(Chunk(m))
 
 class Cxt(Object):
     def __init__(self, infile):
         with open(infile, mode='rb') as f:
             self.m = mmap.mmap(f.fileno(), length=0, access=mmap.ACCESS_READ)
-            logging.debug("Opened context %s" % (infile))
+            logging.debug("Opened context {}".format(infile))
             
             assert self.m.read(4) == b'II\x00\x00', "Incorrect file signature"
             struct.unpack("<L", self.m.read(4))[0]
