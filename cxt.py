@@ -14,6 +14,7 @@ class IgodType(IntEnum):
     HSP  = 0x000b
 
 class DatumType(IntEnum):
+    NONE   =  0x0000,
     UINT8   = 0x0002,
     UINT16  = 0x0003,
     UINT32  = 0x0004,
@@ -127,9 +128,13 @@ class Raw(Object):
         self.parent = parent
         self.header = []
 
-        while m.tell() - self.parent.s < Datum(m).d:
-            self.header.append(Datum(m))
-            logging.debug(self.header[-1])
+        try:
+            d = Datum(m)
+            while m.tell() - self.parent.s < d.d:
+                self.header.append(Datum(m))
+                logging.debug(self.header[-1])
+        except TypeError:
+            m.seek(self.parent.s)
 
         self.data = m.read(self.parent.size - (m.tell() - self.parent.s))
 
@@ -191,8 +196,10 @@ class Datum(Object):
             self.d = Placeholder(m, 0x08)
         elif self.t == DatumType.POINT:
             self.d = Point(m)
+        elif self.t == DatumType.NONE:
+            self.d = 0
         else:
-            logging.warning("(@ 0x{:0>12x}) Unknown datum type: 0x{:0>4x}. Assuming UINT16".format(m.tell() - 2, self.t))
+            raise TypeError("(@ 0x{:0>12x}) Unknown datum type: 0x{:0>4x}. Assuming UINT16".format(m.tell() - 2, self.t))
             self.d = struct.unpack("<H", m.read(2))[0]
 
     def __repr__(self):
@@ -241,6 +248,13 @@ class Igod(Object):
             self.r.d, self.r.d, self.t.d, self.parent.s, self.parent.size, len(self.datums)
         )
 
+class Asset(Object):
+    def __init__(self, i, c):
+        assert i.r == r.cc, "Mismatched chunk identifiers: {} \ {}".format(i.r, r.cc)
+
+        self.i = i
+        self.r = r
+
 class Riff(Object):
     def __init__(self, m):
         logging.debug("#### RIFF: {:0>12x} ####".format(m.tell()))
@@ -279,9 +293,14 @@ class Cxt(Object):
             self.riffs = []
 
     def parse(self):
-        s = self.m.tell()
-        while self.m.tell() - s < self.size:
+        self.m.seek(0x10)
+
+        while self.m.tell() < self.size:
             self.riffs.append(Riff(self.m))
+
+    @property
+    def assets(self):
+        raise NotImplementedError
 
 def main(infile):
     c = Cxt(infile)
