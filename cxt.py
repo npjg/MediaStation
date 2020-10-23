@@ -105,6 +105,33 @@ class Point(Object):
         self.chunk_assert(m, b'\x10\x00')
         self.y = struct.unpack("<H", m.read(2))[0]
 
+class Chunk(Object):
+    def __init__(self, m):
+        self.cc = m.read(4).decode("utf-8")
+        self.size = struct.unpack("<L", m.read(4))[0]
+        self.d = None
+
+        self.s = m.tell()
+        if self.cc == 'igod':
+            self.d = Igod(m, self)
+        else:
+            self.d = Raw(m, self)
+            logging.debug(self.d)
+
+class Raw(Object):
+    def __init__(self, m, parent):
+        self.parent = parent
+        self.header = []
+
+        while m.tell() - self.parent.s < Datum(m).d:
+            self.header.append(Datum(m))
+            logging.debug(self.header[-1])
+
+        self.data = m.read(self.parent.size - (m.tell() - self.parent.s))
+
+    def __repr__(self):
+        return "<Raw: l: {}>".format(len(self.data))
+
 class Datum(Object):
     def __init__(self, m, parent=None):
         self.parent = parent
@@ -165,7 +192,7 @@ class Datum(Object):
     def __repr__(self):
         data = ""
         base = "<Datum: s: 0x{:0>12x} (0x{:0>4x}), t: 0x{:0>4x}, ".format(
-            self.s, self.s - self.parent.s if self.parent else 0, self.t
+            self.s, self.s - self.parent.parent.s if self.parent else 0, self.t
         )
 
         try:
@@ -179,13 +206,11 @@ class Datum(Object):
         return base + data
 
 class Igod(Object):
-    def __init__(self, m):
-        self.chunk_assert(m, b'igod')
-        self.size = struct.unpack("<L", m.read(4))[0]
-
-        self.s = m.tell()
+    def __init__(self, m, parent):
+        self.parent = parent
         self.datums = []
-        while m.tell() - self.s < self.size:
+
+        while m.tell() - self.parent.s < self.parent.size:
             self.datums.append(Datum(m, self))
 
         if m.tell() % 2 == 1:
@@ -207,7 +232,7 @@ class Igod(Object):
 
     def __repr__(self):
         return "<Igod: id: 0x{:0>4x} ({:0>4d}), t: 0x{:0>4x} (s: 0x{:0>12x}, S: 0x{:0>6x}, l: {:0>4d})>".format(
-            self.r.d, self.r.d, self.t.d, self.s, self.size, len(self.datums)
+            self.r.d, self.r.d, self.t.d, self.parent.s, self.parent.size, len(self.datums)
         )
 
 class Riff(Object):
@@ -229,16 +254,16 @@ class Riff(Object):
         start = m.tell()
         self.chunk_assert(m, b'data')
 
-        self.igods = []
+        self.chunks = []
         while m.tell() - start < size2:
             logging.debug("---- IGOD: {:0>12x} ----".format(m.tell()))
             try:
-                self.igods.append(Igod(m))
                 if len(self.igods[-1].datums) > 4:
                     logging.debug("End: {}".format(self.igods[-1]))
             except AssertionError as e:
                 logging.warning(e)
                 m.seek(int(input("Next chunk address: "), 16))
+            self.chunks.append(Chunk(m))
 
 class Cxt(Object):
     def __init__(self, infile):
