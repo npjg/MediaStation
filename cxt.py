@@ -233,8 +233,8 @@ class Igod(Object):
         return self.datums[4]
 
     def log(self):
-        for d in self.datums:
-            logging.debug(d)
+        for d, i in zip(self.datums, range(len(self.datums))):
+            logging.debug("{:0>3d}: {}".format(i, d))
 
     def __repr__(self):
         return "<Igod: id: 0x{:0>4x} ({:0>4d}), t: 0x{:0>4x} (s: 0x{:0>12x}, S: 0x{:0>6x}, l: {:0>4d})>".format(
