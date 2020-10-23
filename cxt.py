@@ -233,11 +233,17 @@ class Igod(Object):
 
     @property
     def t(self):
-        return self.datums[3]
+        try:
+            return self.datums[3]
+        except:
+            return None
 
     @property
     def r(self):
-        return self.datums[4]
+        try:
+            return self.datums[4]
+        except:
+            return None
 
     def log(self):
         for d, i in zip(self.datums, range(len(self.datums))):
