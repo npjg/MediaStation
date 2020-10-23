@@ -21,6 +21,7 @@ class DatumType(IntEnum):
     PALETTE = 0x05aa,
     REF     = 0x001b,
     BBOX    = 0x000d,
+    POINT   = 0x000f,
     POLY    = 0x001d,
     G_UNK1  = 0x001e,
     G_UNK2  = 0x001f,
@@ -105,6 +106,9 @@ class Point(Object):
         self.chunk_assert(m, b'\x10\x00')
         self.y = struct.unpack("<H", m.read(2))[0]
 
+    def __repr__(self):
+        return "<Point: x: {}, y: {}>".format(self.x, self.y)
+
 class Chunk(Object):
     def __init__(self, m):
         self.cc = m.read(4).decode("utf-8")
@@ -185,6 +189,8 @@ class Datum(Object):
             self.d = Bbox(m)
         elif self.t == DatumType.A_UNK1:
             self.d = Placeholder(m, 0x08)
+        elif self.t == DatumType.POINT:
+            self.d = Point(m)
         else:
             logging.warning("(@ 0x{:0>12x}) Unknown datum type: 0x{:0>4x}. Assuming UINT16".format(m.tell() - 2, self.t))
             self.d = struct.unpack("<H", m.read(2))[0]
