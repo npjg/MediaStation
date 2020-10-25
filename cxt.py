@@ -58,7 +58,9 @@ class Placeholder(Object):
         self.data = m.read(l)
 
     def __repr__(self):
-        return "<Placeholder: l: {} \n -- {}>".format(len(self.data), " ".join("%02x" % b for b in self.data))
+        return "\n  <Placeholder: size: {} data: {}>".format(
+            len(self.data), " ".join("%02x" % b for b in self.data)
+        )
 
 class Ref(Object):
     def __init__(self, m, get_id=True):
@@ -68,14 +70,16 @@ class Ref(Object):
         self.i = Datum(m) if get_id else 0
 
     def __repr__(self):
-        return("<Ref: a: {}, i: 0x{:0>4x} (0x{:0>4d})>".format(self.a, self.i.d, self.i.d))
+        return("<Ref: a: {}, i: 0x{:0>4x} (0x{:0>4d})>".format(
+            self.a, self.i.d, self.i.d)
+        )
 
 class MovieRef(Object):
     def __init__(self, m):
         self.refs = [Ref(m), Ref(m), Ref(m, get_id=False)]
 
     def __repr__(self):
-        return("<MovieRef: a: {}>".format([r.a for r in self.refs]))
+        return("<MovieRef: ids: {}>".format([r.a for r in self.refs]))
 
 class Polygon(Object):
     def __init__(self, m):
@@ -100,7 +104,7 @@ class Bbox(Object):
         self.dims = Point(m)
 
     def __repr__(self):
-        return "<bbox: {}, {}, {}, {}>".format(
+        return "<Bbox: {}, {}, {}, {}>".format(
             self.point.x, self.point.x + self.dims.x,
             self.point.y, self.point.y + self.dims.y
         )
@@ -145,7 +149,9 @@ class Raw(Object):
         self.data = m.read(self.parent.size - (m.tell() - self.parent.s))
 
     def __repr__(self):
-        return "<Raw: i: {}, l: {}>".format(self.parent.cc, len(self.data))
+        return "<Raw: 0x{:0>12x}; id: {}, size: 0x{:0>8x}>".format(
+            self.s, self.parent.cc, len(self.data)
+        )
 
 class Datum(Object):
     def __init__(self, m, parent=None):
@@ -205,22 +211,24 @@ class Datum(Object):
         elif self.t == DatumType.NONE:
             self.d = 0
         else:
-            raise TypeError("(@ 0x{:0>12x}) Unknown datum type: 0x{:0>4x}. Assuming UINT16".format(m.tell() - 2, self.t))
+            raise TypeError("(@ 0x{:0>12x}) Unknown datum type: 0x{:0>4x}. Assuming UINT16".format(
+                m.tell() - 2, self.t)
+            )
             self.d = struct.unpack("<H", m.read(2))[0]
 
     def __repr__(self):
         data = ""
-        base = "<Datum: s: 0x{:0>12x} (0x{:0>4x}), t: 0x{:0>4x}, ".format(
+        base = "<Datum: 0x{:0>12x} (0x{:0>4x}); type: 0x{:0>4x}, ".format(
             self.s, self.s - self.parent.parent.s if self.parent else 0, self.t
         )
 
         try:
             if len(self.d) > 0x12 and not isinstance(self.d, str):
-                data = "<l: 0x{:0>6x}>>".format(len(self.d))
+                data = "<length: 0x{:0>6x}>>".format(len(self.d))
             else:
-                data = "d: {}>".format(self.d)
+                data = "data: {}>".format(self.d)
         except:
-            data = "d: {}{:0>4x}>".format("0x" if isinstance(self.d, int) else "", self.d)
+            data = "data: {}{:0>8x}>".format("0x" if isinstance(self.d, int) else "", self.d)
 
         return base + data
 
@@ -288,7 +296,7 @@ class Riff(Object):
 
         self.chunks = []
         while m.tell() - start < size2:
-            logging.debug("---- CHUNK: {:0>12x} ----".format(m.tell()))
+            logging.debug("---- CHUNK: 0x{:0>12x} ----".format(m.tell()))
             self.chunks.append(Chunk(m))
 
 class Cxt(Object):
