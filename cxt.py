@@ -140,13 +140,18 @@ class Raw(Object):
 
         try:
             d = Datum(m)
+            self.header.append(d)
             while m.tell() - self.parent.s < d.d:
                 self.header.append(Datum(m))
                 logging.debug(self.header[-1])
         except TypeError:
             m.seek(self.parent.s)
 
+        self.s = m.tell()
         self.data = m.read(self.parent.size - (m.tell() - self.parent.s))
+
+        if m.tell() % 2 == 1:
+            m.read(1)
 
     def __repr__(self):
         return "<Raw: 0x{:0>12x}; id: {}, size: 0x{:0>8x}>".format(
