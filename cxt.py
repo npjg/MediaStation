@@ -30,16 +30,25 @@ class DatumType(IntEnum):
     A_UNK1  = 0x0011
 
 class Object:
-    def chunk_assert(self, m, target):
+    def value_assert(self, m, target, type="value", warn=False):
+        s = 0
         ax = m
         try:
             s = m.tell()
             ax = m.read(len(target))
-        except TypeError:
+        except AttributeError:
             pass
 
-        assert ax == target, "(@ 0x{:0>12x}) Expected chunk {}, received {}".format(s, target, ax)
+        msg = "(@ 0x{:0>12x}) Expected {} {}, received {}".format(s, type, target, ax)
+        if warn and ax != target:
+            logging.warning(msg)
+        else:
+            assert ax == target, msg
+
         return ax
+
+    def chunk_assert(self, m, target, warn=False):
+        self.value_assert(m, target, "chunk", warn)
 
     def __format__(self, spec):
         return self.__repr__()
@@ -77,10 +86,7 @@ class Polygon(Object):
             self.points.append(Point(m))
 
         m.seek(m.tell() - 2)
-
-        assert len(self.points) == size.d, "Expected {} polygon points, got {}".format(
-            size.d, len(self.points)
-        )
+        self.value_assert(size.d, len(self.points), "polygon points")
 
     def __repr__(self):
         return "<Polygon: l: {}>".format(len(self.points))
