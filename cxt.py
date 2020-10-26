@@ -159,8 +159,8 @@ class Raw(Object):
         self.align(m)
 
     def __repr__(self):
-        return "<Raw: 0x{:0>12x}; id: {}, size: 0x{:0>8x}>".format(
-            self.s, self.parent.cc, len(self.data.getbuffer())
+        return "<Raw: 0x{:0>12x}; id: {} ({:0>3d}), size: 0x{:0>8x}>".format(
+            self.s, self.parent.cc, int(self.parent.cc[1:], 16), len(self.data.getbuffer())
         )
 
 class Datum(Object):
