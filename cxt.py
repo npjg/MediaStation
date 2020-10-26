@@ -271,6 +271,16 @@ class Igod(Object):
         except:
             return None
 
+    @property
+    def s(self):
+        try:
+            if self.datums[6].t != DatumType.STRING:
+                return None
+
+            return self.datums[6]
+        except:
+            return None
+
     def log(self):
         for d, i in zip(self.datums, range(len(self.datums))):
             logging.debug("{:0>3d}: {}".format(i, d))
