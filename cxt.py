@@ -5,6 +5,7 @@ import logging
 
 from enum import IntEnum
 import struct
+import io
 import subprocess
 import mmap
 
@@ -49,6 +50,10 @@ class Object:
 
     def chunk_assert(self, m, target, warn=False):
         self.value_assert(m, target, "chunk", warn)
+
+    def align(self, m):
+        if m.tell() % 2 == 1:
+            m.read(1)
 
     def __format__(self, spec):
         return self.__repr__()
@@ -148,14 +153,14 @@ class Raw(Object):
             m.seek(self.parent.s)
 
         self.s = m.tell()
-        self.data = m.read(self.parent.size - (m.tell() - self.parent.s))
-
-        if m.tell() % 2 == 1:
-            m.read(1)
+        self.data = io.BytesIO(
+            m.read(self.parent.size - (m.tell() - self.parent.s))
+        )
+        self.align(m)
 
     def __repr__(self):
         return "<Raw: 0x{:0>12x}; id: {}, size: 0x{:0>8x}>".format(
-            self.s, self.parent.cc, len(self.data)
+            self.s, self.parent.cc, len(self.data.getbuffer())
         )
 
 class Datum(Object):
@@ -248,9 +253,8 @@ class Igod(Object):
         while m.tell() - self.parent.s < self.parent.size:
             self.datums.append(Datum(m, self))
 
-        if m.tell() % 2 == 1:
-            m.read(1)
 
+        self.align(m)
         self.log()
 
     @property
