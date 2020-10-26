@@ -233,7 +233,10 @@ class Datum(Object):
             else:
                 data = "data: {}>".format(self.d)
         except:
-            data = "data: {}{:0>8x}>".format("0x" if isinstance(self.d, int) else "", self.d)
+            data = "data: {}{:0>6x}{}>".format(
+                "0x" if isinstance(self.d, int) else "", self.d,
+                " ({:0>4d})".format(self.d) if isinstance(self.d, int) else ""
+            )
 
         return base + data
 
