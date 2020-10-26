@@ -251,8 +251,13 @@ class Igod(Object):
         self.datums = []
 
         while m.tell() - self.parent.s < self.parent.size:
-            self.datums.append(Datum(m, self))
-
+            try:
+                self.datums.append(Datum(m, self))
+            except Exception as e:
+                p = m.find(b'igod', m.tell())
+                logging.warning(e)
+                logging.warning("Found next chunk at {:0>12x}".format(p))
+                m.seek(p)
 
         self.align(m)
         self.log()
