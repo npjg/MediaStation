@@ -9,259 +9,99 @@ import io
 import subprocess
 import mmap
 
-# Internal representations
-class IgodType(IntEnum):
+class ChunkType(IntEnum):
+    HEADER = 0x000d,
+    IMAGE  = 0x0018,
+    MOV_1  = 0xa8a4,
+    MOV_2  = 0xa906
+
+class HeaderType(IntEnum):
+    ROOT  = 0x000e,
+    ASSET = 0x0011,
+    LINK  = 0x0013,
+    MOV_H = 0x06aa,
+    MOV_V = 0x06a9,
+
+class AssetType(IntEnum):
+    SCR  = 0x0001,
     IMG  = 0x0007,
     MOV  = 0x0016,
     HSP  = 0x000b,
     TMR  = 0x0006,
     SND  = 0x0005,
-    PAL  = 0x0017
+    PAL  = 0x0017,
+    TXT  = 0x001a,
+    FON  = 0x001b,
+    CVS  = 0x001e,
+    SPR  = 0x000e
 
 class DatumType(IntEnum):
-    NONE    = 0x0000,
-    MOV     = 0x06a8,
     UINT8   = 0x0002,
     UINT16  = 0x0003,
     UINT32  = 0x0004,
     UINT64  = 0x0009,
+    SINT16  = 0x0010,
+    SINT64  = 0x0011,
     STRING  = 0x0012,
+    POINT   = 0x000f,
     PALETTE = 0x05aa,
     REF     = 0x001b,
     BBOX    = 0x000d,
-    POINT   = 0x000f,
-    POLY    = 0x001d,
-    G_UNK1  = 0x001e,
-    G_UNK2  = 0x001f,
-    G_UNK3  = 0x05dc,
-    A_UNK1  = 0x0011
+    POLY    = 0x001d
 
-class HeaderType(IntEnum):
-    ROOT  = 0x0014,
-    ASSET = 0x0011,
-    REF   = 0x0013
+def value_assert(m, target, type="value", warn=False):
+    s = 0
+    ax = m
+    try:
+        s = m.tell()
+        ax = m.read(len(target))
+    except AttributeError:
+        pass
 
-class Object:
-    def value_assert(self, m, target, type="value", warn=False):
-        s = 0
-        ax = m
-        try:
-            s = m.tell()
-            ax = m.read(len(target))
-        except AttributeError:
-            pass
-
-        msg = "(@ 0x{:0>12x}) Expected {} {}, received {}".format(s, type, target, ax)
-        if warn and ax != target:
-            logging.warning(msg)
-        else:
-            assert ax == target, msg
+    msg = "(@ +0x{:0>4x}) Expected {} {}{}, received {}{}".format(
+        s, type, target, " (0x{:0>4x})".format(target) if isinstance(target, int) else "",
+        ax, " (0x{:0>4x})".format(ax) if isinstance(ax, int) else "",
+    )
+    if warn and ax != target:
+        logging.warning(msg)
+    else:
+        assert ax == target, msg
 
         return ax
 
-    def chunk_assert(self, m, target, warn=False):
-        self.value_assert(m, target, "chunk", warn)
+def chunk_assert(m, target, warn=False):
+    value_assert(m, target, "chunk", warn)
 
-    def align(self, m):
-        if m.tell() % 2 == 1:
-            m.read(1)
+def align(m):
+    if m.tell() % 2 == 1:
+        m.read(1)
 
+
+# Internal representations
+
+class Object:
     def __format__(self, spec):
         return self.__repr__()
 
-class Placeholder(Object):
-    def __init__(self, m, l):
-        self.data = m.read(l)
-
-    def __repr__(self):
-        return "\n  <Placeholder: size: {} data: {}>".format(
-            len(self.data), " ".join("%02x" % b for b in self.data)
-        )
-
-class Ref(Object):
-    def __init__(self, m, get_id=True):
-        self.chunk_assert(m, b'\x1b\x00')
-
-        self.a = m.read(4).decode("utf-8")
-        self.i = Datum(m) if get_id else 0
-
-    def __repr__(self):
-        return("<Ref: a: {} ({:0>4d}), i: 0x{:0>4x} ({:0>4d})>".format(
-            self.a, int(self.a[1:], 16), self.i.d, self.i.d)
-        )
-
-class MovieRef(Object):
-    def __init__(self, m):
-        self.refs = [Ref(m), Ref(m), Ref(m, get_id=False)]
-
-    def __repr__(self):
-        return("<MovieRef: ids: {}>".format([r.a for r in self.refs]))
-
-class Polygon(Object):
-    def __init__(self, m):
-        size = Datum(m)
-
-        self.points = []
-        while m.read(2) == b'\x0e\x00':
-            self.points.append(Point(m))
-
-        m.seek(m.tell() - 2)
-        self.value_assert(size.d, len(self.points), "polygon points", warn=True)
-
-    def __repr__(self):
-        return "<Polygon: l: {}>".format(len(self.points))
-
-class Bbox(Object):
-    def __init__(self, m):
-        self.chunk_assert(m, b'\x0e\x00')
-        self.point = Point(m)
-
-        self.chunk_assert(m, b'\x0f\x00')
-        self.dims = Point(m)
-
-    def __repr__(self):
-        return "<Bbox: {}, {}, {}, {}>".format(
-            self.point.x, self.point.x + self.dims.x,
-            self.point.y, self.point.y + self.dims.y
-        )
-
-class Point(Object):
-    def __init__(self, m):
-        self.chunk_assert(m, b'\x10\x00')
-        self.x = struct.unpack("<H", m.read(2))[0]
-
-        self.chunk_assert(m, b'\x10\x00')
-        self.y = struct.unpack("<H", m.read(2))[0]
-
-    def __repr__(self):
-        return "<Point: x: {}, y: {}>".format(self.x, self.y)
-
 class Chunk(Object):
     def __init__(self, m):
-        self.cc = m.read(4).decode("utf-8")
+        self.start = m.tell()
+        self.code = m.read(4).decode("utf-8")
         self.size = struct.unpack("<L", m.read(4))[0]
 
-        self.s = m.tell()
-        try:
-            self.d = Header(m, self)
-        except TypeError:
-            self.d = Raw(m, self)
-
-        logging.debug(self.d)
-
-class Header(Object):
-    def __init__(self, m, parent):
-        d = Datum(m) # self.value_assert(d.d, 0x000d)
-        self.t = Datum(m).d
-
-        if self.t == HeaderType.ROOT:
-            self.d = AssetHeader(m, parent)
-        elif self.t == HeaderType.ASSET:
-            self.d = AssetHeader(m, parent)
-        elif self.t == HeaderType.REF:
-            self.d = RefHeader(m, parent)
-        else:
-            m.seek(m.tell() - 4)
-            raise TypeError("(@ 0x{:0>12x}) Unknown header type 0x{:0>4x}".format(m.tell(), self.t))
+        self.data = io.BytesIO(m.read(self.size))
+        align(m)
 
     def __repr__(self):
-        return repr(self.d)
-
-class AssetHeader(Object):
-    def __init__(self, m, parent):
-        self.parent = parent
-        self.datums = []
-
-        while m.tell() - self.parent.s < self.parent.size:
-            # TODO: Remove the workaround once the code is working.
-            try:
-                self.datums.append(Datum(m, self))
-            except Exception as e:
-                p = m.find(b'igod', m.tell())
-                logging.warning(e)
-                logging.warning("Found next chunk at {:0>12x}".format(p))
-                m.seek(p)
-
-        self.align(m)
-        self.log()
-
-    @property
-    def t(self):
-        try:
-            return self.datums[1]
-        except:
-            return None
-
-    @property
-    def r(self):
-        try:
-            return self.datums[2]
-        except:
-            return None
-
-    @property
-    def s(self):
-        try:
-            if self.datums[4].t != DatumType.STRING:
-                return None
-
-            return self.datums[4]
-        except:
-            return None
-
-    def log(self):
-        for d, i in zip(self.datums, range(len(self.datums))):
-            logging.debug("{:0>3d}: {}".format(i, d))
-
-    def __repr__(self):
-        return "<AssetHeader: 0x{:0>12x}; id: 0x{:0>4x} ({:0>4d}), type: 0x{:0>4x}, size: 0x{:0>4x})>".format(
-            self.parent.s, self.r.d, self.r.d, self.t.d, len(self.datums)
-        )
-
-class RefHeader(Object):
-    def __init__(self, m, parent):
-        self.parent = parent
-        self.ids = []
-
-        word = Datum(m)
-        while word.d != 0:
-            if word.d != 0x0019:
-                self.ids.append(word)
-
-            word = Datum(m)
-
-    def __repr__(self):
-        return "<RefHeader: 0x{:0>12x}; ids: {}>".format(self.parent.s, [i.d for i in self.ids])
-
-class Raw(Object):
-    def __init__(self, m, parent):
-        self.parent = parent
-        self.header = []
-
-        try:
-            d = Datum(m)
-            self.header.append(d)
-            while m.tell() - self.parent.s < d.d:
-                self.header.append(Datum(m))
-                logging.debug(self.header[-1])
-        except TypeError:
-            m.seek(self.parent.s)
-
-        self.s = m.tell()
-        self.data = io.BytesIO(
-            m.read(self.parent.size - (m.tell() - self.parent.s))
-        )
-        self.align(m)
-
-    def __repr__(self):
-        return "<Raw: 0x{:0>12x}; id: {} ({:0>3d}), size: 0x{:0>8x}>".format(
-            self.s, self.parent.cc, int(self.parent.cc[1:], 16), len(self.data.getbuffer())
+        return "<Chunk: 0x{:0>12x}; id: {}, size: 0x{:0>6x}>".format(
+            self.start, self.code, self.size
         )
 
 class Datum(Object):
     def __init__(self, m, parent=None):
-        self.parent = parent
-
+        # TODO: All this processing is unnecessary once I have the format
+        # completely figured out. All of this complicated type-checking can be
+        # replaced with assertion.
         self.s = m.tell()
         self.d = None
         self.t = struct.unpack("<H", m.read(2))[0]
@@ -271,63 +111,56 @@ class Datum(Object):
         elif self.t == DatumType.UINT16:
             self.d = struct.unpack("<H", m.read(2))[0]
 
-            # TODO: Replace with parent types.
-            if self.d == DatumType.PALETTE:
-                self.t = self.d
-                self.d = m.read(0x300)
-            elif self.d == DatumType.REF:
+            if self.d == DatumType.REF:
+                # Make sure it is truly a reference and keep as int if not
                 try:
-                    d = None
-                    if parent.t.d == IgodType.MOV:
-                        d = MovieRef(m)
-                    else:
-                        d = Ref(m)
-
-                    self.t = self.d
-                    self.d = d
+                    chunk_assert(m, b'\x1b\x00')
                 except AssertionError:
                     m.seek(m.tell() - 2)
+                    return
+
+                m.seek(m.tell() - 2)
+
+                # Separate out movie references from plain references.
+                self.t = self.d
+                try:
+                    if parent.datums[1].d == AssetType.MOV:
+                        self.d = MovieRef(m)
+                    else:
+                        self.d = Ref(m)
+                except IndexError:
+                    self.d = Ref(m)
+
             elif self.d == DatumType.POLY:
                 self.t = self.d
                 self.d = Polygon(m)
-            elif self.d == DatumType.G_UNK1:
+            elif self.d == DatumType.PALETTE:
                 self.t = self.d
-                self.chunk_assert(m, b'\x10\x00', warn=True)
-                self.d = struct.unpack("<H", m.read(2))[0]
-            elif self.d == DatumType.G_UNK2:
-                self.t = self.d
-                self.chunk_assert(m, b'\x02\x00', warn=True)
-                self.d = int.from_bytes(m.read(1), byteorder='little')
-            elif self.d == DatumType.G_UNK3:
-                self.t = self.d
-                self.d = Placeholder(m, 0x0a)
+                self.d = Palette(m, check=False)
+        elif self.t == DatumType.SINT16:
+            self.d = struct.unpack("<H", m.read(2))[0]
         elif self.t == DatumType.UINT32:
             self.d = struct.unpack("<L", m.read(4))[0]
         elif self.t == DatumType.UINT64:
+            self.d = struct.unpack("<Q", m.read(8))[0]
+        elif self.t == DatumType.SINT64:
             self.d = struct.unpack("<Q", m.read(8))[0]
         elif self.t == DatumType.STRING:
             size = Datum(m)
             self.d = m.read(size.d).decode("utf-8")
         elif self.t == DatumType.BBOX:
             self.d = Bbox(m)
-        elif self.t == DatumType.A_UNK1:
-            self.d = Placeholder(m, 0x08)
         elif self.t == DatumType.POINT:
             self.d = Point(m)
-        elif self.t == DatumType.NONE:
-            self.d = 0
         else:
-            raise TypeError("(@ 0x{:0>12x}) Unknown datum type: 0x{:0>4x}. Assuming UINT16".format(
-                m.tell() - 2, self.t)
-            )
-            self.d = struct.unpack("<H", m.read(2))[0]
+            raise TypeError("(@ 0x{:0>12x}) Unknown datum type 0x{:0>4x}".format(m.tell(), self.t))
 
     def __repr__(self):
         data = ""
-        base = "<Datum: 0x{:0>12x} (0x{:0>4x}); type: 0x{:0>4x}, ".format(
-            self.s, self.s - self.parent.parent.s if self.parent else 0, self.t
+        base = "<Datum: +0x{:0>4x}; type: 0x{:0>4x}, ".format(
+            self.s, self.t
         )
-
+        
         try:
             if len(self.d) > 0x12 and not isinstance(self.d, str):
                 data = "<length: 0x{:0>6x}>>".format(len(self.d))
@@ -338,66 +171,287 @@ class Datum(Object):
                 "0x" if isinstance(self.d, int) else "", self.d,
                 " ({:0>4d})".format(self.d) if isinstance(self.d, int) else ""
             )
-
+            
         return base + data
+
+class Array(Object):
+    def __init__(self, m, size=None):
+        self.start = m.tell()
+
+        self.datums = []
+        size = size if size else len(m.getbuffer())
+
+        while m.tell() < size:
+            self.datums.append(Datum(m, parent=self))
+            logging.debug(" -> {}".format(self.datums[-1]))
+
+    def __repr__(self):
+        return "<Array: 0x{:0>12x}; size: {:0>4d}".format(self.start, len(self.datums))
+
+    def log(self):
+        logging.debug(self)
+        for datum in self.datums:
+            logging.debug(" -> {}".format(datum))
+
+class AssetHeader(Object):
+    def __init__(self, m):
+        value_assert(Datum(m).d, HeaderType.ASSET, "asset header signature")
+        self.data = Array(m)
+
+    @property
+    def type(self):
+        return self.data.datums[1]
+
+    @property
+    def id(self):
+        return self.data.datums[2]
+
+    @property
+    def name(self):
+        if self.data.datums[4].t != DatumType.STRING:
+            return None
+
+        return self.data.datums[4]
+
+    def __repr__(self):
+        return "<AssetHeader: type: 0x{:0>4x}, id: 0x{:0>4x} ({:0>4d}){}>".format(
+            self.type.d, self.id.d, self.id.d, ", name: {}".format(self.name.d) if self.name else ""
+        )
+
+class AssetLink(Object):
+    def __init__(self, m):
+        value_assert(Datum(m).d, HeaderType.LINK, "link signature")
+        self.data = Array(m)
+
+    @property
+    def ids(self):
+        # For now, we just skip the even indices, as these are delimiters.
+        return self.data.datums[::2]
+
+class Ref(Object):
+    def __init__(self, m, datums=1):
+        chunk_assert(m, b'\x1b\x00')
+
+        self.string = m.read(4).decode("utf-8")
+        self.data = []
+        for _ in range(datums):
+            self.data.append(Datum(m))
+
+    @property
+    def id(self):
+        return int(self.string[1:], 16)
+
+    def __repr__(self):
+        return "<Ref: {} ({:0>4d})>".format(self.string, self.id)
+
+class MovieRef(Object):
+    def __init__(self, m):
+        self.refs = [Ref(m), Ref(m), Ref(m, datums=2)]
+        value_assert(Datum(m).d, 0x001c)
+
+    def __repr__(self):
+        return("<MovieRef: ids: {}>".format(
+            [r.string for r in self.refs])
+        )
+
+class Point(Object):
+    def __init__(self, m):
+        chunk_assert(m, b'\x10\x00')
+        self.x = struct.unpack("<H", m.read(2))[0]
+
+        chunk_assert(m, b'\x10\x00')
+        self.y = struct.unpack("<H", m.read(2))[0]
+
+    def __repr__(self):
+        return "<Point: x: {}, y: {}>".format(self.x, self.y)
+
+class Bbox(Object):
+    def __init__(self, m):
+        chunk_assert(m, b'\x0e\x00')
+        self.point = Point(m)
+
+        chunk_assert(m, b'\x0f\x00')
+        self.dims = Point(m)
+
+    def __repr__(self):
+        return "<Bbox: {}, {}, {}, {}>".format(
+            self.point.x, self.point.x + self.dims.x,
+            self.point.y, self.point.y + self.dims.y
+        )
+
+class Polygon(Object):
+    def __init__(self, m):
+        size = Datum(m)
+
+        self.points = []
+        while m.read(2) == b'\x0e\x00':
+            self.points.append(Point(m))
+
+        m.seek(m.tell() - 2)
+        value_assert(size.d, len(self.points), "polygon points", warn=True)
+
+    def __repr__(self):
+        return "<Polygon: points: {}>".format(len(self.points))
 
 class Riff(Object):
     def __init__(self, m):
         logging.debug("#### RIFF: {:0>12x} ####".format(m.tell()))
-        self.chunk_assert(m, b'RIFF')
-        size1 = struct.unpack("<L", m.read(4))[0]
+        chunk_assert(m, b'RIFF')
+        size = struct.unpack("<L", m.read(4))[0]
 
-        self.chunk_assert(m, b'IMTS')
-        self.chunk_assert(m, b'rate')
+        chunk_assert(m, b'IMTS')
+        chunk_assert(m, b'rate')
 
         unk1 = Datum(m)
         m.read(2) # 00 00
 
-        self.chunk_assert(m, b'LIST')
-        size2 = struct.unpack("<L", m.read(4))[0]
+        chunk_assert(m, b'LIST')
+        self.size = struct.unpack("<L", m.read(4))[0]
         # assert size1 - size2 == 0x24, "Unexpected chunk size"
 
-        start = m.tell()
-        self.chunk_assert(m, b'data')
+        self.start = m.tell()
+        chunk_assert(m, b'data')
 
-        self.chunks = []
-        while m.tell() - start < size2:
-            logging.debug("---- CHUNK: 0x{:0>12x} ----".format(m.tell()))
-            self.chunks.append(Chunk(m))
+        self.m = m
+
+    def next(self):
+        if self.m.tell() - self.start < self.size:
+            c = Chunk(self.m)
+            logging.debug("---- {} ----".format(c))
+            return c
+        else: raise ValueError("Exceeded end of RIFF")
+
+
+# External representations
+
+class Palette(Object):
+    def __init__(self, m, check=True):
+        if check:
+            value_assert(Datum(m).d, DatumType.PALETTE, "palette signature")
+        self.colours = m.read(0x300)
+
+class Root(Object):
+    def __init__(self, m):
+        value_assert(Datum(m).d, HeaderType.ROOT, "root signature")
+        self.datums = Array(m)
+
+    @property
+    def id(self):
+        return self.datums.datums[0]
+
+    @property
+    def name(self):
+        try:
+            if self.datums.datums[3].t == DatumType.STRING:
+                return self.datums.datums[3]
+        except:
+            return None
+
+class Image(Object):
+    def __init__(self, m):
+        value_assert(Datum(m).d, ChunkType.IMAGE, "image signature")
+        self.header = Array(m, 0x12)
+        self.data = m.read()
+
+    def __repr__(self):
+        return "<Image: size: {:0>4d} x {:0>4d}, length: {:0>4d}>".format(0, 0, 0)
 
 class Cxt(Object):
     def __init__(self, infile):
         with open(infile, mode='rb') as f:
             self.m = mmap.mmap(f.fileno(), length=0, access=mmap.ACCESS_READ)
-            logging.debug("Opened context {}".format(infile))
+            logging.info("Opened context {}".format(infile))
             
             assert self.m.read(4) == b'II\x00\x00', "Incorrect file signature"
             struct.unpack("<L", self.m.read(4))[0]
             self.riff_count = struct.unpack("<L", self.m.read(4))[0]
             self.size = struct.unpack("<L", self.m.read(4))[0]
 
-            self.riffs = []
+            self.palette = None
+            self.root = None
+            self.assets = {}
 
-    def parse(self):
-        self.m.seek(0x10)
+            self.make_assets()
 
-        while self.m.tell() < self.size:
-            self.riffs.append(Riff(self.m))
+    def make_assets(self):
+        headers = Riff(self.m)
 
-    @property
-    def assets(self):
-        raise NotImplementedError
+        # The first entry is palette or root entry
+        logging.info("Finding header information")
+        entry = headers.next()
+        value_assert(Datum(entry.data).d, ChunkType.HEADER, "header signature")
+
+        try:
+            logging.debug("Searching for palette as first chunk")
+            self.palette = Datum(entry.data)
+            assert self.palette.t == DatumType.PALETTE
+
+            entry = headers.next()
+        except AssertionError as e:
+            logging.warning(e)
+            logging.debug("Found no palette, assuming first chunk is root")
+            entry.data.seek(0)
+
+        value_assert(Datum(entry.data).d, ChunkType.HEADER, "header signature")
+        self.root = Root(entry.data)
+
+        # Now read all the asset headers
+        logging.info("Reading asset headers")
+        stacks = {
+            AssetType.SCR: [],
+            AssetType.IMG: [],
+            AssetType.SND: [],
+            AssetType.MOV: [],
+            AssetType.HSP: [],
+            AssetType.TMR: [],
+            AssetType.PAL: [],
+            AssetType.CVS: [],
+            AssetType.FON: [],
+            AssetType.TXT: [],
+            AssetType.SPR: []
+        }
+
+        entry = headers.next()
+        while Datum(entry.data).d == ChunkType.HEADER:
+            asset_header = AssetHeader(entry.data)
+            logging.debug(asset_header)
+            stacks[asset_header.type.d].append(asset_header)
+
+            entry = headers.next()
+
+        # Now read fonts
+        # logging.info("Reading fonts")
+
+        # Now read images
+        logging.info("Reading images")
+
+        entry.data.seek(0)
+        for header in reversed(stacks[AssetType.IMG]):
+            image = Image(entry.data)
+            entry = headers.next()
+
+            value_assert(Datum(entry.data).d, ChunkType.HEADER, "header signature")
+            link = AssetLink(entry.data)
+            value_assert(header.id.d, link.ids[0].d, "asset ID")
+            self.assets[header.id.d] = (header, image)
+
+            entry = headers.next()
+
+        # Now read movies
+        # logging.info("Reading movies")
+
+
+        # Now read sounds
+        # logging.ingo("Reading sounds")
 
     def __repr__(self):
-        root = self.riffs[0].chunks[0].d
-        return "<Cxt: i: {}{}>".format(
-            root.datums[2].d,
-            ", n: {}".format(root.datums[5].d) if len(root.datums) > 5 else ""
+        return "<Context: {:0>4d} (0x{:0>4x}){}>".format(
+            self.root.id.d, self.root.id.d,
+            ", name: {}".format(self.root.name.d) if self.root.name else ""
         )
 
 def main(infile):
     c = Cxt(infile)
-    c.parse()
 
 logging.basicConfig(level=logging.DEBUG)
 
