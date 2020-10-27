@@ -9,16 +9,22 @@ import io
 import subprocess
 import mmap
 
+# Internal representations
 class IgodType(IntEnum):
     IMG  = 0x0007,
     MOV  = 0x0016,
-    HSP  = 0x000b
+    HSP  = 0x000b,
+    TMR  = 0x0006,
+    SND  = 0x0005,
+    PAL  = 0x0017
 
 class DatumType(IntEnum):
-    NONE   =  0x0000,
+    NONE    = 0x0000,
+    MOV     = 0x06a8,
     UINT8   = 0x0002,
     UINT16  = 0x0003,
     UINT32  = 0x0004,
+    UINT64  = 0x0009,
     STRING  = 0x0012,
     PALETTE = 0x05aa,
     REF     = 0x001b,
@@ -100,7 +106,7 @@ class Polygon(Object):
             self.points.append(Point(m))
 
         m.seek(m.tell() - 2)
-        self.value_assert(size.d, len(self.points), "polygon points")
+        self.value_assert(size.d, len(self.points), "polygon points", warn=True)
 
     def __repr__(self):
         return "<Polygon: l: {}>".format(len(self.points))
@@ -281,23 +287,24 @@ class Datum(Object):
                     self.d = d
                 except AssertionError:
                     m.seek(m.tell() - 2)
-                    pass
             elif self.d == DatumType.POLY:
                 self.t = self.d
                 self.d = Polygon(m)
             elif self.d == DatumType.G_UNK1:
                 self.t = self.d
-                self.chunk_assert(m, b'\x10\x00')
+                self.chunk_assert(m, b'\x10\x00', warn=True)
                 self.d = struct.unpack("<H", m.read(2))[0]
             elif self.d == DatumType.G_UNK2:
                 self.t = self.d
-                self.chunk_assert(m, b'\x02\x00')
+                self.chunk_assert(m, b'\x02\x00', warn=True)
                 self.d = int.from_bytes(m.read(1), byteorder='little')
             elif self.d == DatumType.G_UNK3:
                 self.t = self.d
                 self.d = Placeholder(m, 0x0a)
         elif self.t == DatumType.UINT32:
             self.d = struct.unpack("<L", m.read(4))[0]
+        elif self.t == DatumType.UINT64:
+            self.d = struct.unpack("<Q", m.read(8))[0]
         elif self.t == DatumType.STRING:
             size = Datum(m)
             self.d = m.read(size.d).decode("utf-8")
