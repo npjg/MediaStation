@@ -30,6 +30,11 @@ class DatumType(IntEnum):
     G_UNK3  = 0x05dc,
     A_UNK1  = 0x0011
 
+class HeaderType(IntEnum):
+    ROOT  = 0x0014,
+    ASSET = 0x0011,
+    REF   = 0x0013
+
 class Object:
     def value_assert(self, m, target, type="value", warn=False):
         s = 0
@@ -75,8 +80,8 @@ class Ref(Object):
         self.i = Datum(m) if get_id else 0
 
     def __repr__(self):
-        return("<Ref: a: {}, i: 0x{:0>4x} (0x{:0>4d})>".format(
-            self.a, self.i.d, self.i.d)
+        return("<Ref: a: {} ({:0>4d}), i: 0x{:0>4x} ({:0>4d})>".format(
+            self.a, int(self.a[1:], 16), self.i.d, self.i.d)
         )
 
 class MovieRef(Object):
@@ -129,14 +134,98 @@ class Chunk(Object):
     def __init__(self, m):
         self.cc = m.read(4).decode("utf-8")
         self.size = struct.unpack("<L", m.read(4))[0]
-        self.d = None
 
         self.s = m.tell()
-        if self.cc == 'igod':
-            self.d = Igod(m, self)
-        else:
+        try:
+            self.d = Header(m, self)
+        except TypeError:
             self.d = Raw(m, self)
-            logging.debug(self.d)
+
+        logging.debug(self.d)
+
+class Header(Object):
+    def __init__(self, m, parent):
+        d = Datum(m) # self.value_assert(d.d, 0x000d)
+        self.t = Datum(m).d
+
+        if self.t == HeaderType.ROOT:
+            self.d = AssetHeader(m, parent)
+        elif self.t == HeaderType.ASSET:
+            self.d = AssetHeader(m, parent)
+        elif self.t == HeaderType.REF:
+            self.d = RefHeader(m, parent)
+        else:
+            m.seek(m.tell() - 4)
+            raise TypeError("(@ 0x{:0>12x}) Unknown header type 0x{:0>4x}".format(m.tell(), self.t))
+
+    def __repr__(self):
+        return repr(self.d)
+
+class AssetHeader(Object):
+    def __init__(self, m, parent):
+        self.parent = parent
+        self.datums = []
+
+        while m.tell() - self.parent.s < self.parent.size:
+            # TODO: Remove the workaround once the code is working.
+            try:
+                self.datums.append(Datum(m, self))
+            except Exception as e:
+                p = m.find(b'igod', m.tell())
+                logging.warning(e)
+                logging.warning("Found next chunk at {:0>12x}".format(p))
+                m.seek(p)
+
+        self.align(m)
+        self.log()
+
+    @property
+    def t(self):
+        try:
+            return self.datums[1]
+        except:
+            return None
+
+    @property
+    def r(self):
+        try:
+            return self.datums[2]
+        except:
+            return None
+
+    @property
+    def s(self):
+        try:
+            if self.datums[4].t != DatumType.STRING:
+                return None
+
+            return self.datums[4]
+        except:
+            return None
+
+    def log(self):
+        for d, i in zip(self.datums, range(len(self.datums))):
+            logging.debug("{:0>3d}: {}".format(i, d))
+
+    def __repr__(self):
+        return "<AssetHeader: 0x{:0>12x}; id: 0x{:0>4x} ({:0>4d}), type: 0x{:0>4x}, size: 0x{:0>4x})>".format(
+            self.parent.s, self.r.d, self.r.d, self.t.d, len(self.datums)
+        )
+
+class RefHeader(Object):
+    def __init__(self, m, parent):
+        self.parent = parent
+        self.ids = []
+
+        word = Datum(m)
+        while word.d != 0:
+            if word.d != 0x0019:
+                self.ids.append(word)
+
+            word = Datum(m)
+
+    def __repr__(self):
+        return "<RefHeader: 0x{:0>12x}; ids: {}>".format(self.parent.s, [i.d for i in self.ids])
 
 class Raw(Object):
     def __init__(self, m, parent):
@@ -244,63 +333,6 @@ class Datum(Object):
             )
 
         return base + data
-
-class Igod(Object):
-    def __init__(self, m, parent):
-        self.parent = parent
-        self.datums = []
-
-        while m.tell() - self.parent.s < self.parent.size:
-            try:
-                self.datums.append(Datum(m, self))
-            except Exception as e:
-                p = m.find(b'igod', m.tell())
-                logging.warning(e)
-                logging.warning("Found next chunk at {:0>12x}".format(p))
-                m.seek(p)
-
-        self.align(m)
-        self.log()
-
-    @property
-    def t(self):
-        try:
-            return self.datums[3]
-        except:
-            return None
-
-    @property
-    def r(self):
-        try:
-            return self.datums[4]
-        except:
-            return None
-
-    @property
-    def s(self):
-        try:
-            if self.datums[6].t != DatumType.STRING:
-                return None
-
-            return self.datums[6]
-        except:
-            return None
-
-    def log(self):
-        for d, i in zip(self.datums, range(len(self.datums))):
-            logging.debug("{:0>3d}: {}".format(i, d))
-
-    def __repr__(self):
-        return "<Igod: id: 0x{:0>4x} ({:0>4d}), t: 0x{:0>4x} (s: 0x{:0>12x}, S: 0x{:0>6x}, l: {:0>4d})>".format(
-            self.r.d, self.r.d, self.t.d, self.parent.s, self.parent.size, len(self.datums)
-        )
-
-class Asset(Object):
-    def __init__(self, i, c):
-        assert i.r == r.cc, "Mismatched chunk identifiers: {} \ {}".format(i.r, r.cc)
-
-        self.i = i
-        self.r = r
 
 class Riff(Object):
     def __init__(self, m):
