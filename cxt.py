@@ -9,6 +9,8 @@ import io
 import subprocess
 import mmap
 
+import PIL.Image as PILImage
+
 class ChunkType(IntEnum):
     HEADER = 0x000d,
     IMAGE  = 0x0018,
@@ -350,8 +352,56 @@ class Root(Object):
 class Image(Object):
     def __init__(self, m):
         value_assert(Datum(m).d, ChunkType.IMAGE, "image signature")
-        self.header = Array(m, 0x12)
-        self.data = m.read()
+        self.header = Array(m, 0x16)
+
+        value_assert(m, b'\x00\x00', "image row header")
+        self.raw = bytearray((self.width*self.height) * b'\x00')
+
+        for h in range(self.height):
+            self.offset = 0
+            while True:
+                code = int.from_bytes(m.read(1), byteorder='little')
+
+                if code == 0x00: # control mode
+                    op = int.from_bytes(m.read(1), byteorder='little')
+                    if op == 0x00: # end of line
+                        break
+
+                    if op == 0x03: # offset for RLE
+                        self.offset += struct.unpack("<H", m.read(2))[0]
+                    else: # uncompressed data of given length
+                        pix = m.read(op)
+
+                        loc = (h * self.width) + self.offset
+                        self.raw[loc:loc+op] = pix
+
+                        if m.tell() % 2 == 1:
+                            m.read(1)
+
+                        self.offset += op
+                else: # RLE data
+                    loc = (h * self.width) + self.offset
+
+                    pix = m.read(1)
+                    self.raw[loc:loc+code] = code * pix
+
+                    self.offset += code
+
+        value_assert(len(self.raw), self.width*self.height, "image dimensions")
+        self.raw = bytes(self.raw)
+
+    def export(self, filename, fmt="png"):
+        if filename[-4:] != ".{}".format(fmt):
+            filename += (".{}".format(fmt))
+        PILImage.frombytes("L", (self.width, self.height), self.raw).save(filename, fmt)
+
+    @property
+    def width(self):
+        return self.header.datums[0].d.x
+
+    @property
+    def height(self):
+        return self.header.datums[0].d.y
 
     def __repr__(self):
         return "<Image: size: {:0>4d} x {:0>4d}, length: {:0>4d}>".format(0, 0, 0)
