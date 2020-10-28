@@ -6,6 +6,7 @@ import logging
 from enum import IntEnum
 import struct
 import io
+import os
 import subprocess
 import mmap
 
@@ -493,6 +494,15 @@ class Cxt(Object):
 
         # Now read sounds
         # logging.ingo("Reading sounds")
+
+    def export(self, directory):
+        try:
+            os.mkdir(directory)
+        except FileExistsError:
+            pass
+
+        for id, asset in self.assets.items():
+            asset[1].export(os.path.join(directory, str(id)))
 
     def __repr__(self):
         return "<Context: {:0>4d} (0x{:0>4x}){}>".format(
