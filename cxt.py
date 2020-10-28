@@ -407,6 +407,26 @@ class Image(Object):
     def __repr__(self):
         return "<Image: size: {:0>4d} x {:0>4d}, length: {:0>4d}>".format(0, 0, 0)
 
+class Sound(Object):
+    def __init__(self, m):
+        self.chunks = []
+        self.append_chunk(m)
+
+    def append_chunk(self, m):
+        self.chunks.append(m.read())
+
+    def export(self, filename, fmt="wav"):
+        if filename[-4:] != ".{}".format(fmt):
+            filename += (".{}".format(fmt))
+            with subprocess.Popen(
+                    ['ffmpeg', '-y', '-f', 's16le', '-ar', '11.025k', '-ac', '2', '-i', 'pipe:', outfile],
+                    stdin=subprocess.PIPE, stdout=subprocess.PIPE
+            ) as process:
+                for chunk in self.chunks:
+                    process.stdin.write(chunk)
+
+        process.communicate()
+
 class Cxt(Object):
     def __init__(self, infile):
         with open(infile, mode='rb') as f:
