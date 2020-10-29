@@ -216,6 +216,16 @@ class AssetHeader(Object):
 
         return self.data.datums[4]
 
+    @property
+    def ref(self):
+        # TODO: Enumerate all types that have associated data chunks
+        if self.type.d in (AssetType.SND, AssetType.FON):
+            return self.data.datums[5]
+        elif self.type.d in (AssetType.MOV, AssetType.IMG, AssetType.SPR):
+            return self.data.datums[7]
+
+        return None
+
     def __repr__(self):
         return "<AssetHeader: type: 0x{:0>4x}, id: 0x{:0>4x} ({:0>4d}){}>".format(
             self.type.d, self.id.d, self.id.d, ", name: {}".format(self.name.d) if self.name else ""
@@ -240,17 +250,19 @@ class Ref(Object):
         for _ in range(datums):
             self.data.append(Datum(m))
 
-    @property
-    def id(self):
-        return int(self.string[1:], 16)
+    def id(self, string=False):
+        return self.string if string else int(self.string[1:], 16)
 
     def __repr__(self):
-        return "<Ref: {} ({:0>4d})>".format(self.string, self.id)
+        return "<Ref: {} ({:0>4d})>".format(self.string, self.id())
 
 class MovieRef(Object):
     def __init__(self, m):
         self.refs = [Ref(m), Ref(m), Ref(m, datums=2)]
         value_assert(Datum(m).d, 0x001c)
+
+    def id(self, string=False):
+        return [r.id(string) for r in self.refs]
 
     def __repr__(self):
         return("<MovieRef: ids: {}>".format(
@@ -322,7 +334,7 @@ class Riff(Object):
             c = Chunk(self.m)
             logging.debug("---- {} ----".format(c))
             return c
-        else: raise ValueError("Exceeded end of RIFF")
+        else: return None
 
 
 # External representations
@@ -398,11 +410,11 @@ class Image(Object):
 
     @property
     def width(self):
-        return self.header.datums[0].d.x
+        return self.movie.d.x if self.movie else self.header.datums[0].d.x
 
     @property
     def height(self):
-        return self.header.datums[0].d.y
+        return self.movie.d.y if self.movie else self.header.datums[0].d.y
 
     def __repr__(self):
         return "<Image: size: {:0>4d} x {:0>4d}, length: {:0>4d}>".format(0, 0, 0)
@@ -445,11 +457,11 @@ class Cxt(Object):
             self.make_assets()
 
     def make_assets(self):
-        headers = Riff(self.m)
+        riff = Riff(self.m)
 
         # The first entry is palette or root entry
         logging.info("Finding header information")
-        entry = headers.next()
+        entry = riff.next()
         value_assert(Datum(entry.data).d, ChunkType.HEADER, "header signature")
 
         try:
@@ -457,7 +469,7 @@ class Cxt(Object):
             self.palette = Datum(entry.data)
             assert self.palette.t == DatumType.PALETTE
 
-            entry = headers.next()
+            entry = riff.next()
         except AssertionError as e:
             logging.warning(e)
             logging.debug("Found no palette, assuming first chunk is root")
@@ -482,38 +494,45 @@ class Cxt(Object):
             AssetType.SPR: []
         }
 
-        entry = headers.next()
+        asset_raws = {}
+
+        entry = riff.next()
         while Datum(entry.data).d == ChunkType.HEADER:
             asset_header = AssetHeader(entry.data)
             logging.debug(asset_header)
             stacks[asset_header.type.d].append(asset_header)
 
-            entry = headers.next()
+            # Construct the bins that raw asset chunks will go into.
+            if asset_header.ref:
+                if asset_header.type.d == AssetType.MOV:
+                    for id in asset_header.ref.d.id(string=True):
+                        logging.debug("Registering asset code: {}".format(id))
+                        asset_raws.update({id: []})
+                else:
+                    logging.debug("Registering asset code: {}".format(asset_header.ref.d.id(string=True)))
+                    asset_raws.update({asset_header.ref.d.id(string=True): []})
 
-        # Now read fonts
-        # logging.info("Reading fonts")
+            entry = riff.next()
 
-        # Now read images
-        logging.info("Reading images")
+        # Now read all the raw assets (the rest of the file)
+        while riff:
+            while entry:
+                if entry.code == 'igod':
+                    value_assert(Datum(entry.data).d, ChunkType.HEADER, "header signature")
+                    AssetLink(entry.data)
+                else:
+                    asset_raws[entry.code].append(entry)
 
-        entry.data.seek(0)
-        for header in reversed(stacks[AssetType.IMG]):
-            image = Image(entry.data)
-            entry = headers.next()
+                entry = riff.next()
 
-            value_assert(Datum(entry.data).d, ChunkType.HEADER, "header signature")
-            link = AssetLink(entry.data)
-            value_assert(header.id.d, link.ids[0].d, "asset ID")
-            self.assets[header.id.d] = (header, image)
+            try:
+                riff = Riff(self.m)
+            except AssertionError:
+                break
 
-            entry = headers.next()
+            entry = riff.next()
 
-        # Now read movies
-        # logging.info("Reading movies")
-
-
-        # Now read sounds
-        # logging.ingo("Reading sounds")
+        self.unknown = self.m.read()
 
     def export(self, directory):
         try:
