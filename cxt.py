@@ -482,27 +482,14 @@ class Cxt(Object):
 
         # Now read all the asset headers
         logging.info("Reading asset headers")
-        stacks = {
-            AssetType.SCR: [],
-            AssetType.IMG: [],
-            AssetType.SND: [],
-            AssetType.MOV: [],
-            AssetType.HSP: [],
-            AssetType.TMR: [],
-            AssetType.PAL: [],
-            AssetType.CVS: [],
-            AssetType.FON: [],
-            AssetType.TXT: [],
-            AssetType.SPR: []
-        }
-
+        asset_headers = []
         asset_raws = {}
 
         entry = riff.next()
         while Datum(entry.data).d == ChunkType.HEADER:
             asset_header = AssetHeader(entry.data)
             logging.debug(asset_header)
-            stacks[asset_header.type.d].append(asset_header)
+            asset_headers.append(asset_header)
 
             # Construct the bins that raw asset chunks will go into.
             if asset_header.ref:
@@ -521,6 +508,8 @@ class Cxt(Object):
             while entry:
                 if entry.code == 'igod':
                     value_assert(Datum(entry.data).d, ChunkType.HEADER, "header signature")
+
+                    # We do not use this data because we have a dictionary!
                     AssetLink(entry.data)
                 else:
                     asset_raws[entry.code].append(entry)
@@ -534,6 +523,30 @@ class Cxt(Object):
 
             entry = riff.next()
 
+        # Now link the assets and headers together.
+        for asset_header in asset_headers:
+            if asset_header.ref is None:
+                self.assets.update({asset_header.id.d: (asset_header, None)})
+                continue
+
+            index = asset_header.ref.d.id(string=True)
+
+            if asset_header.type.d == AssetType.MOV:
+                self.assets.update(
+                    {asset_header.id.d: (asset_header, [asset_raws[i] for i in index])}
+                )
+            else:
+                self.assets.update(
+                    {asset_header.id.d: (asset_header, asset_raws[index])}
+                )
+
+            # And now finally apply the type information.
+            # if self.asset_header.type.d == AssetType.MOV:
+
+                # Assumption: Data always stored header -> video -> sound
+                # for chunk in self.assets[asset_header.id.d][1]:
+
+
         self.unknown = self.m.read()
 
     def export(self, directory):
@@ -543,7 +556,7 @@ class Cxt(Object):
             pass
 
         for id, asset in self.assets.items():
-            asset[1].export(os.path.join(directory, str(id)))
+            if asset[1]: asset[1].export(os.path.join(directory, str(id)))
 
     def __repr__(self):
         return "<Context: {:0>4d} (0x{:0>4x}){}>".format(
