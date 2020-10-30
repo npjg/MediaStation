@@ -227,8 +227,10 @@ class AssetHeader(Object):
         return None
 
     def __repr__(self):
-        return "<AssetHeader: type: 0x{:0>4x}, id: 0x{:0>4x} ({:0>4d}){}>".format(
-            self.type.d, self.id.d, self.id.d, ", name: {}".format(self.name.d) if self.name else ""
+        return "<AssetHeader: type: 0x{:0>4x}, id: 0x{:0>4x} ({:0>4d}){}{}>".format(
+            self.type.d, self.id.d, self.id.d,
+            " {}".format(self.ref.d if self.ref else ""),
+            ", name: {}".format(self.name.d) if self.name else ""
         )
 
 class AssetLink(Object):
@@ -417,7 +419,7 @@ class Image(Object):
         return self.movie.d.y if self.movie else self.header.datums[0].d.y
 
     def __repr__(self):
-        return "<Image: size: {:0>4d} x {:0>4d}, length: {:0>4d}>".format(0, 0, 0)
+        return "<Image: size: {} x {}>".format(self.width, self.height)
 
 class Sound(Object):
     def __init__(self, m):
