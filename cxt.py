@@ -534,87 +534,101 @@ class Cxt(Object):
         value_assert(Datum(entry.data).d, ChunkType.HEADER, "header signature")
 
         try:
-            logging.debug("Searching for palette as first chunk")
+            logging.info("Searching for palette as first chunk...")
             self.palette = Datum(entry.data)
             assert self.palette.t == DatumType.PALETTE
 
             entry = riff.next()
         except AssertionError as e:
             logging.warning(e)
-            logging.debug("Found no palette, assuming first chunk is root")
+            logging.warning("Found no palette, assuming first chunk is root")
             entry.data.seek(0)
 
         value_assert(Datum(entry.data).d, ChunkType.HEADER, "header signature")
         self.root = Root(entry.data)
 
         # Now read all the asset headers
-        logging.info("Reading asset headers")
-        asset_headers = []
-        asset_raws = {}
+        logging.info("Reading asset headers...")
+        asset_headers = {}
 
         entry = riff.next()
         while Datum(entry.data).d == ChunkType.HEADER:
             asset_header = AssetHeader(entry.data)
-            logging.debug(asset_header)
-            asset_headers.append(asset_header)
 
-            # Construct the bins that raw asset chunks will go into.
             if asset_header.ref:
                 if asset_header.type.d == AssetType.MOV:
-                    for id in asset_header.ref.d.id(string=True):
-                        logging.debug("Registering asset code: {}".format(id))
-                        asset_raws.update({id: []})
+                    # Movies have asset lists, not a single value.
+                    index = asset_header.ref.d.id(string=True)[0]
                 else:
-                    logging.debug("Registering asset code: {}".format(asset_header.ref.d.id(string=True)))
-                    asset_raws.update({asset_header.ref.d.id(string=True): []})
+                    index = asset_header.ref.d.id(string=True)
+
+                asset_headers.update({index: asset_header})
+            else:
+                self.assets.update({asset_header.id.d: (asset_header, None)})
 
             entry = riff.next()
 
-        # Now read all the raw assets (the rest of the file)
-        while riff:
-            while entry:
-                if entry.code == 'igod':
-                    value_assert(Datum(entry.data).d, ChunkType.HEADER, "header signature")
+        entry.data.seek(0)
 
-                    # We do not use this data because we have a dictionary!
-                    AssetLink(entry.data)
+        # Now read all the single-chunk assets in the first RIFF
+        logging.info("Finishing first RIFF...")
+        while entry:
+            if entry.code == 'igod':
+                value_assert(Datum(entry.data).d, ChunkType.HEADER, "header signature")
+
+                # We do not use this data because we have a dictionary!
+                AssetLink(entry.data)
+            else:
+                logging.debug(entry)
+                asset_header = asset_headers[entry.code]
+
+                # TODO: Handle font chunks
+                if asset_header.type.d == AssetType.IMG:
+                    self.assets.update({asset_header.id.d: (asset_header, Image(entry.data))})
                 else:
-                    asset_raws[entry.code].append(entry)
+                    self.assets.update({asset_header.id.d: (asset_header, entry.data)})
 
-                entry = riff.next()
+            entry = riff.next()
+
+        # Now read all the assets in the rest of the file.
+        # TODO: Verify only movies and sounds live here.
+
+        # TODO: Determine where the junk data at the end comes from
+        try:
+            riff = Riff(self.m)
+            logging.info("Reading rest of file")
+        except AssertionError as e:
+            logging.warning(e)
+            riff = None
+
+        while riff:
+            # Base the RIFF linking on the ID of the first chunk.
+            entry = riff.next()
+
+            for id, asset_header in asset_headers.items():
+                # Movies have asset lists, not a single value.
+                # id_to_match = asset_header.ref.d.id(string=True)
+                # if isinstance(id_to_match, list):
+                    # id_to_match = id_to_match[0]
+
+                if id == entry.code:
+                    riff.reset()
+                    if asset_header.type.d == AssetType.MOV:
+                        self.assets.update({asset_header.id.d: (asset_header, Movie(riff))})
+                    elif asset_header.type.d == AssetType.SND:
+                        self.assets.update({asset_header.id.d: (asset_header, Sound(riff))})
+                    else:
+                        raise TypeError("Unhandled asset type requiring RIFFs: {}".format(asset_header.type.d))
+
+                    break
 
             try:
                 riff = Riff(self.m)
             except AssertionError:
                 break
 
-            entry = riff.next()
-
-        # Now link the assets and headers together.
-        for asset_header in asset_headers:
-            if asset_header.ref is None:
-                self.assets.update({asset_header.id.d: (asset_header, None)})
-                continue
-
-            index = asset_header.ref.d.id(string=True)
-
-            if asset_header.type.d == AssetType.MOV:
-                self.assets.update(
-                    {asset_header.id.d: (asset_header, [asset_raws[i] for i in index])}
-                )
-            else:
-                self.assets.update(
-                    {asset_header.id.d: (asset_header, asset_raws[index])}
-                )
-
-            # And now finally apply the type information.
-            # if self.asset_header.type.d == AssetType.MOV:
-
-                # Assumption: Data always stored header -> video -> sound
-                # for chunk in self.assets[asset_header.id.d][1]:
-
-
         self.unknown = self.m.read()
+        logging.info("Parsing finished")
 
     def export(self, directory):
         try:
@@ -623,7 +637,14 @@ class Cxt(Object):
             pass
 
         for id, asset in self.assets.items():
-            if asset[1]: asset[1].export(os.path.join(directory, str(id)))
+            if asset[1]:
+                path = os.path.join(directory, str(id))
+                try:
+                    os.mkdir(path)
+                except FileExistsError:
+                    pass
+
+                asset[1].export(path)
 
     def __repr__(self):
         return "<Context: {:0>4d} (0x{:0>4x}){}>".format(
