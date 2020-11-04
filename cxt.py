@@ -16,7 +16,8 @@ class ChunkType(IntEnum):
     HEADER = 0x000d,
     IMAGE  = 0x0018,
     MOV_1  = 0xa8a4,
-    MOV_2  = 0xa906
+    MOV_2  = 0x06a9,
+    MOV_3  = 0x06aa
 
 class HeaderType(IntEnum):
     ROOT  = 0x000e,
@@ -338,6 +339,9 @@ class Riff(Object):
             return c
         else: return None
 
+    def reset(self):
+        self.m.seek(self.start + 0x04)
+
 
 # External representations
 
@@ -432,19 +436,68 @@ class Image(Object):
     def __repr__(self):
         return "<Image: size: {} x {}>".format(self.width, self.height)
 
-class Sound(Object):
+class MovieFrame(Object):
     def __init__(self, m):
-        self.chunks = []
-        self.append_chunk(m)
+        m.seek(0)
 
-    def append_chunk(self, m):
-        self.chunks.append(m.read())
+        value_assert(Datum(m).d, ChunkType.MOV_2, "movie signature")
+        self.header = Array(m, 0x26)
+        self.image = Image(m, movie=self.header.datums[1])
+
+class Movie(Object):
+    # TODO: Do movies always come in their own RIFF?
+    def __init__(self, riff):
+        self.chunks = []
+
+        header = riff.next()
+        while header:
+            frames = []
+
+            entry = riff.next()
+            if not entry:
+                break
+
+            # Assumption: Data always stored header -> video -> sound
+            while int(entry.code[1:], 16) != int(header.code[1:], 16) + 1:
+                frame = MovieFrame(entry.data)
+                entry = riff.next()
+                footer = None # Array(entry.data)
+                frames.append((frame, footer))
+
+                entry = riff.next()
+
+            sound = entry
+
+            self.chunks.append((header, frames, sound))
+            header = riff.next()
+
+    def export(self, pathname, fmt=("png", "wav")):
+        for i, chunk in enumerate(self.chunks):
+            for j, frame in enumerate(chunk[1]):
+                try:
+                    frame[0].image.export(os.path.join(pathname, "{}-{}".format(i, j)), fmt=fmt[0])
+                except ValueError as e:
+                    logging.warning(e)
+
+            # TODO: Export sounds.
+
+    def __repr__(self):
+        return "<Movie: chunks: {}>".format(len(self.chunks))
+
+class Sound(Object):
+    # TODO: Do sounds always come in their own RIFF?
+    def __init__(self, riff):
+        self.chunks = []
+
+        entry = riff.next()
+        while entry:
+            self.chunks.append(entry)
 
     def export(self, filename, fmt="wav"):
         if filename[-4:] != ".{}".format(fmt):
             filename += (".{}".format(fmt))
             with subprocess.Popen(
-                    ['ffmpeg', '-y', '-f', 's16le', '-ar', '11.025k', '-ac', '2', '-i', 'pipe:', outfile],
+                    ['ffmpeg', '-y', '-f', 's16le', '-ar', '11.025k', '-ac', '2', '-i', 'pipe:', filename],
                     stdin=subprocess.PIPE, stdout=subprocess.PIPE
             ) as process:
                 for chunk in self.chunks:
