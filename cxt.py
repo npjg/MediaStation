@@ -365,50 +365,61 @@ class Root(Object):
             return None
 
 class Image(Object):
-    def __init__(self, m):
-        value_assert(Datum(m).d, ChunkType.IMAGE, "image signature")
-        self.header = Array(m, 0x16)
+    def __init__(self, m, movie=None):
+        self.header = None
+        self.movie = movie
+        if not movie:
+            value_assert(Datum(m).d, ChunkType.IMAGE, "image signature")
+            self.header = Array(m, 0x16)
 
         value_assert(m, b'\x00\x00', "image row header")
-        self.raw = bytearray((self.width*self.height) * b'\x00')
 
-        for h in range(self.height):
-            self.offset = 0
-            while True:
-                code = int.from_bytes(m.read(1), byteorder='little')
+        if self.compressed:
+            self.raw = bytearray((self.width*self.height) * b'\x00')
+            for h in range(self.height):
+                self.offset = 0
+                while True:
+                    code = int.from_bytes(m.read(1), byteorder='little')
 
-                if code == 0x00: # control mode
-                    op = int.from_bytes(m.read(1), byteorder='little')
-                    if op == 0x00: # end of line
-                        break
+                    if code == 0x00: # control mode
+                        op = int.from_bytes(m.read(1), byteorder='little')
+                        if op == 0x00: # end of line
+                            break
 
-                    if op == 0x03: # offset for RLE
-                        self.offset += struct.unpack("<H", m.read(2))[0]
-                    else: # uncompressed data of given length
-                        pix = m.read(op)
+                        if op == 0x03: # offset for RLE
+                            self.offset += struct.unpack("<H", m.read(2))[0]
+                        else: # uncompressed data of given length
+                            pix = m.read(op)
 
+                            loc = (h * self.width) + self.offset
+                            self.raw[loc:loc+op] = pix
+
+                            if m.tell() % 2 == 1:
+                                m.read(1)
+
+                            self.offset += op
+                    else: # RLE data
                         loc = (h * self.width) + self.offset
-                        self.raw[loc:loc+op] = pix
 
-                        if m.tell() % 2 == 1:
-                            m.read(1)
+                        pix = m.read(1)
+                        self.raw[loc:loc+code] = code * pix
 
-                        self.offset += op
-                else: # RLE data
-                    loc = (h * self.width) + self.offset
+                        self.offset += code
 
-                    pix = m.read(1)
-                    self.raw[loc:loc+code] = code * pix
+            self.raw = bytes(self.raw)
+        else:
+            self.raw = m.read(self.width*self.height)
 
-                    self.offset += code
-
-        value_assert(len(self.raw), self.width*self.height, "image dimensions")
-        self.raw = bytes(self.raw)
+        value_assert(len(self.raw), self.width*self.height, "image length ({} x {})".format(self.width, self.height))
 
     def export(self, filename, fmt="png"):
         if filename[-4:] != ".{}".format(fmt):
             filename += (".{}".format(fmt))
         PILImage.frombytes("L", (self.width, self.height), self.raw).save(filename, fmt)
+
+    @property
+    def compressed(self):
+        return self.header and self.header.datums[1].d
 
     @property
     def width(self):
