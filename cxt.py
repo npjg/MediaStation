@@ -380,6 +380,7 @@ class Image(Object):
 
         if self.compressed:
             self.raw = bytearray((self.width*self.height) * b'\x00')
+
             for h in range(self.height):
                 self.offset = 0
                 while True:
@@ -394,9 +395,11 @@ class Image(Object):
                             self.offset += struct.unpack("<H", m.read(2))[0]
                         else: # uncompressed data of given length
                             pix = m.read(op)
+                            if op != len(pix):
+                                logging.warning("(@ +0x{:0>4x}) Expected {} bytes in row {}, got {} bytes".format(m.tell(), op, h, len(pix)))
 
                             loc = (h * self.width) + self.offset
-                            self.raw[loc:loc+op] = pix
+                            self.raw[loc:loc+len(pix)] = pix
 
                             if m.tell() % 2 == 1:
                                 m.read(1)
@@ -423,7 +426,7 @@ class Image(Object):
 
     @property
     def compressed(self):
-        return self.header and self.header.datums[1].d
+        return (self.header and self.header.datums[1].d) or self.movie
 
     @property
     def width(self):
