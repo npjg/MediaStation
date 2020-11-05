@@ -309,7 +309,6 @@ class Polygon(Object):
 
 class Riff(Object):
     def __init__(self, m):
-        logging.debug("#### RIFF: {:0>12x} ####".format(m.tell()))
         chunk_assert(m, b'RIFF')
         size = struct.unpack("<L", m.read(4))[0]
 
@@ -331,7 +330,6 @@ class Riff(Object):
     def next(self):
         if self.m.tell() - self.start < self.size:
             c = Chunk(self.m)
-            logging.debug("---- {} ----".format(c))
             return c
         else: return None
 
@@ -391,8 +389,6 @@ class Image(Object):
                             self.offset += struct.unpack("<H", m.read(2))[0]
                         else: # uncompressed data of given length
                             pix = m.read(op)
-                            if op != len(pix):
-                                logging.warning("(@ +0x{:0>4x}) Expected {} bytes in row {}, got {} bytes".format(m.tell(), op, h, len(pix)))
 
                             loc = (h * self.width) + self.offset
                             self.raw[loc:loc+len(pix)] = pix
@@ -461,14 +457,12 @@ class Movie(Object):
 
         header = riff.next()
         while header:
+            frames = []
             codes = {
                 "header": int(header.code[1:], 16),
                 "video": int(header.code[1:], 16) + 1,
                 "audio": int(header.code[1:], 16) + 2
             }
-
-            logging.warning("Header: {}".format(header.code))
-            frames = []
 
             entry = riff.next()
             if not entry:
@@ -492,7 +486,7 @@ class Movie(Object):
 
         for i, chunk in enumerate(self.chunks):
             for j, frame in enumerate(chunk[1]):
-                logging.info(" Exporting animation cell ({}, {})".format(i, j))
+                logging.debug("Exporting animation cell ({}, {})".format(i, j))
                 frame_type = Datum(frame).d
 
                 if frame_type == ChunkType.MOV_2:
