@@ -484,14 +484,33 @@ class Movie(Object):
         except FileExistsError:
             pass
 
+        frame_headers = open(os.path.join(pathname, "frame_headers.txt"), 'w')
+        image_headers = open(os.path.join(pathname, "image_headers.txt"), 'w')
+
         for i, chunk in enumerate(self.chunks):
             for j, frame in enumerate(chunk[1]):
-                try:
-                    frame[0].image.export(os.path.join(pathname, "{}-{}".format(i, j)), fmt=fmt[0])
-                except ValueError as e:
-                    logging.warning(e)
+                frame_type = Datum(frame).d
+                filename = os.path.join(pathname, "{}-{}".format(i, j))
+
+                if frame_type == ChunkType.MOV_2:
+                    frame = MovieFrame(frame)
+
+                    print(" --- {}-{} ---".format(i, j), file=image_headers)
+                    for datum in frame.header.datums:
+                        print(repr(datum), file=image_headers)
+
+                    frame.image.export(filename, fmt=fmt[0])
+                elif frame_type == ChunkType.MOV_3:
+                    array = Array(frame)
+
+                    print(" --- {}-{} ---".format(i, j), file=frame_headers)
+                    for datum in array.datums:
+                        print(repr(datum), file=frame_headers)
 
             # TODO: Export sounds.
+
+        frame_headers.close()
+        image_headers.close()
 
     def __repr__(self):
         return "<Movie: chunks: {}>".format(len(self.chunks))
