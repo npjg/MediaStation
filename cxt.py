@@ -6,6 +6,7 @@ import logging
 from enum import IntEnum
 import struct
 import io
+from pathlib import Path
 import os
 import subprocess
 import mmap
@@ -414,7 +415,9 @@ class Image(Object):
 
         value_assert(len(self.raw), self.width*self.height, "image length ({} x {})".format(self.width, self.height))
 
-    def export(self, filename, fmt="png"):
+    def export(self, directory, filename, fmt="png", **kwargs):
+        filename = os.path.join(directory, filename)
+
         if self.width == 0 and self.height == 0:
             logging.warning("Found image with length and width 0, skipping export")
             return
@@ -478,19 +481,14 @@ class Movie(Object):
                     self.chunks.append((Array(header.data), frames, None))
                     header = entry
 
-    def export(self, pathname, fmt=("png", "wav")):
-        try:
-            os.mkdir(pathname)
-        except FileExistsError:
-            pass
-
-        frame_headers = open(os.path.join(pathname, "frame_headers.txt"), 'w')
-        image_headers = open(os.path.join(pathname, "image_headers.txt"), 'w')
+    def export(self, directory, filename, fmt=("png", "wav"), **kwargs):
+        frame_headers = open(os.path.join(directory, "frame_headers.txt"), 'w')
+        image_headers = open(os.path.join(directory, "image_headers.txt"), 'w')
 
         for i, chunk in enumerate(self.chunks):
             for j, frame in enumerate(chunk[1]):
+                logging.info(" Exporting animation cell ({}, {})".format(i, j))
                 frame_type = Datum(frame).d
-                filename = os.path.join(pathname, "{}-{}".format(i, j))
 
                 if frame_type == ChunkType.MOV_2:
                     frame = MovieFrame(frame)
@@ -499,7 +497,7 @@ class Movie(Object):
                     for datum in frame.header.datums:
                         print(repr(datum), file=image_headers)
 
-                    frame.image.export(filename, fmt=fmt[0])
+                    frame.image.export(directory, "{}-{}".format(i, j), fmt=fmt[0], **kwargs)
                 elif frame_type == ChunkType.MOV_3:
                     array = Array(frame)
 
@@ -525,7 +523,9 @@ class Sound(Object):
             self.chunks.append(entry)
             entry = riff.next()
 
-    def export(self, filename, fmt="wav"):
+    def export(self, directory, filename, fmt="wav", **kwargs):
+        filename = os.path.join(directory, filename)
+
         if filename[-4:] != ".{}".format(fmt):
             filename += (".{}".format(fmt))
             with subprocess.Popen(
@@ -558,7 +558,7 @@ class Cxt(Object):
         riff = Riff(self.m)
 
         # The first entry is palette or root entry
-        logging.info("Finding header information")
+        logging.info("Finding header information...")
         entry = riff.next()
         value_assert(Datum(entry.data).d, ChunkType.HEADER, "header signature")
 
@@ -608,8 +608,10 @@ class Cxt(Object):
                 # We do not use this data because we have a dictionary!
                 AssetLink(entry.data)
             else:
-                logging.debug(entry)
-                asset_header = asset_headers[entry.code]
+                try:
+                    asset_header = asset_headers[entry.code]
+                except KeyError as e:
+                    logging.warning("Could not find key entry for asset {}".format(e))
 
                 # TODO: Handle font chunks
                 if asset_header.type.d == AssetType.IMG:
@@ -625,7 +627,7 @@ class Cxt(Object):
         # TODO: Determine where the junk data at the end comes from
         try:
             riff = Riff(self.m)
-            logging.info("Reading rest of file")
+            logging.info("Reading rest of file...")
         except AssertionError as e:
             logging.warning(e)
             riff = None
@@ -657,22 +659,25 @@ class Cxt(Object):
                 break
 
         self.unknown = self.m.read()
-        logging.info("Parsing finished")
+        logging.info("Parsing finished!")
 
     def export(self, directory):
-        try:
-            os.mkdir(directory)
-        except FileExistsError:
-            pass
-
         for id, asset in self.assets.items():
-            if asset[1]:
-                path = os.path.join(directory, str(id))
 
-                try:
-                    asset[1].export(path)
-                except AttributeError as e:
-                    logging.warning("Could not export asset {}: {}".format(id, e))
+            logging.info("Exporting asset {}".format(id))
+
+            path = os.path.join(directory, str(id))
+            Path(path).mkdir(parents=True, exist_ok=True)
+
+            with open(os.path.join(directory, str(id), "{}.txt".format(id)), 'w') as header:
+                print(repr(asset[0]), file=header)
+                for datum in asset[0].data.datums:
+                    print(repr(datum), file=header)
+
+            try:
+                if asset[1]: asset[1].export(path, str(id), palette=self.palette.d)
+            except Exception as e:
+                logging.warning("Could not export asset {}: {}".format(id, e))
 
     def __repr__(self):
         return "<Context: {:0>4d} (0x{:0>4x}){}>".format(
