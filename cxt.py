@@ -424,7 +424,12 @@ class Image(Object):
 
         if filename[-4:] != ".{}".format(fmt):
             filename += (".{}".format(fmt))
-        PILImage.frombytes("L", (self.width, self.height), self.raw).save(filename, fmt)
+
+        image = PILImage.frombytes("P", (self.width, self.height), self.raw)
+        if 'palette' in kwargs:
+            image.putpalette(kwargs['palette'].colours)
+
+        image.save(filename, fmt)
 
     @property
     def compressed(self):
