@@ -404,7 +404,7 @@ class Image(Object):
                             if m.tell() % 2 == 1:
                                 m.read(1)
 
-                            self.offset += op
+                            self.offset += len(pix)
                     else: # RLE data
                         loc = (h * self.width) + self.offset
 
@@ -420,6 +420,10 @@ class Image(Object):
         value_assert(len(self.raw), self.width*self.height, "image length ({} x {})".format(self.width, self.height))
 
     def export(self, filename, fmt="png"):
+        if self.width == 0 and self.height == 0:
+            logging.warning("Found image with length and width 0, skipping export")
+            return
+
         if filename[-4:] != ".{}".format(fmt):
             filename += (".{}".format(fmt))
         PILImage.frombytes("L", (self.width, self.height), self.raw).save(filename, fmt)
