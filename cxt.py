@@ -495,6 +495,7 @@ class Sound(Object):
         entry = riff.next()
         while entry:
             self.chunks.append(entry)
+            entry = riff.next()
 
     def export(self, filename, fmt="wav"):
         if filename[-4:] != ".{}".format(fmt):
@@ -504,9 +505,9 @@ class Sound(Object):
                     stdin=subprocess.PIPE, stdout=subprocess.PIPE
             ) as process:
                 for chunk in self.chunks:
-                    process.stdin.write(chunk)
+                    process.stdin.write(chunk.data.read())
 
-        process.communicate()
+                process.communicate()
 
 class Cxt(Object):
     def __init__(self, infile):
