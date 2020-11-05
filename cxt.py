@@ -188,15 +188,9 @@ class Array(Object):
 
         while m.tell() < size:
             self.datums.append(Datum(m, parent=self))
-            logging.debug(" -> {}".format(self.datums[-1]))
 
     def __repr__(self):
-        return "<Array: 0x{:0>12x}; size: {:0>4d}".format(self.start, len(self.datums))
-
-    def log(self):
-        logging.debug(self)
-        for datum in self.datums:
-            logging.debug(" -> {}".format(datum))
+        return "<Array: 0x{:0>12x}; size: {:0>4d}>".format(self.start, len(self.datums))
 
 class AssetHeader(Object):
     def __init__(self, m):
