@@ -43,6 +43,7 @@ class DatumType(IntEnum):
     UINT8   = 0x0002,
     UINT16  = 0x0003,
     UINT32  = 0x0004,
+    UINT16_2  = 0x0006,
     UINT64  = 0x0009,
     SINT16  = 0x0010,
     SINT64  = 0x0011,
@@ -112,7 +113,7 @@ class Datum(Object):
 
         if self.t == DatumType.UINT8:
             self.d = int.from_bytes(m.read(1), byteorder='little')
-        elif self.t == DatumType.UINT16:
+        elif self.t == DatumType.UINT16 or self.t == DatumType.UINT16_2:
             self.d = struct.unpack("<H", m.read(2))[0]
 
             if self.d == DatumType.REF:
