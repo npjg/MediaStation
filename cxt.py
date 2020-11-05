@@ -225,7 +225,7 @@ class AssetHeader(Object):
     def __repr__(self):
         return "<AssetHeader: type: 0x{:0>4x}, id: 0x{:0>4x} ({:0>4d}){}{}>".format(
             self.type.d, self.id.d, self.id.d,
-            " {}".format(self.ref.d if self.ref else ""),
+            " {}".format(self.ref.d) if self.ref else "",
             ", name: {}".format(self.name.d) if self.name else ""
         )
 
