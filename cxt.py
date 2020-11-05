@@ -458,25 +458,30 @@ class Movie(Object):
 
         header = riff.next()
         while header:
+            codes = {
+                "header": int(header.code[1:], 16),
+                "video": int(header.code[1:], 16) + 1,
+                "audio": int(header.code[1:], 16) + 2
+            }
+
+            logging.warning("Header: {}".format(header.code))
             frames = []
 
             entry = riff.next()
             if not entry:
                 break
 
-            # Assumption: Data always stored header -> video -> sound
-            while int(entry.code[1:], 16) != int(header.code[1:], 16) + 1:
-                frame = MovieFrame(entry.data)
-                entry = riff.next()
-                footer = None # Array(entry.data)
-                frames.append((frame, footer))
-
+            while entry and int(entry.code[1:], 16) == codes["video"]:
+                frames.append(entry.data)
                 entry = riff.next()
 
-            sound = entry
-
-            self.chunks.append((header, frames, sound))
-            header = riff.next()
+            if entry:
+                if int(entry.code[1:], 16) == codes["audio"]:
+                    self.chunks.append((Array(header.data), frames, entry))
+                    header = riff.next()
+                else: # We must have the next header entry
+                    self.chunks.append((Array(header.data), frames, None))
+                    header = entry
 
     def export(self, pathname, fmt=("png", "wav")):
         try:
