@@ -475,6 +475,11 @@ class Movie(Object):
             header = riff.next()
 
     def export(self, pathname, fmt=("png", "wav")):
+        try:
+            os.mkdir(pathname)
+        except FileExistsError:
+            pass
+
         for i, chunk in enumerate(self.chunks):
             for j, frame in enumerate(chunk[1]):
                 try:
@@ -640,12 +645,11 @@ class Cxt(Object):
         for id, asset in self.assets.items():
             if asset[1]:
                 path = os.path.join(directory, str(id))
-                try:
-                    os.mkdir(path)
-                except FileExistsError:
-                    pass
 
-                asset[1].export(path)
+                try:
+                    asset[1].export(path)
+                except AttributeError as e:
+                    logging.warning("Could not export asset {}: {}".format(id, e))
 
     def __repr__(self):
         return "<Context: {:0>4d} (0x{:0>4x}){}>".format(
