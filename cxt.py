@@ -513,14 +513,15 @@ class Movie(Object):
         return "<Movie: chunks: {}>".format(len(self.chunks))
 
 class Sound(Object):
-    # TODO: Do sounds always come in their own RIFF?
-    def __init__(self, riff):
-        self.chunks = []
-
-        entry = riff.next()
-        while entry:
-            self.chunks.append(entry)
-            entry = riff.next()
+    def __init__(self, data):
+        if isinstance(data, Riff):
+            self.chunks = []
+            entry = data.next()
+            while entry:
+                self.chunks.append(entry)
+                entry = data.next()
+        else:
+            self.chunks = [data]
 
     def export(self, directory, filename, fmt="wav", **kwargs):
         filename = os.path.join(directory, filename)
@@ -598,8 +599,7 @@ class Cxt(Object):
 
         entry.data.seek(0)
 
-        # Now read all the single-chunk assets in the first RIFF
-        logging.info("Finishing first RIFF...")
+        # Now read all the single-chunk assets
         while entry:
             if entry.code == 'igod':
                 value_assert(Datum(entry.data).d, ChunkType.HEADER, "header signature")
@@ -615,6 +615,8 @@ class Cxt(Object):
                 # TODO: Handle font chunks
                 if asset_header.type.d == AssetType.IMG:
                     self.assets.update({asset_header.id.d: (asset_header, Image(entry.data))})
+                elif asset_header.type.d == AssetType.SND:
+                    self.assets.update({asset_header.id.d: (asset_header, Sound(entry))})
                 else:
                     self.assets.update({asset_header.id.d: (asset_header, entry.data)})
 
