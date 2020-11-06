@@ -569,9 +569,9 @@ class Cxt(Object):
 
             entry = riff.next()
         except AssertionError as e:
-            logging.warning(e)
-            logging.warning("Found no palette, assuming first chunk is root")
+            self.palette = None
             entry.data.seek(0)
+            logging.warning("Found no palette, assuming first chunk is root")
 
         value_assert(Datum(entry.data).d, ChunkType.HEADER, "header signature")
         self.root = Root(entry.data)
@@ -594,6 +594,11 @@ class Cxt(Object):
                 asset_headers.update({index: asset_header})
             else:
                 self.assets.update({asset_header.id.d: (asset_header, None)})
+
+                # TODO: Figure out palette handling more carefully.
+                if asset_header.type.d == AssetType.PAL:
+                    self.palette = asset_header.data.datums[-3]
+                    logging.warning(self.palette)
 
             entry = riff.next()
 
@@ -664,7 +669,6 @@ class Cxt(Object):
 
     def export(self, directory):
         for id, asset in self.assets.items():
-
             logging.info("Exporting asset {}".format(id))
 
             path = os.path.join(directory, str(id))
@@ -676,7 +680,7 @@ class Cxt(Object):
                     print(repr(datum), file=header)
 
             try:
-                if asset[1]: asset[1].export(path, str(id), palette=self.palette.d)
+                if asset[1]: asset[1].export(path, str(id), palette=self.palette.d if self.palette else None)
             except Exception as e:
                 logging.warning("Could not export asset {}: {}".format(id, e))
 
