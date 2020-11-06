@@ -422,7 +422,7 @@ class Image(Object):
             filename += (".{}".format(fmt))
 
         image = PILImage.frombytes("P", (self.width, self.height), self.raw)
-        if 'palette' in kwargs:
+        if 'palette' in kwargs and kwargs['palette']:
             image.putpalette(kwargs['palette'].colours)
 
         image.save(filename, fmt)
