@@ -452,7 +452,8 @@ class MovieFrame(Object):
 
 class Movie(Object):
     # TODO: Do movies always come in their own RIFF?
-    def __init__(self, riff):
+    def __init__(self, riff, still=None):
+        self.still = still
         self.chunks = []
 
         header = riff.next()
@@ -481,6 +482,12 @@ class Movie(Object):
                     header = entry
 
     def export(self, directory, filename, fmt=("png", "wav"), **kwargs):
+        if self.still:
+            self.still[0].image.export(directory, "still", fmt=fmt[0], **kwargs)
+            with open(os.path.join(directory, "still.txt"), 'w') as still:
+                for datum in Array(self.still[1]).datums:
+                    print(repr(datum), file=still)
+
         frame_headers = open(os.path.join(directory, "frame_headers.txt"), 'w')
         image_headers = open(os.path.join(directory, "image_headers.txt"), 'w')
 
@@ -579,32 +586,28 @@ class Cxt(Object):
         # Now read all the asset headers
         logging.info("Reading asset headers...")
         asset_headers = {}
+        movie_stills = {}
 
         entry = riff.next()
         while Datum(entry.data).d == ChunkType.HEADER:
             asset_header = AssetHeader(entry.data)
 
-            if asset_header.ref:
-                if asset_header.type.d == AssetType.MOV:
-                    # Movies have asset lists, not a single value.
-                    index = asset_header.ref.d.id(string=True)[0]
-                else:
-                    index = asset_header.ref.d.id(string=True)
-
-                asset_headers.update({index: asset_header})
+            if asset_header.ref and not isinstance(asset_header.ref.d, int):
+                for ref in asset_header.ref.d.id(string=True):
+                    asset_headers.update({ref: asset_header})
             else:
                 self.assets.update({asset_header.id.d: (asset_header, None)})
 
                 # TODO: Figure out palette handling more carefully.
                 if asset_header.type.d == AssetType.PAL:
                     self.palette = asset_header.data.datums[-3]
-                    logging.warning(self.palette)
 
             entry = riff.next()
 
         entry.data.seek(0)
 
         # Now read all the single-chunk assets
+        logging.info("Reading single-chunk assets...")
         while entry:
             if entry.code == 'igod':
                 value_assert(Datum(entry.data).d, ChunkType.HEADER, "header signature")
@@ -612,28 +615,29 @@ class Cxt(Object):
                 # We do not use this data because we have a dictionary!
                 AssetLink(entry.data)
             else:
-                try:
-                    asset_header = asset_headers[entry.code]
-                except KeyError as e:
-                    logging.warning("Could not find key entry for asset {}".format(e))
+                asset_header = asset_headers[entry.code]
 
                 # TODO: Handle font chunks
                 if asset_header.type.d == AssetType.IMG:
                     self.assets.update({asset_header.id.d: (asset_header, Image(entry.data))})
                 elif asset_header.type.d == AssetType.SND:
                     self.assets.update({asset_header.id.d: (asset_header, Sound(entry))})
+                elif asset_header.type.d == AssetType.MOV: # A single still frame
+                    if asset_header.id.d not in movie_stills:
+                        movie_stills.update({asset_header.id.d: [MovieFrame(entry.data), None]})
+                    else:
+                        value_assert(Datum(entry.data).d, ChunkType.MOV_3)
+                        movie_stills[asset_header.id.d][1] = entry.data
                 else:
                     self.assets.update({asset_header.id.d: (asset_header, entry.data)})
 
             entry = riff.next()
 
-        # Now read all the assets in the rest of the file.
-        # TODO: Verify only movies and sounds live here.
-
+        # Now read all multi-chunk assets in rest of file.
         # TODO: Determine where the junk data at the end comes from
         try:
             riff = Riff(self.m)
-            logging.info("Reading rest of file...")
+            logging.info("Reading multi-chunk assets...")
         except AssertionError as e:
             logging.warning(e)
             riff = None
@@ -643,15 +647,12 @@ class Cxt(Object):
             entry = riff.next()
 
             for id, asset_header in asset_headers.items():
-                # Movies have asset lists, not a single value.
-                # id_to_match = asset_header.ref.d.id(string=True)
-                # if isinstance(id_to_match, list):
-                    # id_to_match = id_to_match[0]
-
                 if id == entry.code:
                     riff.reset()
                     if asset_header.type.d == AssetType.MOV:
-                        self.assets.update({asset_header.id.d: (asset_header, Movie(riff))})
+                        self.assets.update({
+                            asset_header.id.d: (asset_header, Movie(riff, still=movie_stills.get(asset_header.id.d)))
+                        })
                     elif asset_header.type.d == AssetType.SND:
                         self.assets.update({asset_header.id.d: (asset_header, Sound(riff))})
                     else:
