@@ -662,8 +662,10 @@ class CxtData(Object):
                     if asset_header.id.d not in movie_stills:
                         movie_stills.update({asset_header.id.d: [MovieFrame(entry.data), None]})
                     else:
-                        value_assert(Datum(entry.data).d, ChunkType.MOV_3)
-                        movie_stills[asset_header.id.d][1] = entry.data
+                        if Datum(entry.data).d == ChunkType.MOV_3:
+                            movie_stills[asset_header.id.d][1] = entry.data
+                        else:
+                            logging.warning("Found movie with more than 1 still")
                 else:
                     self.assets.update({asset_header.id.d: (asset_header, entry.data)})
 
