@@ -548,7 +548,7 @@ class Sound(Object):
 
                 process.communicate()
 
-class Cxt(Object):
+class CxtData(Object):
     def __init__(self, infile):
         with open(infile, mode='rb') as f:
             self.m = mmap.mmap(f.fileno(), length=0, access=mmap.ACCESS_READ)
