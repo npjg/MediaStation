@@ -234,7 +234,8 @@ class AssetHeader(Object):
 
 class AssetLink(Object):
     def __init__(self, m):
-        value_assert(Datum(m).d, HeaderType.LINK, "link signature")
+        # TODO: Determine the lengths of these asset links.
+        self.type = Datum(m)
         self.data = Array(m)
 
     @property
