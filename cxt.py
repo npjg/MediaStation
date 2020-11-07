@@ -728,7 +728,9 @@ class CxtData(Object):
         )
 
 def main(infile):
-    c = Cxt(infile)
+    global c
+    c = CxtData(infile)
+    c.export(os.path.split(infile)[1])
 
 logging.basicConfig(level=logging.DEBUG)
 
