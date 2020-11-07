@@ -413,7 +413,7 @@ class Image(Object):
         else:
             self.raw = m.read(self.width*self.height)
 
-        value_assert(len(self.raw), self.width*self.height, "image length ({} x {})".format(self.width, self.height))
+        value_assert(len(self.raw), self.width*self.height, "image length ({} x {})".format(self.width, self.height), warn=True)
 
     def export(self, directory, filename, fmt="png", **kwargs):
         filename = os.path.join(directory, filename)
