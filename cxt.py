@@ -547,6 +547,28 @@ class Sprite(Object):
 
         frame_headers.close()
 
+class Font(Object):
+    def __init__(self):
+        self.glyphs = []
+
+    def append(self, m):
+        header = Array(m, size=0x22)
+        glyph = Image(m, dims=header.datums[4])
+
+        self.glyphs.append((header, glyph))
+
+    def export(self, directory, filename, fmt="png", **kwargs):
+        frame_headers = open(os.path.join(directory, "frame_headers.txt"), 'w')
+
+        for i, glyph in enumerate(self.glyphs):
+            print(" --- {}---".format(i), file=frame_headers)
+            for datum in glyph[0].datums:
+                print(repr(datum), file=frame_headers)
+
+            glyph[1].export(directory, str(i), fmt=fmt, **kwargs)
+
+        frame_headers.close()
+
 class Sound(Object):
     def __init__(self, data):
         if isinstance(data, Riff):
@@ -656,6 +678,11 @@ class CxtData(Object):
                 elif asset_header.type.d == AssetType.SPR:
                     if asset_header.id.d not in self.assets:
                         self.assets.update({asset_header.id.d: [asset_header, Sprite()]})
+
+                    self.assets[asset_header.id.d][1].append(entry.data)
+                elif asset_header.type.d == AssetType.FON:
+                    if asset_header.id.d not in self.assets:
+                        self.assets.update({asset_header.id.d: [asset_header, Font()]})
 
                     self.assets[asset_header.id.d][1].append(entry.data)
                 elif asset_header.type.d == AssetType.MOV: # A single still frame
