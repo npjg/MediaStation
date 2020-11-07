@@ -253,7 +253,7 @@ class Ref(Object):
             self.data.append(Datum(m))
 
     def id(self, string=False):
-        return self.string if string else int(self.string[1:], 16)
+        return [self.string] if string else int(self.string[1:], 16)
 
     def __repr__(self):
         return "<Ref: {} ({:0>4d})>".format(self.string, self.id())
@@ -264,7 +264,7 @@ class MovieRef(Object):
         value_assert(Datum(m).d, 0x001c)
 
     def id(self, string=False):
-        return [r.id(string) for r in self.refs]
+        return [r.id(string)[0] for r in self.refs]
 
     def __repr__(self):
         return("<MovieRef: ids: {}>".format(
