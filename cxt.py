@@ -51,6 +51,7 @@ class DatumType(IntEnum):
     SINT64  = 0x0011,
     STRING  = 0x0012,
     POINT   = 0x000f,
+    POINT_2 = 0x000e,
     PALETTE = 0x05aa,
     REF     = 0x001b,
     BBOX    = 0x000d,
@@ -157,7 +158,7 @@ class Datum(Object):
             self.d = m.read(size.d).decode("utf-8")
         elif self.t == DatumType.BBOX:
             self.d = Bbox(m)
-        elif self.t == DatumType.POINT:
+        elif self.t == DatumType.POINT or self.t == DatumType.POINT_2:
             self.d = Point(m)
         else:
             raise TypeError("(@ 0x{:0>12x}) Unknown datum type 0x{:0>4x}".format(m.tell(), self.t))
@@ -367,14 +368,15 @@ class Root(Object):
             return None
 
 class Image(Object):
-    def __init__(self, m, movie=None):
+    def __init__(self, m, dims=None, check=True):
         self.header = None
-        self.movie = movie
-        if not movie:
+        self.dims = dims
+        if not dims:
             value_assert(Datum(m).d, ChunkType.IMAGE, "image signature")
             self.header = Array(m, 0x16)
 
-        value_assert(m, b'\x00\x00', "image row header")
+        if check:
+            value_assert(m, b'\x00\x00', "image row header", warn=True)
 
         if self.compressed:
             self.raw = bytearray((self.width*self.height) * b'\x00')
@@ -433,15 +435,15 @@ class Image(Object):
 
     @property
     def compressed(self):
-        return (self.header and self.header.datums[1].d) or self.movie
+        return (self.header and self.header.datums[1].d) or self.dims
 
     @property
     def width(self):
-        return self.movie.d.x if self.movie else self.header.datums[0].d.x
+        return self.dims.d.x if self.dims else self.header.datums[0].d.x
 
     @property
     def height(self):
-        return self.movie.d.y if self.movie else self.header.datums[0].d.y
+        return self.dims.d.y if self.dims else self.header.datums[0].d.y
 
     def __repr__(self):
         return "<Image: size: {} x {}>".format(self.width, self.height)
@@ -452,7 +454,7 @@ class MovieFrame(Object):
 
         value_assert(Datum(m).d, ChunkType.MOV_2, "movie signature")
         self.header = Array(m, 0x26)
-        self.image = Image(m, movie=self.header.datums[1])
+        self.image = Image(m, dims=self.header.datums[1])
 
 class Movie(Object):
     # TODO: Do movies always come in their own RIFF?
@@ -522,6 +524,28 @@ class Movie(Object):
 
     def __repr__(self):
         return "<Movie: chunks: {}>".format(len(self.chunks))
+
+class Sprite(Object):
+    def __init__(self):
+        self.frames = []
+
+    def append(self, m):
+        header = Array(m, size=0x24)
+        image = Image(m, dims=header.datums[1], check=False)
+
+        self.frames.append((header, image))
+
+    def export(self, directory, filename, fmt="png", **kwargs):
+        frame_headers = open(os.path.join(directory, "frame_headers.txt"), 'w')
+
+        for i, frame in enumerate(self.frames):
+            print(" --- {}---".format(i), file=frame_headers)
+            for datum in frame[0].datums:
+                print(repr(datum), file=frame_headers)
+
+            frame[1].export(directory, str(i), fmt=fmt, **kwargs)
+
+        frame_headers.close()
 
 class Sound(Object):
     def __init__(self, data):
@@ -629,6 +653,11 @@ class CxtData(Object):
                     self.assets.update({asset_header.id.d: (asset_header, Image(entry.data))})
                 elif asset_header.type.d == AssetType.SND:
                     self.assets.update({asset_header.id.d: (asset_header, Sound(entry))})
+                elif asset_header.type.d == AssetType.SPR:
+                    if asset_header.id.d not in self.assets:
+                        self.assets.update({asset_header.id.d: [asset_header, Sprite()]})
+
+                    self.assets[asset_header.id.d][1].append(entry.data)
                 elif asset_header.type.d == AssetType.MOV: # A single still frame
                     if asset_header.id.d not in movie_stills:
                         movie_stills.update({asset_header.id.d: [MovieFrame(entry.data), None]})
