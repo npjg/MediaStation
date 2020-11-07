@@ -142,9 +142,6 @@ class Datum(Object):
             elif self.d == DatumType.POLY:
                 self.t = self.d
                 self.d = Polygon(m)
-            elif self.d == DatumType.PALETTE:
-                self.t = self.d
-                self.d = Palette(m, check=False)
         elif self.t == DatumType.SINT16:
             self.d = struct.unpack("<H", m.read(2))[0]
         elif self.t == DatumType.UINT32:
@@ -183,14 +180,22 @@ class Datum(Object):
         return base + data
 
 class Array(Object):
-    def __init__(self, m, size=None):
+    def __init__(self, m, size=None, throw=False):
         self.start = m.tell()
 
         self.datums = []
         size = size if size else len(m.getbuffer())
 
-        while m.tell() < size:
-            self.datums.append(Datum(m, parent=self))
+        try:
+            while m.tell() < size:
+                self.datums.append(Datum(m, parent=self))
+        except TypeError as e:
+            if not throw:
+                logging.warning(e)
+                m.seek(m.tell() - 2)
+            else:
+                raise
+
 
     def __repr__(self):
         return "<Array: 0x{:0>12x}; size: {:0>4d}>".format(self.start, len(self.datums))
@@ -429,7 +434,7 @@ class Image(Object):
 
         image = PILImage.frombytes("P", (self.width, self.height), self.raw)
         if 'palette' in kwargs and kwargs['palette']:
-            image.putpalette(kwargs['palette'].colours)
+            image.putpalette(kwargs['palette'])
 
         image.save(filename, fmt)
 
@@ -619,14 +624,12 @@ class CxtData(Object):
         entry = riff.next()
         value_assert(Datum(entry.data).d, ChunkType.HEADER, "header signature")
 
-        try:
-            logging.info("Searching for palette as first chunk...")
-            self.palette = Datum(entry.data)
-            assert self.palette.t == DatumType.PALETTE
-
+        logging.info("Searching for palette as first chunk...")
+        signature = Datum(entry.data)
+        if signature.d == DatumType.PALETTE:
+            self.palette = entry.data.read(0x300)
             entry = riff.next()
-        except AssertionError as e:
-            self.palette = None
+        else:
             entry.data.seek(0)
             logging.warning("Found no palette, assuming first chunk is root")
 
@@ -653,7 +656,7 @@ class CxtData(Object):
 
                 # TODO: Figure out palette handling more carefully.
                 if asset_header.type.d == AssetType.PAL:
-                    self.palette = asset_header.data.datums[-3]
+                    self.palette = entry.data.read(0x300)
 
             entry = riff.next()
 
@@ -746,7 +749,7 @@ class CxtData(Object):
                     print(repr(datum), file=header)
 
             try:
-                if asset[1]: asset[1].export(path, str(id), palette=self.palette.d if self.palette else None)
+                if asset[1]: asset[1].export(path, str(id), palette=self.palette if self.palette else None)
             except Exception as e:
                 logging.warning("Could not export asset {}: {}".format(id, e))
 
