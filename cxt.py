@@ -194,8 +194,10 @@ class Array(Object):
         return "<Array: 0x{:0>12x}; size: {:0>4d}>".format(self.start, len(self.datums))
 
 class AssetHeader(Object):
-    def __init__(self, m):
-        value_assert(Datum(m).d, HeaderType.ASSET, "asset header signature")
+    def __init__(self, m, check=True):
+        if check:
+            value_assert(Datum(m).d, HeaderType.ASSET, "asset header signature")
+
         self.data = Array(m)
 
     @property
@@ -590,7 +592,10 @@ class Cxt(Object):
 
         entry = riff.next()
         while Datum(entry.data).d == ChunkType.HEADER:
-            asset_header = AssetHeader(entry.data)
+            if Datum(entry.data).d != HeaderType.ASSET:
+                break
+
+            asset_header = AssetHeader(entry.data, check=False)
 
             if asset_header.ref and not isinstance(asset_header.ref.d, int):
                 for ref in asset_header.ref.d.id(string=True):
