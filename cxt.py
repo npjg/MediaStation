@@ -14,32 +14,30 @@ import mmap
 import PIL.Image as PILImage
 
 class ChunkType(IntEnum):
-    HEADER = 0x000d,
-    IMAGE  = 0x0018,
-    MOV_1  = 0xa8a4,
-    MOV_2  = 0x06a9,
-    MOV_3  = 0x06aa
+    HEADER         = 0x000d,
+    IMAGE          = 0x0018,
+    MOVIE_FRAME    = 0x06a9,
+    MOVIE_HEADER   = 0x06aa,
 
 class HeaderType(IntEnum):
-    ROOT  = 0x000e,
-    ASSET = 0x0011,
-    LINK  = 0x0013,
-    MOV_H = 0x06aa,
-    MOV_V = 0x06a9,
+    ROOT    = 0x000e,
+    PALETTE = 0x05aa,
+    ASSET   = 0x0011,
+    LINK    = 0x0013,
 
 class AssetType(IntEnum):
     SCR  = 0x0001,
     STG  = 0x0002,
-    IMG  = 0x0007,
-    MOV  = 0x0016,
-    HSP  = 0x000b,
-    TMR  = 0x0006,
     SND  = 0x0005,
+    TMR  = 0x0006,
+    IMG  = 0x0007,
+    HSP  = 0x000b,
+    SPR  = 0x000e,
+    MOV  = 0x0016,
     PAL  = 0x0017,
     TXT  = 0x001a,
     FON  = 0x001b,
     CVS  = 0x001e,
-    SPR  = 0x000e
 
 class DatumType(IntEnum):
     UINT8   = 0x0002,
@@ -55,14 +53,33 @@ class DatumType(IntEnum):
     PALETTE = 0x05aa,
     REF     = 0x001b,
     BBOX    = 0x000d,
-    POLY    = 0x001d
+    POLY    = 0x001d,
 
-def value_assert(m, target, type="value", warn=False):
-    s = 0
-    ax = m
+def chunk_int(chunk):
     try:
-        s = m.tell()
-        ax = m.read(len(target))
+        return int(chunk['code'][1:], 16)
+    except Exception as e:
+        return None
+
+def read_chunk(stream):
+    if stream.tell() % 2 == 1:
+        stream.read(1)
+
+    chunk = {
+        "start": stream.tell(),
+        "code": stream.read(4).decode("utf-8"),
+        "size": struct.unpack("<L", stream.read(4))[0]
+    }
+
+    logging.debug("(@0x{:012x}) Read chunk {} (0x{:04x} bytes)".format(stream.tell(), chunk["code"], chunk["size"]))
+    return chunk
+
+def value_assert(stream, target, type="value", warn=False):
+    s = 0
+    ax = stream
+    try:
+        s = stream.tell()
+        ax = stream.read(len(target))
     except AttributeError:
         pass
 
@@ -77,93 +94,59 @@ def value_assert(m, target, type="value", warn=False):
 
         return ax
 
-def chunk_assert(m, target, warn=False):
-    value_assert(m, target, "chunk", warn)
 
-def align(m):
-    if m.tell() % 2 == 1:
-        m.read(1)
-
-
-# Internal representations
+############### INTERNAL DATA REPRESENTATIONS ############################
 
 class Object:
     def __format__(self, spec):
         return self.__repr__()
 
-class Chunk(Object):
-    def __init__(self, m):
-        self.start = m.tell()
-        self.code = m.read(4).decode("utf-8")
-        self.size = struct.unpack("<L", m.read(4))[0]
-
-        self.data = io.BytesIO(m.read(self.size))
-        align(m)
-
-    def __repr__(self):
-        return "<Chunk: 0x{:0>12x}; id: {}, size: 0x{:0>6x}>".format(
-            self.start, self.code, self.size
-        )
-
 class Datum(Object):
-    def __init__(self, m, parent=None):
+    def __init__(self, stream, parent=None, peek=False):
         # TODO: All this processing is unnecessary once I have the format
         # completely figured out. All of this complicated type-checking can be
         # replaced with assertion.
-        self.s = m.tell()
+        self.start = stream.tell()
         self.d = None
-        self.t = struct.unpack("<H", m.read(2))[0]
+        self.t = struct.unpack("<H", stream.read(2))[0]
 
         if self.t == DatumType.UINT8:
-            self.d = int.from_bytes(m.read(1), byteorder='little')
+            self.d = int.from_bytes(stream.read(1), byteorder='little')
         elif self.t == DatumType.UINT16 or self.t == DatumType.UINT16_2:
-            self.d = struct.unpack("<H", m.read(2))[0]
+            self.d = struct.unpack("<H", stream.read(2))[0]
 
-            if self.d == DatumType.REF:
-                # Make sure it is truly a reference and keep as int if not
-                try:
-                    chunk_assert(m, b'\x1b\x00')
-                except AssertionError:
-                    m.seek(m.tell() - 2)
-                    return
-
-                m.seek(m.tell() - 2)
-
-                # Separate out movie references from plain references.
+            if self.d == DatumType.POLY:
                 self.t = self.d
-                try:
-                    if parent.datums[1].d == AssetType.MOV:
-                        self.d = MovieRef(m)
-                    else:
-                        self.d = Ref(m)
-                except IndexError:
-                    self.d = Ref(m)
-
-            elif self.d == DatumType.POLY:
-                self.t = self.d
-                self.d = Polygon(m)
+                self.d = Polygon(stream)
         elif self.t == DatumType.SINT16:
-            self.d = struct.unpack("<H", m.read(2))[0]
+            self.d = struct.unpack("<H", stream.read(2))[0]
         elif self.t == DatumType.UINT32:
-            self.d = struct.unpack("<L", m.read(4))[0]
+            self.d = struct.unpack("<L", stream.read(4))[0]
         elif self.t == DatumType.UINT64:
-            self.d = struct.unpack("<Q", m.read(8))[0]
+            self.d = struct.unpack("<Q", stream.read(8))[0]
         elif self.t == DatumType.SINT64:
-            self.d = struct.unpack("<Q", m.read(8))[0]
+            self.d = struct.unpack("<q", stream.read(8))[0]
         elif self.t == DatumType.STRING:
-            size = Datum(m)
-            self.d = m.read(size.d).decode("utf-8")
+            size = Datum(stream)
+            self.d = stream.read(size.d).decode("utf-8")
         elif self.t == DatumType.BBOX:
-            self.d = Bbox(m)
+            self.d = Bbox(stream)
         elif self.t == DatumType.POINT or self.t == DatumType.POINT_2:
-            self.d = Point(m)
+            self.d = Point(stream)
+        elif self.t == DatumType.REF:
+            self.d = Ref(stream, parent.type)
         else:
-            raise TypeError("(@ 0x{:0>12x}) Unknown datum type 0x{:0>4x}".format(m.tell(), self.t))
+            stream.seek(stream.tell() - 2)
+            raise TypeError(
+                "(@ 0x{:0>12x}) Unknown datum type 0x{:0>4x}".format(stream.tell(), self.t)
+            )
+
+        if peek: stream.seek(self.start)
 
     def __repr__(self):
         data = ""
         base = "<Datum: +0x{:0>4x}; type: 0x{:0>4x}, ".format(
-            self.s, self.t
+            self.start, self.t
         )
         
         try:
@@ -179,111 +162,40 @@ class Datum(Object):
             
         return base + data
 
-class Array(Object):
-    def __init__(self, m, size=None, throw=False):
-        self.start = m.tell()
-
-        self.datums = []
-        size = size if size else len(m.getbuffer())
-
-        try:
-            while m.tell() < size:
-                self.datums.append(Datum(m, parent=self))
-        except TypeError as e:
-            if not throw:
-                logging.warning(e)
-                m.seek(m.tell() - 2)
-            else:
-                raise
-
-
-    def __repr__(self):
-        return "<Array: 0x{:0>12x}; size: {:0>4d}>".format(self.start, len(self.datums))
-
-class AssetHeader(Object):
-    def __init__(self, m, check=True):
-        if check:
-            value_assert(Datum(m).d, HeaderType.ASSET, "asset header signature")
-
-        self.data = Array(m)
-
-    @property
-    def type(self):
-        return self.data.datums[1]
-
-    @property
-    def id(self):
-        return self.data.datums[2]
-
-    @property
-    def name(self):
-        if self.data.datums[4].t != DatumType.STRING:
-            return None
-
-        return self.data.datums[4]
-
-    @property
-    def ref(self):
-        # TODO: Enumerate all types that have associated data chunks
-        if self.type.d in (AssetType.SND, AssetType.FON):
-            return self.data.datums[5]
-        elif self.type.d in (AssetType.MOV, AssetType.IMG, AssetType.SPR):
-            return self.data.datums[7]
-
-        return None
-
-    def __repr__(self):
-        return "<AssetHeader: type: 0x{:0>4x}, id: 0x{:0>4x} ({:0>4d}){}{}>".format(
-            self.type.d, self.id.d, self.id.d,
-            " {}".format(self.ref.d) if self.ref else "",
-            ", name: {}".format(self.name.d) if self.name else ""
-        )
-
-class AssetLink(Object):
-    def __init__(self, m):
-        # TODO: Determine the lengths of these asset links.
-        self.type = Datum(m)
-        self.data = Array(m)
-
-    @property
-    def ids(self):
-        # For now, we just skip the even indices, as these are delimiters.
-        return self.data.datums[::2]
-
 class Ref(Object):
-    def __init__(self, m, datums=1):
-        chunk_assert(m, b'\x1b\x00')
+    def __init__(self, stream, type):
+        self.refs = []
 
-        self.string = m.read(4).decode("utf-8")
-        self.data = []
-        for _ in range(datums):
-            self.data.append(Datum(m))
+        if type.d in (AssetType.SPR, AssetType.IMG, AssetType.SND, AssetType.FON):
+            self.append(stream)
+        elif type.d == AssetType.MOV:
+            self.append(stream)
+            stream.read(2)
 
-    def id(self, string=False):
-        return [self.string] if string else int(self.string[1:], 16)
+            self.append(stream)
+            stream.read(2)
 
-    def __repr__(self):
-        return "<Ref: {} ({:0>4d})>".format(self.string, self.id())
+            self.append(stream)
+        else:
+            raise ValueError("Reference for unexpected asset type: {}".format(type.d))
 
-class MovieRef(Object):
-    def __init__(self, m):
-        self.refs = [Ref(m), Ref(m), Ref(m, datums=2)]
-        value_assert(Datum(m).d, 0x001c)
-
-    def id(self, string=False):
-        return [r.id(string)[0] for r in self.refs]
-
-    def __repr__(self):
-        return("<MovieRef: ids: {}>".format(
-            [r.string for r in self.refs])
+    def append(self, stream):
+        self.refs.append(
+            (stream.read(4).decode("utf-8"), Datum(stream))
         )
+
+    def id(self, string=False):
+        return [int(ref[0][1:], 16) if string else ref[0] for ref in self.refs]
+
+    def __repr__(self):
+        return "<Ref: {})>".format([(s, i) for s, i in zip(self.id(), self.id(string=True))])
 
 class Point(Object):
     def __init__(self, m):
-        chunk_assert(m, b'\x10\x00')
+        value_assert(m, b'\x10\x00', "chunk")
         self.x = struct.unpack("<H", m.read(2))[0]
 
-        chunk_assert(m, b'\x10\x00')
+        value_assert(m, b'\x10\x00', "chunk")
         self.y = struct.unpack("<H", m.read(2))[0]
 
     def __repr__(self):
@@ -291,10 +203,10 @@ class Point(Object):
 
 class Bbox(Object):
     def __init__(self, m):
-        chunk_assert(m, b'\x0e\x00')
+        value_assert(m, b'\x0e\x00', "chunk")
         self.point = Point(m)
 
-        chunk_assert(m, b'\x0f\x00')
+        value_assert(m, b'\x0f\x00', "chunk")
         self.dims = Point(m)
 
     def __repr__(self):
@@ -317,109 +229,164 @@ class Polygon(Object):
     def __repr__(self):
         return "<Polygon: points: {}>".format(len(self.points))
 
-class Riff(Object):
-    def __init__(self, m):
-        chunk_assert(m, b'RIFF')
-        size = struct.unpack("<L", m.read(4))[0]
+class Array(Object):
+    def __init__(self, stream, parent=None, bytes=None, datums=None, stop=None):
+        if not datums and not bytes and not stop:
+            raise AttributeError("Creating an array requires providing a bytes size or a stop parameter.")
 
-        chunk_assert(m, b'IMTS')
-        chunk_assert(m, b'rate')
+        start = stream.tell()
 
-        unk1 = Datum(m)
-        m.read(2) # 00 00
+        self.datums = []
+        while True:
+            d = Datum(stream, parent=parent if parent else self)
+            if stop and d.t == stop[0] and d.d == stop[1]:
+                break
 
-        chunk_assert(m, b'LIST')
-        self.size = struct.unpack("<L", m.read(4))[0]
-        # assert size1 - size2 == 0x24, "Unexpected chunk size"
+            self.datums.append(d)
+            if bytes and stream.tell() >= bytes + start:
+                break
+            if datums and len(self.datums) > datums:
+                break
 
-        self.start = m.tell()
-        chunk_assert(m, b'data')
+    def log(self):
+        logging.debug(self)
+        for datum in self.datums:
+            logging.debug(" -> {}".format(datum))
 
-        self.m = m
+    def __repr__(self):
+        return "<Array: size: {:0>4d}>".format(len(self.datums))
 
-    def next(self):
-        if self.m.tell() - self.start < self.size:
-            c = Chunk(self.m)
-            return c
-        else: return None
+class AssetHeader(Object):
+    def __init__(self, stream, **kwargs):
+        start = stream.tell()
+        self.data = Array(stream, datums=4)
 
-    def reset(self):
-        self.m.seek(self.start + 0x04)
+        if self.data.datums[1].d == AssetType.PAL:
+            value_assert(Datum(stream).d, DatumType.PALETTE, "palette signature")
+            self.child = stream.read(0x300)
+        elif self.data.datums[1].d == AssetType.STG:
+            assert kwargs['size']
+            self.data.datums += Array(stream, parent=self, stop=(DatumType.UINT16, 0x0000)).datums
 
+            value_assert(Datum(stream).d, HeaderType.LINK, "link signature")
+            value_assert(Datum(stream).d, self.id.d, "asset id")
 
-# External representations
+            self.child = []
+            if Datum(stream, peek=True).d == HeaderType.ASSET:
+                Datum(stream)
+                while stream.tell() < start + kwargs['size']:
+                    self.child.append(AssetHeader(stream, size=start+kwargs['size']-stream.tell(), stop=(DatumType.UINT16, HeaderType.ASSET)))
+                    logging.debug(" -> {}".format(self.child[-1]))
+        else:
+            self.child = None
+            self.data.datums += Array(stream, parent=self, bytes=start+kwargs.get('size')-stream.tell(), stop=kwargs.get('stop')).datums
 
-class Palette(Object):
-    def __init__(self, m, check=True):
-        if check:
-            value_assert(Datum(m).d, DatumType.PALETTE, "palette signature")
-        self.colours = m.read(0x300)
+        if kwargs.get('size') and not kwargs.get('stop') and stream.tell() < start + kwargs['size']:
+            logging.warning("{} bytes left in asset header".format(start+kwargs['size']-stream.tell()))
+            stream.read(start + kwargs['size'] - stream.tell())
 
-class Root(Object):
-    def __init__(self, m):
-        value_assert(Datum(m).d, HeaderType.ROOT, "root signature")
-        self.datums = Array(m)
+    @property
+    def type(self):
+        return self.data.datums[1]
 
     @property
     def id(self):
-        return self.datums.datums[0]
+        return self.data.datums[2]
 
     @property
     def name(self):
-        try:
-            if self.datums.datums[3].t == DatumType.STRING:
-                return self.datums.datums[3]
-        except:
-            return None
+        for datum in self.data.datums:
+            if datum.t == DatumType.STRING:
+                return datum
+
+    @property
+    def ref(self):
+        # TODO: Enumerate all types that have associated data chunks
+        r = None
+        if self.type.d in (AssetType.SND, AssetType.FON):
+            r = self.data.datums[6]
+        elif self.type.d in (AssetType.MOV, AssetType.IMG, AssetType.SPR):
+            r = self.data.datums[8]
+
+        return r if r and r.t == DatumType.REF else None
+
+    def __repr__(self):
+        return "<AssetHeader: type: 0x{:0>4x}, id: 0x{:0>4x} ({:0>4d}){}{}>".format(
+            self.type.d, self.id.d, self.id.d,
+            " {}".format(self.ref.d) if self.ref else "",
+            ", name: {}".format(self.name.d) if self.name else ""
+        )
+
+class AssetLink(Object):
+    def __init__(self, stream, size):
+        # TODO: Determine the lengths of these asset links.
+        self.type = Datum(stream)
+        self.data = Array(stream, bytes=size-0x04)
+
+    @property
+    def ids(self):
+        # For now, we just skip the even indices, as these are delimiters.
+        return self.data.datums[::2]
+
+############### EXTERNAL DATA REPRESENTATIONS ############################
 
 class Image(Object):
-    def __init__(self, m, dims=None, check=True):
+    def __init__(self, stream, dims=None, check=True):
+        start = stream.tell() - 0x02
         self.header = None
         self.dims = dims
         if not dims:
-            value_assert(Datum(m).d, ChunkType.IMAGE, "image signature")
-            self.header = Array(m, 0x16)
+            value_assert(Datum(stream).d, ChunkType.IMAGE, "image signature")
+            self.header = Array(stream, bytes=0x16-0x04)
 
-        if check:
-            value_assert(m, b'\x00\x00', "image row header", warn=True)
+        if check: value_assert(stream, b'\x00\x00', "image row header")
 
         if self.compressed:
             self.raw = bytearray((self.width*self.height) * b'\x00')
 
+            done = False
             for h in range(self.height):
                 self.offset = 0
                 while True:
-                    code = int.from_bytes(m.read(1), byteorder='little')
+                    code = int.from_bytes(stream.read(1), byteorder='little')
 
                     if code == 0x00: # control mode
-                        op = int.from_bytes(m.read(1), byteorder='little')
+                        op = int.from_bytes(stream.read(1), byteorder='little')
                         if op == 0x00: # end of line
+                            break
+                        
+                        if op == 0x01: # end of image
+                            done = True
                             break
 
                         if op == 0x03: # offset for RLE
-                            self.offset += struct.unpack("<H", m.read(2))[0]
+                            self.offset += struct.unpack("<H", stream.read(2))[0]
                         else: # uncompressed data of given length
-                            pix = m.read(op)
+                            pix = stream.read(op)
 
                             loc = (h * self.width) + self.offset
                             self.raw[loc:loc+len(pix)] = pix
 
-                            if m.tell() % 2 == 1:
-                                m.read(1)
+                            if stream.tell() % 2 == 1:
+                                stream.read(1)
 
                             self.offset += len(pix)
                     else: # RLE data
                         loc = (h * self.width) + self.offset
 
-                        pix = m.read(1)
+                        pix = stream.read(1)
                         self.raw[loc:loc+code] = code * pix
 
                         self.offset += code
 
-            self.raw = bytes(self.raw)
-        else:
-            self.raw = m.read(self.width*self.height)
+                if done: break
 
+            self.raw = bytes(self.raw)
+            if not done: stream.read(2)
+        else:
+            self.raw = stream.read(self.width*self.height)
+
+        # assert start + size <= stream.tell(), "Expected to be no further than 0x{:x}, actually at 0x{:x}".format(start+size, stream.tell())
         value_assert(len(self.raw), self.width*self.height, "image length ({} x {})".format(self.width, self.height), warn=True)
 
     def export(self, directory, filename, fmt="png", **kwargs):
@@ -440,7 +407,7 @@ class Image(Object):
 
     @property
     def compressed(self):
-        return (self.header and self.header.datums[1].d) or self.dims
+        return bool((self.header and self.header.datums[1].d) or self.dims)
 
     @property
     def width(self):
@@ -454,73 +421,92 @@ class Image(Object):
         return "<Image: size: {} x {}>".format(self.width, self.height)
 
 class MovieFrame(Object):
-    def __init__(self, m):
-        m.seek(0)
+    def __init__(self, stream, size, still=False):
+        start = stream.tell()
+        self.header = Array(stream, bytes=0x22)
 
-        value_assert(Datum(m).d, ChunkType.MOV_2, "movie signature")
-        self.header = Array(m, 0x26)
-        self.image = Image(m, dims=self.header.datums[1])
+        if size - (stream.tell() - start) == 0x02:
+            stream.read(2)
+            self.image = None
+        else:
+            self.image = Image(stream, dims=self.header.datums[1]) if size - (stream.tell() - start) > 0x02 else None
 
+class MovieInfo(Object):
+    def __init__(self, stream, size):
+        self.data = Array(stream, bytes=size)
+        
 class Movie(Object):
-    # TODO: Do movies always come in their own RIFF?
-    def __init__(self, riff, still=None):
-        self.still = still
+    def __init__(self, stream, chunk, size, stills=None):
+        self.stills = stills
         self.chunks = []
 
-        header = riff.next()
-        while header:
-            frames = []
-            codes = {
-                "header": int(header.code[1:], 16),
-                "video": int(header.code[1:], 16) + 1,
-                "audio": int(header.code[1:], 16) + 2
-            }
+        start = stream.tell()
+        codes = {
+            "header": chunk_int(chunk),
+            "video" : chunk_int(chunk) + 1,
+            "audio" : chunk_int(chunk) + 2,
+        }
 
-            entry = riff.next()
-            if not entry:
+        while stream.tell() <= start + size:
+            if not chunk_int(chunk):
                 break
 
-            while entry and int(entry.code[1:], 16) == codes["video"]:
-                frames.append(entry.data)
-                entry = riff.next()
+            frames = []
+            frame_headers = []
+            header = Array(stream, bytes=chunk['size'])
 
-            if entry:
-                if int(entry.code[1:], 16) == codes["audio"]:
-                    self.chunks.append((Array(header.data), frames, entry))
-                    header = riff.next()
-                else: # We must have the next header entry
-                    self.chunks.append((Array(header.data), frames, None))
-                    header = entry
+            logging.debug("{:x}h / {:x}h".format(stream.tell(), start+size))
+            if stream.tell() >= start + size:
+                break
+
+            chunk = read_chunk(stream)
+            if not chunk:
+                break
+
+            while chunk_int(chunk) == codes["video"]:
+                type = Datum(stream)
+
+                if type.d == ChunkType.MOVIE_FRAME:
+                    frames.append(MovieFrame(stream, size=chunk['size']-0x04))
+                elif type.d == ChunkType.MOVIE_HEADER:
+                    frame_headers.append(MovieInfo(stream, size=chunk['size']-0x04))
+
+                chunk = read_chunk(stream)
+
+            self.chunks.append({
+                "header": header,
+                "frames": list(zip(frame_headers, frames)),
+                "audio": stream.read(chunk['size']) if chunk_int(chunk) == codes["audio"] else None
+                }
+            )
+
+            if chunk_int(chunk) == codes["audio"]:
+                chunk = read_chunk(stream)
 
     def export(self, directory, filename, fmt=("png", "wav"), **kwargs):
-        if self.still:
-            self.still[0].image.export(directory, "still", fmt=fmt[0], **kwargs)
-            with open(os.path.join(directory, "still.txt"), 'w') as still:
-                for datum in Array(self.still[1]).datums:
-                    print(repr(datum), file=still)
+        if self.stills:
+            for i, still in enumerate(self.stills):
+                still["frame"].image.export(directory, "still-{}".format(i), fmt=fmt[0], **kwargs)
+                with open(os.path.join(directory, "still-{}.txt".format(i)), 'w') as still_header:
+                    for datum in still["header"].datums:
+                        print(repr(datum), file=still_header)
 
         frame_headers = open(os.path.join(directory, "frame_headers.txt"), 'w')
         image_headers = open(os.path.join(directory, "image_headers.txt"), 'w')
 
         for i, chunk in enumerate(self.chunks):
-            for j, frame in enumerate(chunk[1]):
-                logging.debug("Exporting animation cell ({}, {})".format(i, j))
-                frame_type = Datum(frame).d
+            for j, frame in enumerate(chunk["frames"]):
+                # Handle the frame headers first
+                print(" --- {}-{} ---".format(i, j), file=frame_headers)
+                for datum in frame[0].data.datums:
+                    print(repr(datum), file=frame_headers)
 
-                if frame_type == ChunkType.MOV_2:
-                    frame = MovieFrame(frame)
-
-                    print(" --- {}-{} ---".format(i, j), file=image_headers)
-                    for datum in frame.header.datums:
-                        print(repr(datum), file=image_headers)
-
-                    frame.image.export(directory, "{}-{}".format(i, j), fmt=fmt[0], **kwargs)
-                elif frame_type == ChunkType.MOV_3:
-                    array = Array(frame)
-
-                    print(" --- {}-{} ---".format(i, j), file=frame_headers)
-                    for datum in array.datums:
-                        print(repr(datum), file=frame_headers)
+                # Now handle the actual frames
+                print(" --- {}-{} ---".format(i, j), file=image_headers)
+                for datum in frame[1].header.datums:
+                    print(repr(datum), file=image_headers)
+                    
+                frame[1].image.export(directory, "{}-{}".format(i, j), fmt=fmt[0], **kwargs)
 
             # TODO: Export sounds.
 
@@ -534,9 +520,9 @@ class Sprite(Object):
     def __init__(self):
         self.frames = []
 
-    def append(self, m):
-        header = Array(m, size=0x24)
-        image = Image(m, dims=header.datums[1], check=False)
+    def append(self, stream):
+        header = Array(stream, bytes=0x24)
+        image = Image(stream, dims=header.datums[1], check=False)
 
         self.frames.append((header, image))
 
@@ -556,9 +542,9 @@ class Font(Object):
     def __init__(self):
         self.glyphs = []
 
-    def append(self, m):
-        header = Array(m, size=0x22)
-        glyph = Image(m, dims=header.datums[4])
+    def append(self, stream):
+        header = Array(stream, bytes=0x22)
+        glyph = Image(stream, dims=header.datums[4])
 
         self.glyphs.append((header, glyph))
 
@@ -575,15 +561,23 @@ class Font(Object):
         frame_headers.close()
 
 class Sound(Object):
-    def __init__(self, data):
-        if isinstance(data, Riff):
-            self.chunks = []
-            entry = data.next()
-            while entry:
-                self.chunks.append(entry)
-                entry = data.next()
-        else:
-            self.chunks = [data]
+    def __init__(self, stream=None, chunk=None, size=0):
+        self.chunks = []
+        if size > 0:
+            # We want to read a while RIFF if the RIFF size is provided.
+            asset_id = chunk["code"]
+
+            start = stream.tell()
+            while stream.tell() < start + size:
+                assert chunk["code"] == asset_id
+                self.chunks.append(stream.read(chunk["size"]))
+                if stream.tell() >= start + size:
+                    break
+
+                chunk = read_chunk(stream)
+
+    def append(self, stream, size):
+        self.chunks.append(stream.read(size))
 
     def export(self, directory, filename, fmt="wav", **kwargs):
         filename = os.path.join(directory, filename)
@@ -595,146 +589,158 @@ class Sound(Object):
                     stdin=subprocess.PIPE, stdout=subprocess.PIPE
             ) as process:
                 for chunk in self.chunks:
-                    process.stdin.write(chunk.data.read())
+                    process.stdin.write(chunk)
 
                 process.communicate()
 
 class CxtData(Object):
-    def __init__(self, infile):
-        with open(infile, mode='rb') as f:
-            self.m = mmap.mmap(f.fileno(), length=0, access=mmap.ACCESS_READ)
-            logging.info("Opened context {}".format(infile))
-            
-            assert self.m.read(4) == b'II\x00\x00', "Incorrect file signature"
-            struct.unpack("<L", self.m.read(4))[0]
-            self.riff_count = struct.unpack("<L", self.m.read(4))[0]
-            self.size = struct.unpack("<L", self.m.read(4))[0]
+    def __init__(self, stream):
+        stream.seek(0)
 
-            self.palette = None
-            self.root = None
-            self.assets = {}
+        assert stream.read(4) == b'II\x00\x00', "Incorrect file signature"
+        struct.unpack("<L", stream.read(4))[0]
+        riffs = struct.unpack("<L", stream.read(4))[0]
+        total = struct.unpack("<L", stream.read(4))[0]
 
-            self.make_assets()
+        self.assets = {}
+        self.palette = None
+        self.root = None
 
-    def make_assets(self):
-        riff = Riff(self.m)
+        ################ Asset headers ###################################
+        logging.info("(@0x{:012x}) Reading asset headers...".format(stream.tell()))
+        headers = {}
 
-        # The first entry is palette or root entry
-        logging.info("Finding header information...")
-        entry = riff.next()
-        value_assert(Datum(entry.data).d, ChunkType.HEADER, "header signature")
-
-        logging.info("Searching for palette as first chunk...")
-        signature = Datum(entry.data)
-        if signature.d == DatumType.PALETTE:
-            self.palette = entry.data.read(0x300)
-            entry = riff.next()
-        else:
-            entry.data.seek(0)
-            logging.warning("Found no palette, assuming first chunk is root")
-
-        value_assert(Datum(entry.data).d, ChunkType.HEADER, "header signature")
-        self.root = Root(entry.data)
-
-        # Now read all the asset headers
-        logging.info("Reading asset headers...")
-        asset_headers = {}
-        movie_stills = {}
-
-        entry = riff.next()
-        while Datum(entry.data).d == ChunkType.HEADER:
-            if Datum(entry.data).d != HeaderType.ASSET:
+        end = stream.tell() + self.riff(stream)
+        chunk = read_chunk(stream)
+        while chunk["code"] == 'igod' and stream.tell() < end:
+            if Datum(stream).d != ChunkType.HEADER:
                 break
 
-            asset_header = AssetHeader(entry.data, check=False)
+            type = Datum(stream)
+            if type.d == HeaderType.LINK:
+                stream.seek(stream.tell() - 8)
+                break
+            if type.d == HeaderType.PALETTE:
+                assert not self.palette # We cannot have more than 1 palette
+                self.palette = stream.read(0x300)
+                value_assert(Datum(stream).d, 0x00, "end-of-chunk flag")
+            elif type.d == HeaderType.ROOT:
+                assert not self.root # We cannot have more than 1 root
+                self.root = Array(stream, stop=(DatumType.UINT16, 0x0000))
+            elif type.d == HeaderType.ASSET:
+                contents = [AssetHeader(stream, size=chunk["size"]-12)]
 
-            if asset_header.ref and not isinstance(asset_header.ref.d, int):
-                for ref in asset_header.ref.d.id(string=True):
-                    asset_headers.update({ref: asset_header})
+                if contents[0].type.d == AssetType.STG:
+                    contents += contents[0].child
+
+                for header in contents:
+                    logging.debug("Found asset header {}".format(header))
+                    # TODO: Deal with shared assets.
+                    if header.ref and not isinstance(header.ref.d, int):
+                        # We have an asset that has further data coming
+                        for ref in header.ref.d.id(string=True):
+                            headers.update({ref: header})
+                    else: # We have an asset that has all necessary data in the header
+                        self.assets.update({header.id.d: (header, None)})
+
+                value_assert(Datum(stream).d, 0x00, "end-of-chunk flag")
             else:
-                self.assets.update({asset_header.id.d: (asset_header, None)})
+                raise TypeError("Unknown header type: {}".format(type))
 
-                # TODO: Figure out palette handling more carefully.
-                if asset_header.type.d == AssetType.PAL:
-                    self.palette = entry.data.read(0x300)
+            chunk = read_chunk(stream)
+            logging.debug(chunk)
 
-            entry = riff.next()
+        ################ First-RIFF assets ###############################
+        logging.info("(@0x{:012x}) Reading first-RIFF assets...".format(stream.tell()))
 
-        entry.data.seek(0)
+        movie_stills = {}
+        while stream.tell() < end:
+            if chunk_int(chunk):
+                logging.debug("(@0x{:012x}) Accepted chunk {} (0x{:04x} bytes)".format(stream.tell(), chunk["code"], chunk["size"]))
+                header = headers[chunk_int(chunk)]
+                logging.debug("Linked to header {}".format(header))
 
-        # Now read all the single-chunk assets
-        logging.info("Reading single-chunk assets...")
-        while entry:
-            if entry.code == 'igod':
-                value_assert(Datum(entry.data).d, ChunkType.HEADER, "header signature")
+                if header.type.d == AssetType.IMG:
+                    self.assets.update({header.id.d: (header, Image(stream))})
+                elif header.type.d == AssetType.SND:
+                    if not header.id.d in self.assets:
+                        self.assets.update({header.id.d: [header, Sound()]})
 
-                # We do not use this data because we have a dictionary!
-                AssetLink(entry.data)
-            else:
-                asset_header = asset_headers[entry.code]
+                    self.assets[header.id.d][1].append(stream, size=chunk["size"])
+                elif header.type.d == AssetType.SPR:
+                    if header.id.d not in self.assets:
+                        self.assets.update({header.id.d: [header, Sprite()]})
 
-                # TODO: Handle font chunks
-                if asset_header.type.d == AssetType.IMG:
-                    self.assets.update({asset_header.id.d: (asset_header, Image(entry.data))})
-                elif asset_header.type.d == AssetType.SND:
-                    self.assets.update({asset_header.id.d: (asset_header, Sound(entry))})
-                elif asset_header.type.d == AssetType.SPR:
-                    if asset_header.id.d not in self.assets:
-                        self.assets.update({asset_header.id.d: [asset_header, Sprite()]})
+                    self.assets[header.id.d][1].append(stream)
+                elif header.type.d == AssetType.FON:
+                    if header.id.d not in self.assets:
+                        self.assets.update({header.id.d: [header, Font()]})
 
-                    self.assets[asset_header.id.d][1].append(entry.data)
-                elif asset_header.type.d == AssetType.FON:
-                    if asset_header.id.d not in self.assets:
-                        self.assets.update({asset_header.id.d: [asset_header, Font()]})
+                    self.assets[header.id.d][1].append(stream)
+                elif header.type.d == AssetType.MOV:
+                    # TODO: Parse movie stills properly
+                    if header.id.d not in movie_stills:
+                        # There can be 2 still frames kept in first chunk: Before
+                        # and after the movie is played.
+                        Datum(stream).d # read the header
 
-                    self.assets[asset_header.id.d][1].append(entry.data)
-                elif asset_header.type.d == AssetType.MOV: # A single still frame
-                    if asset_header.id.d not in movie_stills:
-                        movie_stills.update({asset_header.id.d: [MovieFrame(entry.data), None]})
+                        movie_stills.update(
+                            {header.id.d: [[MovieFrame(stream, size=chunk["size"], still=True)], []]}
+                        )
                     else:
-                        if Datum(entry.data).d == ChunkType.MOV_3:
-                            movie_stills[asset_header.id.d][1] = entry.data
-                        else:
-                            logging.warning("Found movie with more than 1 still")
+                        stream.read(chunk["size"])
+                    # elif Datum(stream).d == ChunkType.MOVIE_FRAME:
+                        # movie_stills[header.id.d][0].append(MovieFrame(stream, size=chunk["size"], still=True))
                 else:
-                    self.assets.update({asset_header.id.d: (asset_header, entry.data)})
+                    raise TypeError("Unhandled asset type found in first chunk: {}".format(header.type.d))
 
-            entry = riff.next()
+                chunk = read_chunk(stream)
 
-        # Now read all multi-chunk assets in rest of file.
-        # TODO: Determine where the junk data at the end comes from
-        try:
-            riff = Riff(self.m)
-            logging.info("Reading multi-chunk assets...")
-        except AssertionError as e:
-            logging.warning(e)
-            riff = None
-
-        while riff:
-            # Base the RIFF linking on the ID of the first chunk.
-            entry = riff.next()
-
-            for id, asset_header in asset_headers.items():
-                if id == entry.code:
-                    riff.reset()
-                    if asset_header.type.d == AssetType.MOV:
-                        self.assets.update({
-                            asset_header.id.d: (asset_header, Movie(riff, still=movie_stills.get(asset_header.id.d)))
-                        })
-                    elif asset_header.type.d == AssetType.SND:
-                        self.assets.update({asset_header.id.d: (asset_header, Sound(riff))})
-                    else:
-                        raise TypeError("Unhandled asset type requiring RIFFs: {}".format(asset_header.type.d))
-
+            # TODO: Properly throw away asset links
+            while not chunk_int(chunk):
+                logging.debug("(@0x{:012x}) Throwing away chunk {} (0x{:04x} bytes)".format(stream.tell(), chunk["code"], chunk["size"]))
+                stream.read(chunk["size"])
+                if stream.tell() >= end:
                     break
 
-            try:
-                riff = Riff(self.m)
-            except AssertionError:
-                break
+                chunk = read_chunk(stream)
 
-        self.unknown = self.m.read()
-        logging.info("Parsing finished!")
+        ################# Chunked assets ##################################
+        try:
+            logging.info("(@0x{:012x}) Reading chunked assets ({} RIFFs)...".format(stream.tell(), riffs-1))
+
+            for i in range(riffs-1):
+                start = stream.tell()
+
+                size = self.riff(stream) - 0x24
+                end = stream.tell() + size
+                logging.debug("(@0x{:012x}) Reading RIFF (0x{:08x} bytes)".format(start, size))
+
+                chunk = read_chunk(stream)
+                for id, header in headers.items():
+                    if id == chunk_int(chunk):
+                        logging.debug("  >>> {}".format(header))
+                        if header.type.d == AssetType.MOV:
+                            self.assets.update({
+                                header.id.d: [header, Movie(stream, chunk, size-0x04, stills=movie_stills.get(header.id.d))]
+                            })
+                        elif header.type.d == AssetType.SND:
+                                self.assets.update({header.id.d: [header, Sound(stream, chunk, size-0x04)]})
+                        else:
+                            raise TypeError("Unhandled RIFF asset type: {}".format(header.type.d))
+
+                        break
+
+        except Exception as e:
+            logging.warning("Exeception raised at 0x{:x}".format(stream.tell()))
+            raise
+
+        ################# Junk data #######################################
+        self.junk = stream.read()
+        if len(self.junk) > 0:
+            logging.warning("Found {} bytes at end of file".format(len(self.junk)))
+
+        logging.info("Finished parsing context!")
 
     def export(self, directory):
         for id, asset in self.assets.items():
@@ -749,20 +755,39 @@ class CxtData(Object):
                     print(repr(datum), file=header)
 
             try:
-                if asset[1]: asset[1].export(path, str(id), palette=self.palette if self.palette else None)
+                if asset[1]: asset[1].export(path, str(id), palette=self.palette)
             except Exception as e:
                 logging.warning("Could not export asset {}: {}".format(id, e))
 
-    def __repr__(self):
-        return "<Context: {:0>4d} (0x{:0>4x}){}>".format(
-            self.root.id.d, self.root.id.d,
-            ", name: {}".format(self.root.name.d) if self.root.name else ""
-        )
+        if len(self.junk) > 0:
+            with open(os.path.join(directory, "junk"), 'wb') as f:
+                f.write(self.junk)
+
+    def riff(self, stream, full=True):
+        start = stream.tell()
+        if full:
+            value_assert(stream, b'RIFF', "signature")
+            size1 = struct.unpack("<L", stream.read(4))[0]
+
+        value_assert(stream, b'IMTS', "signature")
+        value_assert(stream, b'rate', "signature")
+
+        unk1 = Datum(stream)
+        stream.read(2) # 00 00
+
+        value_assert(stream, b'LIST', "signature")
+        size2 = struct.unpack("<L", stream.read(4))[0]
+        # assert size1 - size2 == 0x24, "Unexpected chunk size"
+
+        value_assert(stream, b'data', "signature")
+        return size2 + (stream.tell() - start) - 8
 
 def main(infile):
     global c
-    c = CxtData(infile)
-    c.export(os.path.split(infile)[1])
+    with open(infile, mode='rb') as f:
+        stream = mmap.mmap(f.fileno(), length=0, access=mmap.ACCESS_READ)
+        c = CxtData(stream)
+        # c.export(os.path.split(infile)[1])
 
 logging.basicConfig(level=logging.DEBUG)
 
@@ -770,4 +795,6 @@ parser = argparse.ArgumentParser(prog="cxt")
 parser.add_argument("input")
 
 args = parser.parse_args()
-main(args.input)
+
+if __name__ == "__main__":
+    main(args.input)
