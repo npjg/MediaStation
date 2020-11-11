@@ -455,7 +455,6 @@ class Movie(Object):
             frame_headers = []
             header = Array(stream, bytes=chunk['size'])
 
-            logging.debug("{:x}h / {:x}h".format(stream.tell(), start+size))
             if stream.tell() >= start + size:
                 break
 
@@ -574,12 +573,17 @@ class Sound(Object):
 
             start = stream.tell()
             while stream.tell() < start + size:
+                logging.debug("{:x}h / {:x}h".format(stream.tell(), start+size))
                 assert chunk["code"] == asset_id
                 self.chunks.append(stream.read(chunk["size"]))
                 if stream.tell() >= start + size:
                     break
 
                 chunk = read_chunk(stream)
+
+                # TODO: Determine a better asset-reading scheme
+                if chunk["code"] == "RIFF":
+                    stream.seek(stream.tell() - 8)
 
     def append(self, stream, size=0):
         if isinstance(stream, bytes):
