@@ -494,6 +494,8 @@ class Movie(Object):
         frame_headers = open(os.path.join(directory, "frame_headers.txt"), 'w')
         image_headers = open(os.path.join(directory, "image_headers.txt"), 'w')
 
+        sound = Sound()
+
         for i, chunk in enumerate(self.chunks):
             for j, frame in enumerate(chunk["frames"]):
                 # Handle the frame headers first
@@ -505,10 +507,13 @@ class Movie(Object):
                 print(" --- {}-{} ---".format(i, j), file=image_headers)
                 for datum in frame[1].header.datums:
                     print(repr(datum), file=image_headers)
-                    
-                frame[1].image.export(directory, "{}-{}".format(i, j), fmt=fmt[0], **kwargs)
 
-            # TODO: Export sounds.
+                if frame[1].image:
+                    frame[1].image.export(directory, "{}-{}".format(i, j), fmt=fmt[0], **kwargs)
+
+            if chunk["audio"]: sound.append(chunk["audio"])
+
+        sound.export(directory, "sound", fmt=fmt[1], **kwargs)
 
         frame_headers.close()
         image_headers.close()
@@ -576,8 +581,11 @@ class Sound(Object):
 
                 chunk = read_chunk(stream)
 
-    def append(self, stream, size):
-        self.chunks.append(stream.read(size))
+    def append(self, stream, size=0):
+        if isinstance(stream, bytes):
+            self.chunks.append(stream)
+        else:
+            self.chunks.append(stream.read(size))
 
     def export(self, directory, filename, fmt="wav", **kwargs):
         filename = os.path.join(directory, filename)
@@ -787,7 +795,7 @@ def main(infile):
     with open(infile, mode='rb') as f:
         stream = mmap.mmap(f.fileno(), length=0, access=mmap.ACCESS_READ)
         c = CxtData(stream)
-        # c.export(os.path.split(infile)[1])
+        c.export(os.path.split(infile)[1])
 
 logging.basicConfig(level=logging.DEBUG)
 
