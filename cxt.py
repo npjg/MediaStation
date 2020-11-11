@@ -431,10 +431,6 @@ class MovieFrame(Object):
         else:
             self.image = Image(stream, dims=self.header.datums[1]) if size - (stream.tell() - start) > 0x02 else None
 
-class MovieInfo(Object):
-    def __init__(self, stream, size):
-        self.data = Array(stream, bytes=size)
-        
 class Movie(Object):
     def __init__(self, stream, chunk, size, stills=None):
         self.stills = stills
@@ -468,7 +464,7 @@ class Movie(Object):
                 if type.d == ChunkType.MOVIE_FRAME:
                     frames.append(MovieFrame(stream, size=chunk['size']-0x04))
                 elif type.d == ChunkType.MOVIE_HEADER:
-                    frame_headers.append(MovieInfo(stream, size=chunk['size']-0x04))
+                    frame_headers.append(Array(stream, bytes=chunk['size']-0x04))
 
                 chunk = read_chunk(stream)
 
@@ -484,10 +480,10 @@ class Movie(Object):
 
     def export(self, directory, filename, fmt=("png", "wav"), **kwargs):
         if self.stills:
-            for i, still in enumerate(self.stills):
-                still["frame"].image.export(directory, "still-{}".format(i), fmt=fmt[0], **kwargs)
+            for i, still in enumerate(zip(self.stills[0], self.stills[1])):
+                still[0].image.export(directory, "still-{}".format(i), fmt=fmt[0], **kwargs)
                 with open(os.path.join(directory, "still-{}.txt".format(i)), 'w') as still_header:
-                    for datum in still["header"].datums:
+                    for datum in still[1].datums:
                         print(repr(datum), file=still_header)
 
         frame_headers = open(os.path.join(directory, "frame_headers.txt"), 'w')
@@ -499,7 +495,7 @@ class Movie(Object):
             for j, frame in enumerate(chunk["frames"]):
                 # Handle the frame headers first
                 print(" --- {}-{} ---".format(i, j), file=frame_headers)
-                for datum in frame[0].data.datums:
+                for datum in frame[0].datums:
                     print(repr(datum), file=frame_headers)
 
                 # Now handle the actual frames
@@ -691,19 +687,16 @@ class CxtData(Object):
 
                     self.assets[header.id.d][1].append(stream)
                 elif header.type.d == AssetType.MOV:
-                    # TODO: Parse movie stills properly
                     if header.id.d not in movie_stills:
-                        # There can be 2 still frames kept in first chunk: Before
-                        # and after the movie is played.
-                        Datum(stream).d # read the header
+                        movie_stills.update({header.id.d: [[], []]})
 
-                        movie_stills.update(
-                            {header.id.d: [[MovieFrame(stream, size=chunk["size"], still=True)], []]}
-                        )
+                    d = Datum(stream) # read the header
+                    if d.d == ChunkType.MOVIE_FRAME:
+                        movie_stills[header.id.d][0].append(MovieFrame(stream, size=chunk["size"], still=True))
+                    elif d.d == ChunkType.MOVIE_HEADER:
+                        movie_stills[header.id.d][1].append(Array(stream, bytes=chunk["size"]-0x04))
                     else:
-                        stream.read(chunk["size"])
-                    # elif Datum(stream).d == ChunkType.MOVIE_FRAME:
-                        # movie_stills[header.id.d][0].append(MovieFrame(stream, size=chunk["size"], still=True))
+                        raise ValueError("Unknown header type in movie still area: {}".format(d.d))
                 else:
                     raise TypeError("Unhandled asset type found in first chunk: {}".format(header.type.d))
 
