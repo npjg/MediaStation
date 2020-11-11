@@ -760,10 +760,7 @@ class CxtData(Object):
                 for datum in asset[0].data.datums:
                     print(repr(datum), file=header)
 
-            try:
-                if asset[1]: asset[1].export(path, str(id), palette=self.palette)
-            except Exception as e:
-                logging.warning("Could not export asset {}: {}".format(id, e))
+            if asset[1]: asset[1].export(path, str(id), palette=self.palette)
 
         if len(self.junk) > 0:
             with open(os.path.join(directory, "junk"), 'wb') as f:
