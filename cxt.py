@@ -594,16 +594,17 @@ class Sound(Object):
     def export(self, directory, filename, fmt="wav", **kwargs):
         filename = os.path.join(directory, filename)
 
-        if filename[-4:] != ".{}".format(fmt):
-            filename += (".{}".format(fmt))
-            with subprocess.Popen(
-                    ['ffmpeg', '-y', '-f', 's16le', '-ar', '11.025k', '-ac', '2', '-i', 'pipe:', filename],
-                    stdin=subprocess.PIPE, stdout=subprocess.PIPE
-            ) as process:
-                for chunk in self.chunks:
-                    process.stdin.write(chunk)
+        with subprocess.Popen(
+                ['ffmpeg', '-y', '-f', 's16le', '-ar', '11.025k', '-ac', '2', '-i', 'pipe:', filename+".{}".format(fmt)],
+                stdin=subprocess.PIPE, stdout=subprocess.PIPE
+        ) as process:
+            for chunk in self.chunks:
+                process.stdin.write(chunk)
 
-                process.communicate()
+            process.communicate()
+
+        with open(os.path.join(directory, str(len(self.chunks))), 'w') as f:
+            f.write(str(len(self.chunks)))
 
 class CxtData(Object):
     def __init__(self, stream):
