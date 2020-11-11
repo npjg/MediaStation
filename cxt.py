@@ -789,7 +789,12 @@ def main(infile):
     global c
     with open(infile, mode='rb') as f:
         stream = mmap.mmap(f.fileno(), length=0, access=mmap.ACCESS_READ)
-        c = CxtData(stream)
+        try:
+            c = CxtData(stream)
+        except:
+            logging.error("Exception at 0x{:012x}".format(stream.tell()))
+            raise
+
         c.export(os.path.split(infile)[1])
 
 logging.basicConfig(level=logging.DEBUG)
