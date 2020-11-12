@@ -328,66 +328,72 @@ class AssetLink(Object):
         # For now, we just skip the even indices, as these are delimiters.
         return self.data.datums[::2]
 
+
 ############### EXTERNAL DATA REPRESENTATIONS ############################
 
 class Image(Object):
-    def __init__(self, stream, dims=None, check=True):
-        start = stream.tell() - 0x02
+    def __init__(self, stream, size, dims=None, sprite=False):
+        start = stream.tell()
+        self.check = not sprite
+
         self.header = None
         self.dims = dims
         if not dims:
             value_assert(Datum(stream).d, ChunkType.IMAGE, "image signature")
             self.header = Array(stream, bytes=0x16-0x04)
 
-        if check: value_assert(stream, b'\x00\x00', "image row header")
+        logging.debug("Reading 0x{:04x} raw image bytes".format(size + start - stream.tell()))
+        self.raw = io.BytesIO(stream.read(size + start - stream.tell()))
+        self.offset = 0
 
-        if self.compressed:
-            self.raw = bytearray((self.width*self.height) * b'\x00')
+    @property
+    def image(self):
+        self.raw.seek(0)
+        if self.check: value_assert(self.raw, b'\x00\x00', "image row header")
 
-            done = False
-            for h in range(self.height):
-                self.offset = 0
-                while True:
-                    code = int.from_bytes(stream.read(1), byteorder='little')
+        if not self.compressed:
+            return self.raw.read()
 
-                    if code == 0x00: # control mode
-                        op = int.from_bytes(stream.read(1), byteorder='little')
-                        if op == 0x00: # end of line
-                            break
-                        
-                        if op == 0x01: # end of image
-                            done = True
-                            break
+        done = False
+        image = bytearray((self.width*self.height) * b'\x00')
+        for h in range(self.height):
+            self.offset = 0
+            while True:
+                code = int.from_bytes(self.raw.read(1), byteorder='little')
 
-                        if op == 0x03: # offset for RLE
-                            self.offset += struct.unpack("<H", stream.read(2))[0]
-                        else: # uncompressed data of given length
-                            pix = stream.read(op)
+                if code == 0x00: # control mode
+                    op = int.from_bytes(self.raw.read(1), byteorder='little')
+                    if op == 0x00: # end of line
+                        break
 
-                            loc = (h * self.width) + self.offset
-                            self.raw[loc:loc+len(pix)] = pix
+                    if op == 0x01: # end of image
+                        done = True
+                        break
 
-                            if stream.tell() % 2 == 1:
-                                stream.read(1)
+                    if op == 0x03: # offset for RLE
+                        self.offset += struct.unpack("<H", self.raw.read(2))[0]
+                    else: # uncompressed data of given length
+                        pix = self.raw.read(op)
 
-                            self.offset += len(pix)
-                    else: # RLE data
                         loc = (h * self.width) + self.offset
+                        image[loc:loc+len(pix)] = pix
 
-                        pix = stream.read(1)
-                        self.raw[loc:loc+code] = code * pix
+                        if self.raw.tell() % 2 == 1:
+                            self.raw.read(1)
 
-                        self.offset += code
+                        self.offset += len(pix)
+                else: # RLE data
+                    loc = (h * self.width) + self.offset
 
-                if done: break
+                    pix = self.raw.read(1)
+                    image[loc:loc+code] = code * pix
 
-            self.raw = bytes(self.raw)
-            if not done: stream.read(2)
-        else:
-            self.raw = stream.read(self.width*self.height)
+                    self.offset += code
 
-        # assert start + size <= stream.tell(), "Expected to be no further than 0x{:x}, actually at 0x{:x}".format(start+size, stream.tell())
-        value_assert(len(self.raw), self.width*self.height, "image length ({} x {})".format(self.width, self.height), warn=True)
+            if done: break
+
+        value_assert(len(image), self.width*self.height, "image length ({} x {})".format(self.width, self.height), warn=True)
+        return bytes(image)
 
     def export(self, directory, filename, fmt="png", **kwargs):
         filename = os.path.join(directory, filename)
@@ -399,7 +405,7 @@ class Image(Object):
         if filename[-4:] != ".{}".format(fmt):
             filename += (".{}".format(fmt))
 
-        image = PILImage.frombytes("P", (self.width, self.height), self.raw)
+        image = PILImage.frombytes("P", (self.width, self.height), self.image)
         if 'palette' in kwargs and kwargs['palette']:
             image.putpalette(kwargs['palette'])
 
@@ -421,15 +427,17 @@ class Image(Object):
         return "<Image: size: {} x {}>".format(self.width, self.height)
 
 class MovieFrame(Object):
-    def __init__(self, stream, size, still=False):
+    def __init__(self, stream, size):
         start = stream.tell()
+        size -= 0x04
+
         self.header = Array(stream, bytes=0x22)
 
         if size - (stream.tell() - start) == 0x02:
             stream.read(2)
             self.image = None
         else:
-            self.image = Image(stream, dims=self.header.datums[1]) if size - (stream.tell() - start) > 0x02 else None
+            self.image = Image(stream, size=size+start-stream.tell(), dims=self.header.datums[1]) if size - (stream.tell() - start) > 0x02 else None
 
 class Movie(Object):
     def __init__(self, stream, chunk, size, stills=None):
@@ -462,7 +470,7 @@ class Movie(Object):
                 type = Datum(stream)
 
                 if type.d == ChunkType.MOVIE_FRAME:
-                    frames.append(MovieFrame(stream, size=chunk['size']-0x04))
+                    frames.append(MovieFrame(stream, size=chunk['size']))
                 elif type.d == ChunkType.MOVIE_HEADER:
                     frame_headers.append(Array(stream, bytes=chunk['size']-0x04))
 
@@ -520,9 +528,10 @@ class Sprite(Object):
     def __init__(self):
         self.frames = []
 
-    def append(self, stream):
+    def append(self, stream, size):
+        start = stream.tell()
         header = Array(stream, bytes=0x24)
-        image = Image(stream, dims=header.datums[1], check=False)
+        image = Image(stream, dims=header.datums[1], size=size+start-stream.tell(), sprite=True)
 
         self.frames.append((header, image))
 
@@ -542,9 +551,11 @@ class Font(Object):
     def __init__(self):
         self.glyphs = []
 
-    def append(self, stream):
+    def append(self, stream, size):
+        start = stream.tell()
         header = Array(stream, bytes=0x22)
-        glyph = Image(stream, dims=header.datums[4])
+
+        glyph = Image(stream, dims=header.datums[4], size=size+start-stream.tell(), sprite=True)
 
         self.glyphs.append((header, glyph))
 
@@ -670,7 +681,7 @@ class CxtData(Object):
                 logging.debug("Linked to header {}".format(header))
 
                 if header.type.d == AssetType.IMG:
-                    self.assets.update({header.id.d: (header, Image(stream))})
+                    self.assets.update({header.id.d: (header, Image(stream, size=chunk["size"]))})
                 elif header.type.d == AssetType.SND:
                     if not header.id.d in self.assets:
                         self.assets.update({header.id.d: [header, Sound()]})
@@ -680,19 +691,19 @@ class CxtData(Object):
                     if header.id.d not in self.assets:
                         self.assets.update({header.id.d: [header, Sprite()]})
 
-                    self.assets[header.id.d][1].append(stream)
+                    self.assets[header.id.d][1].append(stream, size=chunk["size"])
                 elif header.type.d == AssetType.FON:
                     if header.id.d not in self.assets:
                         self.assets.update({header.id.d: [header, Font()]})
 
-                    self.assets[header.id.d][1].append(stream)
+                    self.assets[header.id.d][1].append(stream, size=chunk["size"])
                 elif header.type.d == AssetType.MOV:
                     if header.id.d not in movie_stills:
                         movie_stills.update({header.id.d: [[], []]})
 
                     d = Datum(stream) # read the header
                     if d.d == ChunkType.MOVIE_FRAME:
-                        movie_stills[header.id.d][0].append(MovieFrame(stream, size=chunk["size"], still=True))
+                        movie_stills[header.id.d][0].append(MovieFrame(stream, size=chunk["size"]))
                     elif d.d == ChunkType.MOVIE_HEADER:
                         movie_stills[header.id.d][1].append(Array(stream, bytes=chunk["size"]-0x04))
                     else:
