@@ -248,6 +248,8 @@ class Array(Object):
             if datums and len(self.datums) > datums:
                 break
 
+        logging.debug("Read 0x{:04x} array bytes".format(stream.tell() - start))
+
     def log(self):
         logging.debug(self)
         for datum in self.datums:
@@ -580,7 +582,6 @@ class Sound(Object):
 
             start = stream.tell()
             while stream.tell() < start + size:
-                logging.debug("{:x}h / {:x}h".format(stream.tell(), start+size))
                 assert chunk["code"] == asset_id
                 self.chunks.append(stream.read(chunk["size"]))
                 if stream.tell() >= start + size:
@@ -668,7 +669,6 @@ class CxtData(Object):
                 raise TypeError("Unknown header type: {}".format(type))
 
             chunk = read_chunk(stream)
-            logging.debug(chunk)
 
         ################ First-RIFF assets ###############################
         logging.info("(@0x{:012x}) Reading first-RIFF assets...".format(stream.tell()))
@@ -791,6 +791,8 @@ class CxtData(Object):
         return size2 + (stream.tell() - start) - 8
 
 def main(infile):
+    logging.basicConfig(level=logging.DEBUG)
+
     global c
     with open(infile, mode='rb') as f:
         stream = mmap.mmap(f.fileno(), length=0, access=mmap.ACCESS_READ)
@@ -801,8 +803,6 @@ def main(infile):
             raise
 
         c.export(os.path.split(infile)[1])
-
-logging.basicConfig(level=logging.DEBUG)
 
 parser = argparse.ArgumentParser(prog="cxt")
 parser.add_argument("input")
