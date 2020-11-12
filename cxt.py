@@ -723,34 +723,28 @@ class CxtData(Object):
                 chunk = read_chunk(stream)
 
         ################# Chunked assets ##################################
-        try:
-            logging.info("(@0x{:012x}) Reading chunked assets ({} RIFFs)...".format(stream.tell(), riffs-1))
+        logging.info("(@0x{:012x}) Reading chunked assets ({} RIFFs)...".format(stream.tell(), riffs-1))
 
-            for i in range(riffs-1):
-                start = stream.tell()
+        for i in range(riffs-1):
+            start = stream.tell()
 
-                size = self.riff(stream) - 0x24
-                end = stream.tell() + size
-                logging.debug("(@0x{:012x}) Reading RIFF (0x{:08x} bytes)".format(start, size))
+            size = self.riff(stream) - 0x24
+            end = stream.tell() + size
+            logging.debug("(@0x{:012x}) Reading RIFF (0x{:08x} bytes)".format(start, size))
 
-                chunk = read_chunk(stream)
-                for id, header in headers.items():
-                    if id == chunk_int(chunk):
-                        logging.debug("  >>> {}".format(header))
-                        if header.type.d == AssetType.MOV:
-                            self.assets.update({
-                                header.id.d: [header, Movie(stream, chunk, size-0x04, stills=movie_stills.get(header.id.d))]
-                            })
-                        elif header.type.d == AssetType.SND:
-                                self.assets.update({header.id.d: [header, Sound(stream, chunk, size-0x04)]})
-                        else:
-                            raise TypeError("Unhandled RIFF asset type: {}".format(header.type.d))
+            chunk = read_chunk(stream)
+            header = headers.pop(chunk_int(chunk), None)
 
-                        break
-
-        except Exception as e:
-            logging.warning("Exeception raised at 0x{:x}".format(stream.tell()))
-            raise
+            if header:
+                logging.debug("  >>> {}".format(header))
+                if header.type.d == AssetType.MOV:
+                    self.assets.update({
+                        header.id.d: [header, Movie(stream, chunk, size-0x04, stills=movie_stills.get(header.id.d))]
+                    })
+                elif header.type.d == AssetType.SND:
+                    self.assets.update({header.id.d: [header, Sound(stream, chunk, size-0x04)]})
+                else:
+                    raise TypeError("Unhandled RIFF asset type: {}".format(header.type.d))
 
         ################# Junk data #######################################
         self.junk = stream.read()
