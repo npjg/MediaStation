@@ -161,10 +161,6 @@ class Datum(Object):
             self.d = int.from_bytes(stream.read(1), byteorder='little')
         elif self.t == DatumType.UINT16 or self.t == DatumType.UINT16_2 or self.t == DatumType.UINT16_3:
             self.d = struct.unpack("<H", stream.read(2))[0]
-
-            if self.d == DatumType.POLY:
-                self.t = self.d
-                self.d = Polygon(stream)
         elif self.t == DatumType.SINT16:
             self.d = struct.unpack("<H", stream.read(2))[0]
         elif self.t == DatumType.UINT32 or self.t == DatumType.UINT32_2:
@@ -263,15 +259,13 @@ class Bbox(Object):
         )
 
 class Polygon(Object):
-    def __init__(self, m):
-        size = Datum(m)
+    def __init__(self, stream):
+        size = Datum(stream)
 
         self.points = []
-        while m.read(2) == b'\x0e\x00':
-            self.points.append(Point(m))
-
-        m.seek(m.tell() - 2)
-        value_assert(size.d, len(self.points), "polygon points", warn=True)
+        for _ in range(size):
+            stream.read(2)
+            self.points.append(Point(stream))
 
     def __repr__(self):
         return "<Polygon: points: {}>".format(len(self.points))
@@ -306,16 +300,16 @@ class Array(Object):
         return "<Array: size: {:0>4d}>".format(len(self.datums))
 
 class AssetHeader(Object):
-    def __init__(self, stream, **kwargs):
-        start = stream.tell()
+    def __init__(self, stream, size, stop=None):
+        end = stream.tell() + size
         self.data = Array(stream, datums=4)
 
+        # TODO: Handle children more generally.
         if self.data.datums[1].d == AssetType.PAL:
             self.data.datums.append(Datum(stream))
             value_assert(Datum(stream).d, DatumType.PALETTE, "palette signature")
             self.child = stream.read(0x300)
         elif self.data.datums[1].d == AssetType.STG:
-            assert kwargs['size']
             self.data.datums += Array(stream, parent=self, stop=(DatumType.UINT16, 0x0000)).datums
 
             value_assert(Datum(stream).d, HeaderType.LINK, "link signature")
@@ -324,16 +318,24 @@ class AssetHeader(Object):
             self.child = []
             if Datum(stream, peek=True).d == HeaderType.ASSET:
                 Datum(stream)
-                while stream.tell() < start + kwargs['size']:
-                    self.child.append(AssetHeader(stream, size=start+kwargs['size']-stream.tell(), stop=(DatumType.UINT16, HeaderType.ASSET)))
+                while stream.tell() < end:
+                    self.child.append(AssetHeader(stream, size=end-stream.tell(), stop=(DatumType.UINT16, HeaderType.ASSET)))
                     logging.debug(" -> {}".format(self.child[-1]))
+        elif self.data.datums[1].d == AssetType.HSP:
+            self.data.datums += Array(stream, parent=self, stop=(DatumType.UINT16, 0x0000)).datums
+
+            if stream.tell() < end and Datum(stream).d == DatumType.POLY:
+                logging.debug("Searching for polygon points...")
+                value_assert(Datum(stream).d, DatumType.POLY, "polygon header")
+                self.child = Polygon(stream)
+                value_assert(Datum(stream).d, 0x0000, "end of polygon")
         else:
             self.child = None
-            self.data.datums += Array(stream, parent=self, bytes=start+kwargs.get('size')-stream.tell(), stop=kwargs.get('stop')).datums
+            self.data.datums += Array(stream, parent=self, bytes=end-stream.tell(), stop=stop).datums
 
-        if kwargs.get('size') and not kwargs.get('stop') and stream.tell() < start + kwargs['size']:
-            logging.warning("{} bytes left in asset header".format(start+kwargs['size']-stream.tell()))
-            stream.read(start + kwargs['size'] - stream.tell())
+        if size and not stop and stream.tell() < end:
+            logging.warning("{} bytes left in asset header".format(end-stream.tell()))
+            stream.read(end - stream.tell())
 
     @property
     def type(self):
