@@ -13,6 +13,22 @@ import mmap
 
 import PIL.Image as PILImage
 
+class RecordType(IntEnum):
+    CXT      = 0x0006,
+    FILE_1   = 0x0008,
+    FILE_3   = 0x0029,
+    RIFF     = 0x0028,
+    CURSOR   = 0x0015,
+    RES_NAME = 0x0bba,
+    RES_ID   = 0x0bbb,
+
+class BootRecord(IntEnum):
+    FILES_1  = 0x0002,
+    FILES_2  = 0x0007,
+    FILES_3  = 0x000a,
+    RIFF     = 0x000b,
+    CURSOR   = 0x000c,
+
 class ChunkType(IntEnum):
     HEADER         = 0x000d,
     IMAGE          = 0x0018,
@@ -48,6 +64,7 @@ class DatumType(IntEnum):
     SINT16  = 0x0010,
     SINT64  = 0x0011,
     STRING  = 0x0012,
+    FILE    = 0x000a,
     POINT   = 0x000f,
     POINT_2 = 0x000e,
     PALETTE = 0x05aa,
@@ -126,7 +143,7 @@ class Datum(Object):
             self.d = struct.unpack("<Q", stream.read(8))[0]
         elif self.t == DatumType.SINT64:
             self.d = struct.unpack("<q", stream.read(8))[0]
-        elif self.t == DatumType.STRING:
+        elif self.t == DatumType.STRING or self.t == DatumType.FILE:
             size = Datum(stream)
             self.d = stream.read(size.d).decode("utf-8")
         elif self.t == DatumType.BBOX:
@@ -789,6 +806,121 @@ class CxtData(Object):
 
         value_assert(stream, b'data', "signature")
         return size2 + (stream.tell() - start) - 8
+
+
+############### SYSTEM PARSER (BOOT.STM)  ################################
+
+class System(Object):
+    def __init__(self, stream):
+        stream.seek(0xda)
+        # header = Array(stream, datums=9)
+        unk1 = Array(stream, datums=2*3) # 401 402 403
+
+        # Read resource information
+        self.resources = []
+        type = Datum(stream)
+        while type.d == RecordType.RES_NAME:
+            name = Datum(stream)
+
+            value_assert(Datum(stream).d, RecordType.RES_ID)
+            id = Datum(stream)
+
+            logging.debug("Found resource {} ({})".format(id.d, name.d))
+            self.resources.append((id, name))
+            type = Datum(stream)
+
+        # Read file headers
+        value_assert(type.d, BootRecord.FILES_1, "root signature")
+        files = []
+        while True: # breaking condition is below
+            type = Datum(stream)
+            refs = []
+            while type.d == RecordType.CXT:
+                refs.append(Datum(stream))
+                type = Datum(stream)
+
+            if type.d == 0x0000:
+                break
+
+            if type.d == 0x0003:
+                value_assert(Datum(stream).d, 0x0004, "file signature")
+
+                filenum = Datum(stream)
+                value_assert(Datum(stream).d, 0x0005, "file signature")
+                assert Datum(stream).d == filenum.d
+
+                value_assert(Datum(stream).d, 0x0bb8, "string signature")
+                string = Datum(stream)
+            else:
+                raise ValueError("Received unexpected file signature: {}".format(type.d))
+
+            logging.debug("Found file {} ({})".format(filenum.d, string.d))
+            files.append((refs, filenum, string))
+
+        # Read unknown file information
+        value_assert(Datum(stream).d, BootRecord.FILES_2)
+        type = Datum(stream)
+        while type.d == RecordType.FILE_1:
+            value_assert(Datum(stream).d, 0x0009)
+            file = Datum(stream)
+            value_assert(Datum(stream).d, 0x0004)
+            assert file.d == Datum(stream).d
+
+            logging.debug("Referenced file {}".format(file.d))
+            type = Datum(stream)
+
+        value_assert(type.d, 0x0000)
+
+        # Now link asset IDs to file names
+        value_assert(Datum(stream).d, BootRecord.FILES_3)
+        self.files = {}
+        type = Datum(stream)
+
+        while type.d == RecordType.FILE_3:
+            value_assert(Datum(stream).d, 0x002b)
+            id = Datum(stream)
+            value_assert(Datum(stream).d, 0x002d)
+
+            filetype = Datum(stream)
+            filename = Datum(stream)
+
+            logging.debug("Read file link {} ({})".format(filename.d, id.d))
+            self.files.update({id.d: (filename.d, files.pop(0) if filetype.d == 0x0007 else None)})
+            type = Datum(stream)
+
+        value_assert(type.d, 0x0000)
+
+        # Link RIFF asset chunks
+        value_assert(Datum(stream).d, BootRecord.RIFF)
+        self.riffs = {}
+        type = Datum(stream)
+        while type.d == RecordType.RIFF:
+            value_assert(Datum(stream).d, 0x002a)
+            asset = Datum(stream)
+            value_assert(Datum(stream).d, 0x002b)
+            id = Datum(stream)
+            value_assert(Datum(stream).d, 0x002c)
+            loc = Datum(stream)
+
+            logging.debug("Read RIFF for asset {} ({}:0x{:08x})".format(asset.d, self.files[id.d][0], loc.d))
+            self.riffs.update({asset.d: (id.d, loc.d)})
+            type = Datum(stream)
+
+        value_assert(type.d, 0x0000)
+
+        # Link resource data
+        self.cursors = {}
+        value_assert(Datum(stream).d, BootRecord.CURSOR)
+        unk2 = [Datum(stream) * 2]
+        while type.d == RecordType.CURSOR:
+            value_assert(Datum(stream).d, 0x0001)
+            id = Datum(stream)
+            unk = Datum(stream)
+            name = Datum(stream)
+
+            self.cursors.update({id.d: [unk.d, name.d]})
+
+        self.footer = stream.read()
 
 def main(infile):
     logging.basicConfig(level=logging.DEBUG)
