@@ -836,7 +836,7 @@ class System(Object):
             type = Datum(stream)
             refs = []
             while type.d == RecordType.CXT:
-                refs.append(Datum(stream))
+                refs.append(Datum(stream).d)
                 type = Datum(stream)
 
             if type.d == 0x0000:
@@ -855,7 +855,7 @@ class System(Object):
                 raise ValueError("Received unexpected file signature: {}".format(type.d))
 
             logging.debug("Found file {} ({})".format(filenum.d, string.d))
-            files.append((refs, filenum, string))
+            files.append((refs, filenum.d, string.d))
 
         # Read unknown file information
         value_assert(Datum(stream).d, BootRecord.FILES_2)
