@@ -110,6 +110,16 @@ def read_riff(stream, full=True):
     value_assert(stream, b'data', "signature")
     return size2 + (stream.tell() - start) - 8
 
+def read_init(stream):
+    stream.seek(0)
+
+    assert stream.read(4) == b'II\x00\x00', "Incorrect file signature"
+    struct.unpack("<L", stream.read(4))[0]
+    riffs = struct.unpack("<L", stream.read(4))[0]
+    total = struct.unpack("<L", stream.read(4))[0]
+
+    return riffs, total
+
 def value_assert(stream, target, type="value", warn=False):
     s = 0
     ax = stream
@@ -653,12 +663,7 @@ class Sound(Object):
 
 class CxtData(Object):
     def __init__(self, stream):
-        stream.seek(0)
-
-        assert stream.read(4) == b'II\x00\x00', "Incorrect file signature"
-        struct.unpack("<L", stream.read(4))[0]
-        riffs = struct.unpack("<L", stream.read(4))[0]
-        total = struct.unpack("<L", stream.read(4))[0]
+        riffs, total = read_init(stream)
 
         self.assets = {}
         self.palette = None
