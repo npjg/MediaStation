@@ -91,6 +91,25 @@ def read_chunk(stream):
     logging.debug("(@0x{:012x}) Read chunk {} (0x{:04x} bytes)".format(stream.tell(), chunk["code"], chunk["size"]))
     return chunk
 
+def read_riff(stream, full=True):
+    start = stream.tell()
+    if full:
+        value_assert(stream, b'RIFF', "signature")
+        size1 = struct.unpack("<L", stream.read(4))[0]
+
+    value_assert(stream, b'IMTS', "signature")
+    value_assert(stream, b'rate', "signature")
+
+    unk1 = Datum(stream)
+    stream.read(2) # 00 00
+
+    value_assert(stream, b'LIST', "signature")
+    size2 = struct.unpack("<L", stream.read(4))[0]
+    # assert size1 - size2 == 0x24, "Unexpected chunk size"
+
+    value_assert(stream, b'data', "signature")
+    return size2 + (stream.tell() - start) - 8
+
 def value_assert(stream, target, type="value", warn=False):
     s = 0
     ax = stream
@@ -648,7 +667,7 @@ class CxtData(Object):
         logging.info("(@0x{:012x}) Reading asset headers...".format(stream.tell()))
         headers = {}
 
-        end = stream.tell() + self.riff(stream)
+        end = stream.tell() + read_riff(stream)
         chunk = read_chunk(stream)
         while chunk["code"] == 'igod' and stream.tell() < end:
             if Datum(stream).d != ChunkType.HEADER:
@@ -745,7 +764,7 @@ class CxtData(Object):
         for i in range(riffs-1):
             start = stream.tell()
 
-            size = self.riff(stream) - 0x24
+            size = read_riff(stream) - 0x24
             end = stream.tell() + size
             logging.debug("(@0x{:012x}) Reading RIFF (0x{:08x} bytes)".format(start, size))
 
@@ -787,25 +806,6 @@ class CxtData(Object):
         if len(self.junk) > 0:
             with open(os.path.join(directory, "junk"), 'wb') as f:
                 f.write(self.junk)
-
-    def riff(self, stream, full=True):
-        start = stream.tell()
-        if full:
-            value_assert(stream, b'RIFF', "signature")
-            size1 = struct.unpack("<L", stream.read(4))[0]
-
-        value_assert(stream, b'IMTS', "signature")
-        value_assert(stream, b'rate', "signature")
-
-        unk1 = Datum(stream)
-        stream.read(2) # 00 00
-
-        value_assert(stream, b'LIST', "signature")
-        size2 = struct.unpack("<L", stream.read(4))[0]
-        # assert size1 - size2 == 0x24, "Unexpected chunk size"
-
-        value_assert(stream, b'data', "signature")
-        return size2 + (stream.tell() - start) - 8
 
 
 ############### SYSTEM PARSER (BOOT.STM)  ################################
