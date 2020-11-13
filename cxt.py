@@ -281,7 +281,7 @@ class Array(Object):
             self.datums.append(d)
             if bytes and stream.tell() >= bytes + start:
                 break
-            if datums and len(self.datums) > datums:
+            if datums and len(self.datums) == datums:
                 break
 
         logging.debug("Read 0x{:04x} array bytes".format(stream.tell() - start))
@@ -300,6 +300,7 @@ class AssetHeader(Object):
         self.data = Array(stream, datums=4)
 
         if self.data.datums[1].d == AssetType.PAL:
+            self.data.datums.append(Datum(stream))
             value_assert(Datum(stream).d, DatumType.PALETTE, "palette signature")
             self.child = stream.read(0x300)
         elif self.data.datums[1].d == AssetType.STG:
