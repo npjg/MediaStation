@@ -911,13 +911,14 @@ class System(Object):
         # Link resource data
         self.cursors = {}
         value_assert(Datum(stream).d, BootRecord.CURSOR)
-        unk2 = [Datum(stream) * 2]
-        while type.d == RecordType.CURSOR:
+        for _ in range(Datum(stream).d, Datum(stream).d): # start and stop
+            value_assert(Datum(stream).d, RecordType.CURSOR)
             value_assert(Datum(stream).d, 0x0001)
             id = Datum(stream)
             unk = Datum(stream)
             name = Datum(stream)
 
+            logging.debug("Read cursor {}: {} ({})".format(id.d, name.d, id.d))
             self.cursors.update({id.d: [unk.d, name.d]})
 
         self.footer = stream.read()
