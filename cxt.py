@@ -102,8 +102,7 @@ def read_riff(stream, full=True):
     value_assert(stream, b'IMTS', "signature")
     value_assert(stream, b'rate', "signature")
 
-    unk1 = Datum(stream)
-    stream.read(2) # 00 00
+    rate = stream.read(struct.unpack("<L", stream.read(4))[0])
 
     value_assert(stream, b'LIST', "signature")
     size2 = struct.unpack("<L", stream.read(4))[0]
