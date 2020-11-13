@@ -59,7 +59,9 @@ class DatumType(IntEnum):
     UINT8   = 0x0002,
     UINT16  = 0x0003,
     UINT32  = 0x0004,
+    UINT32_2  = 0x0007,
     UINT16_2  = 0x0006,
+    UINT16_3  = 0x0013,
     UINT64  = 0x0009,
     SINT16  = 0x0010,
     SINT64  = 0x0011,
@@ -158,7 +160,7 @@ class Datum(Object):
 
         if self.t == DatumType.UINT8:
             self.d = int.from_bytes(stream.read(1), byteorder='little')
-        elif self.t == DatumType.UINT16 or self.t == DatumType.UINT16_2:
+        elif self.t == DatumType.UINT16 or self.t == DatumType.UINT16_2 or self.t == DatumType.UINT16_3:
             self.d = struct.unpack("<H", stream.read(2))[0]
 
             if self.d == DatumType.POLY:
@@ -166,7 +168,7 @@ class Datum(Object):
                 self.d = Polygon(stream)
         elif self.t == DatumType.SINT16:
             self.d = struct.unpack("<H", stream.read(2))[0]
-        elif self.t == DatumType.UINT32:
+        elif self.t == DatumType.UINT32 or self.t == DatumType.UINT32_2:
             self.d = struct.unpack("<L", stream.read(4))[0]
         elif self.t == DatumType.UINT64:
             self.d = struct.unpack("<Q", stream.read(8))[0]
@@ -818,9 +820,10 @@ class CxtData(Object):
 
 class System(Object):
     def __init__(self, stream):
-        stream.seek(0xda)
-        # header = Array(stream, datums=9)
-        unk1 = Array(stream, datums=2*3) # 401 402 403
+        end = stream.tell() + read_riff(stream)
+        chunk = read_chunk(stream)
+        header = Array(stream, datums=8)
+        unk = Array(stream, datums=2*3) # 401 402 403 (?)
 
         # Read resource information
         self.resources = []
