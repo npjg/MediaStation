@@ -106,7 +106,6 @@ def read_riff(stream, full=True):
 
     value_assert(stream, b'LIST', "signature")
     size2 = struct.unpack("<L", stream.read(4))[0]
-    # assert size1 - size2 == 0x24, "Unexpected chunk size"
 
     value_assert(stream, b'data', "signature")
     return size2 + (stream.tell() - start) - 8
@@ -150,9 +149,6 @@ class Object:
 
 class Datum(Object):
     def __init__(self, stream, parent=None, peek=False):
-        # TODO: All this processing is unnecessary once I have the format
-        # completely figured out. All of this complicated type-checking can be
-        # replaced with assertion.
         self.start = stream.tell()
         self.d = None
         self.t = struct.unpack("<H", stream.read(2))[0]
@@ -179,7 +175,6 @@ class Datum(Object):
         elif self.t == DatumType.REF:
             self.d = Ref(stream, parent.type)
         else:
-            stream.seek(stream.tell() - 2)
             raise TypeError(
                 "(@ 0x{:0>12x}) Unknown datum type 0x{:0>4x}".format(stream.tell(), self.t)
             )
