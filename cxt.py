@@ -349,13 +349,9 @@ class AssetHeader(Object):
     @property
     def ref(self):
         # TODO: Enumerate all types that have associated data chunks
-        r = None
-        if self.type.d in (AssetType.SND, AssetType.FON):
-            r = self.data.datums[6]
-        elif self.type.d in (AssetType.MOV, AssetType.IMG, AssetType.SPR):
-            r = self.data.datums[8]
-
-        return r if r and r.t == DatumType.REF else None
+        for datum in self.data.datums:
+            if datum.t == DatumType.REF:
+                return datum
 
     def __repr__(self):
         return "<AssetHeader: type: 0x{:0>4x}, id: 0x{:0>4x} ({:0>4d}){}{}>".format(
