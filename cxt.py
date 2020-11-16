@@ -933,7 +933,7 @@ def main(infile):
         try:
             c = CxtData(stream)
         except:
-            logging.error("Exception at 0x{:012x}".format(stream.tell()))
+            logging.error("Exception at {}:0x{:012x}".format(infile, stream.tell()))
             raise
 
         c.export(os.path.split(infile)[1])

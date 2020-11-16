@@ -17,6 +17,7 @@ def main(directory):
                 result = "Pass"
             except Exception as e:
                 result = e
+                raise
 
             results.update({entry: result})
             print()
