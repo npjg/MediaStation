@@ -10,7 +10,7 @@ def main(directory):
     results = {}
 
     for entry in os.listdir(directory):
-        if entry.endswith("cxt"):
+        if entry.endswith("cxt") and entry.split('.')[0].isnumeric():
             logging.info("Opened context {}".format(entry))
             try:
                 cxt.main(os.path.join(directory, entry))
