@@ -572,9 +572,9 @@ class Sprite(Object):
         self.frames = []
 
     def append(self, stream, size):
-        start = stream.tell()
+        end = stream.tell() + size
         header = Array(stream, bytes=0x24)
-        image = Image(stream, dims=header.datums[1], size=size+start-stream.tell(), sprite=True)
+        image = Image(stream, dims=header.datums[1], size=end-stream.tell(), sprite=True)
 
         self.frames.append((header, image))
 
