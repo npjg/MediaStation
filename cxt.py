@@ -94,6 +94,9 @@ def read_chunk(stream):
     return chunk
 
 def read_riff(stream, full=True):
+    if stream.tell() % 2 == 1:
+        stream.read(1)
+
     start = stream.tell()
     if full:
         value_assert(stream, b'RIFF', "signature")
@@ -483,7 +486,7 @@ class MovieFrame(Object):
             self.image = Image(stream, size=size+start-stream.tell(), dims=self.header.datums[1]) if size - (stream.tell() - start) > 0x02 else None
 
 class Movie(Object):
-    def __init__(self, stream, chunk, size, stills=None):
+    def __init__(self, stream, header, chunk, stills=None):
         self.stills = stills
         self.chunks = []
 
@@ -494,40 +497,52 @@ class Movie(Object):
             "audio" : chunk_int(chunk) + 2,
         }
 
-        while stream.tell() <= start + size:
-            if not chunk_int(chunk):
-                break
+        movie_header = Array(stream, bytes=chunk['size'])
+        movie_header.log()
 
-            frames = []
-            frame_headers = []
-            header = Array(stream, bytes=chunk['size'])
+        chunks = movie_header.datums[1].d
+        logging.debug(" *** Movie(): Expecting {} movie framesets ***".format(chunks))
 
-            if stream.tell() >= start + size:
-                break
-
+        for i in range(chunks):
             chunk = read_chunk(stream)
-            if not chunk:
-                break
+            frames = []
+            headers = []
 
+            # Video comes first
             while chunk_int(chunk) == codes["video"]:
                 type = Datum(stream)
 
                 if type.d == ChunkType.MOVIE_FRAME:
+                    logging.debug("Movie(): Reading movie frame of size 0x{:04x}".format(chunk['size']))
                     frames.append(MovieFrame(stream, size=chunk['size']))
                 elif type.d == ChunkType.MOVIE_HEADER:
-                    frame_headers.append(Array(stream, bytes=chunk['size']-0x04))
+                    logging.debug("Movie(): Reading movie frame header of size 0x{:04x}".format(chunk['size']-0x04))
+                    headers.append(Array(stream, bytes=chunk['size']-0x04))
 
                 chunk = read_chunk(stream)
 
             self.chunks.append({
-                "header": header,
-                "frames": list(zip(frame_headers, frames)),
+                "frames": list(zip(headers, frames)),
                 "audio": stream.read(chunk['size']) if chunk_int(chunk) == codes["audio"] else None
                 }
             )
 
+            # Audio for the frameset comes last
             if chunk_int(chunk) == codes["audio"]:
+                logging.debug("Movie(): Registered audio chunk for frameset")
                 chunk = read_chunk(stream)
+
+            # Every frameset must end in a 4-byte header
+            if chunk_int(chunk) == codes["header"]:
+                value_assert(chunk['size'], 0x04, "frameset delimiter size")
+                stream.read(chunk['size'])
+                logging.debug("Movie(): Read movie frameset delimiter")
+            else:
+                raise ValueError("Got unexpected delimiter at end of movie frameset: {}".format(chunk['code']))
+
+            logging.debug(" ~~ Movie(): Finished frameset {} of {} ~~".format(i+1, chunks))
+
+        logging.debug("Movie(): Finished reading movie: 0x{:012x}".format(stream.tell()))
 
     def export(self, directory, filename, fmt=("png", "wav"), **kwargs):
         if self.stills:
@@ -615,29 +630,31 @@ class Font(Object):
         frame_headers.close()
 
 class Sound(Object):
-    def __init__(self, stream=None, chunk=None, size=0):
+    def __init__(self, stream=None, header=None, chunk=None):
         self.chunks = []
-        if size > 0:
-            # We want to read a while RIFF if the RIFF size is provided.
-            asset_id = chunk["code"]
 
-            start = stream.tell()
-            while stream.tell() < start + size:
-                assert chunk["code"] == asset_id
-                self.chunks.append(stream.read(chunk["size"]))
-                if stream.tell() >= start + size:
-                    break
+        # If we provide these arguments, we want to read a while RIFF;
+        # otherwise, this is for movie sound that we will add separately.
+        if not stream or not header or not chunk:
+            return
 
-                chunk = read_chunk(stream)
+        chunks = header.data.datums[11].d
+        logging.debug(" *** Sound(): Expecting {} sound chunks ***".format(chunks))
 
-                # TODO: Determine a better asset-reading scheme
-                if chunk["code"] == "RIFF":
-                    stream.seek(stream.tell() - 8)
+        asset_id = chunk["code"]
+        self.append(stream, chunk["size"])
+        for i in range(1, chunks):
+            chunk = read_chunk(stream)
+            assert chunk["code"] == asset_id
+            self.append(stream, chunk["size"])
+            logging.debug(" ~~ Sound(): Finished chunk {} of {} ~~".format(i+1, chunks))
 
     def append(self, stream, size=0):
         if isinstance(stream, bytes):
+            logging.debug("Sound(): Appending pre-processed bytes")
             self.chunks.append(stream)
         else:
+            logging.debug("Sound(): Reading sound chunk of size 0x{:04x}".format(size))
             self.chunks.append(stream.read(size))
 
     def export(self, directory, filename, fmt="wav", **kwargs):
@@ -775,12 +792,16 @@ class CxtData(Object):
                 logging.debug("  >>> {}".format(header))
                 if header.type.d == AssetType.MOV:
                     self.assets.update({
-                        header.id.d: [header, Movie(stream, chunk, size-0x04, stills=movie_stills.get(header.id.d))]
+                        header.id.d: [
+                            header, Movie(stream, header, chunk, stills=movie_stills.get(header.id.d))
+                        ]
                     })
                 elif header.type.d == AssetType.SND:
-                    self.assets.update({header.id.d: [header, Sound(stream, chunk, size-0x04)]})
+                    self.assets.update({header.id.d: [header, Sound(stream, header, chunk)]})
                 else:
                     raise TypeError("Unhandled RIFF asset type: {}".format(header.type.d))
+
+            logging.debug("CxtData(): Read RIFF {} of {}".format(i+1, riffs-1))
 
         ################# Junk data #######################################
         self.junk = stream.read()
