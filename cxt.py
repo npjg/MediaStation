@@ -75,10 +75,8 @@ class DatumType(IntEnum):
     POLY    = 0x001d,
 
 def chunk_int(chunk):
-    try:
-        return int(chunk['code'][1:], 16)
-    except Exception as e:
-        return None
+    try: return int(chunk['code'][1:], 16)
+    except: return None
 
 def read_chunk(stream):
     if stream.tell() % 2 == 1:
@@ -432,7 +430,10 @@ class Image(Object):
 
             if done: break
 
-        value_assert(len(image), self.width*self.height, "image length ({} x {})".format(self.width, self.height), warn=True)
+        value_assert(
+            len(image), self.width*self.height,
+            "image length ({} x {})".format(self.width, self.height), warn=True
+        )
         return bytes(image)
 
     def export(self, directory, filename, fmt="png", **kwargs):
@@ -556,6 +557,7 @@ class Movie(Object):
                 for datum in frame[1].header.datums:
                     print(repr(datum), file=image_headers)
 
+                logging.debug("Movie.export: Exporting cell {}-{}".format(i, j))
                 if frame[1].image:
                     frame[1].image.export(directory, "{}-{}".format(i, j), fmt=fmt[0], **kwargs)
 
@@ -599,7 +601,6 @@ class Font(Object):
     def append(self, stream, size):
         start = stream.tell()
         header = Array(stream, bytes=0x22)
-
         glyph = Image(stream, dims=header.datums[4], size=size+start-stream.tell(), sprite=True)
 
         self.glyphs.append((header, glyph))
@@ -716,7 +717,10 @@ class CxtData(Object):
         movie_stills = {}
         while stream.tell() < end:
             if chunk_int(chunk):
-                logging.debug("(@0x{:012x}) Accepted chunk {} (0x{:04x} bytes)".format(stream.tell(), chunk["code"], chunk["size"]))
+                logging.debug("(@0x{:012x}) Accepted chunk {} (0x{:04x} bytes)".format(
+                    stream.tell(), chunk["code"], chunk["size"])
+                )
+
                 header = headers[chunk_int(chunk)]
                 logging.debug("Linked to header {}".format(header))
 
@@ -755,7 +759,9 @@ class CxtData(Object):
 
             # TODO: Properly throw away asset links
             while not chunk_int(chunk):
-                logging.debug("(@0x{:012x}) Throwing away chunk {} (0x{:04x} bytes)".format(stream.tell(), chunk["code"], chunk["size"]))
+                logging.debug("(@0x{:012x}) Throwing away chunk {} (0x{:04x} bytes)".format(
+                    stream.tell(), chunk["code"], chunk["size"])
+                )
                 stream.read(chunk["size"])
                 if stream.tell() >= end:
                     break
@@ -799,6 +805,7 @@ class CxtData(Object):
     def export(self, directory):
         for id, asset in self.assets.items():
             logging.info("Exporting asset {}".format(id))
+            logging.debug(" >>> {}".format(asset[0]))
 
             path = os.path.join(directory, str(id))
             Path(path).mkdir(parents=True, exist_ok=True)
