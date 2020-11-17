@@ -93,25 +93,19 @@ def read_chunk(stream):
     logging.debug("(@0x{:012x}) Read chunk {} (0x{:04x} bytes)".format(stream.tell(), chunk["code"], chunk["size"]))
     return chunk
 
-def read_riff(stream, full=True):
-    if stream.tell() % 2 == 1:
-        stream.read(1)
-
-    start = stream.tell()
-    if full:
-        value_assert(stream, b'RIFF', "signature")
-        size1 = struct.unpack("<L", stream.read(4))[0]
+def read_riff(stream):
+    outer = read_chunk(stream)
+    value_assert(outer["code"], "RIFF", "signature")
 
     value_assert(stream, b'IMTS', "signature")
     value_assert(stream, b'rate', "signature")
-
     rate = stream.read(struct.unpack("<L", stream.read(4))[0])
 
-    value_assert(stream, b'LIST', "signature")
-    size2 = struct.unpack("<L", stream.read(4))[0]
+    inner = read_chunk(stream)
+    value_assert(inner["code"], "LIST", "signature")
 
     value_assert(stream, b'data', "signature")
-    return size2 + (stream.tell() - start) - 8
+    return inner["size"] + (stream.tell() - outer["start"]) - 8
 
 def read_init(stream):
     stream.seek(0)
@@ -783,7 +777,6 @@ class CxtData(Object):
 
             size = read_riff(stream) - 0x24
             end = stream.tell() + size
-            logging.debug("(@0x{:012x}) Reading RIFF (0x{:08x} bytes)".format(start, size))
 
             chunk = read_chunk(stream)
             header = headers.pop(chunk_int(chunk), None)
