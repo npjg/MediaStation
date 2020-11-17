@@ -468,16 +468,9 @@ class Image(Object):
 
 class MovieFrame(Object):
     def __init__(self, stream, size):
-        start = stream.tell()
-        size -= 0x04
-
+        end = stream.tell() + size
         self.header = Array(stream, bytes=0x22)
-
-        if size - (stream.tell() - start) == 0x02:
-            stream.read(2)
-            self.image = None
-        else:
-            self.image = Image(stream, size=size+start-stream.tell(), dims=self.header.datums[1]) if size - (stream.tell() - start) > 0x02 else None
+        self.image = Image(stream, size=end-stream.tell(), dims=self.header.datums[1])
 
 class Movie(Object):
     def __init__(self, stream, header, chunk, stills=None):
@@ -508,7 +501,7 @@ class Movie(Object):
 
                 if type.d == ChunkType.MOVIE_FRAME:
                     logging.debug("Movie(): Reading movie frame of size 0x{:04x}".format(chunk['size']))
-                    frames.append(MovieFrame(stream, size=chunk['size']))
+                    frames.append(MovieFrame(stream, size=chunk['size']-0x04))
                 elif type.d == ChunkType.MOVIE_HEADER:
                     logging.debug("Movie(): Reading movie frame header of size 0x{:04x}".format(chunk['size']-0x04))
                     headers.append(Array(stream, bytes=chunk['size']-0x04))
@@ -750,7 +743,7 @@ class CxtData(Object):
 
                     d = Datum(stream) # read the header
                     if d.d == ChunkType.MOVIE_FRAME:
-                        movie_stills[header.id.d][0].append(MovieFrame(stream, size=chunk["size"]))
+                        movie_stills[header.id.d][0].append(MovieFrame(stream, size=chunk["size"]-0x04))
                     elif d.d == ChunkType.MOVIE_HEADER:
                         movie_stills[header.id.d][1].append(Array(stream, bytes=chunk["size"]-0x04))
                     else:
