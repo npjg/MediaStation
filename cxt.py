@@ -371,7 +371,7 @@ class AssetLink(Object):
 
 class Image(Object):
     def __init__(self, stream, size, dims=None, sprite=False):
-        start = stream.tell()
+        end = stream.tell() + size
         self.check = not sprite
 
         self.header = None
@@ -380,8 +380,8 @@ class Image(Object):
             value_assert(Datum(stream).d, ChunkType.IMAGE, "image signature")
             self.header = Array(stream, bytes=0x16-0x04)
 
-        logging.debug("Reading 0x{:04x} raw image bytes".format(size + start - stream.tell()))
-        self.raw = io.BytesIO(stream.read(size + start - stream.tell()))
+        logging.debug("Reading 0x{:04x} raw image bytes".format(end-stream.tell()))
+        self.raw = io.BytesIO(stream.read(end-stream.tell()))
         self.offset = 0
 
     @property
