@@ -311,6 +311,8 @@ class AssetHeader(Object):
             self.data.datums.append(Datum(stream))
             value_assert(Datum(stream).d, DatumType.PALETTE, "palette signature")
             self.child = stream.read(0x300)
+            logging.debug("Read 0x{:04x} palette bytes".format(0x300))
+            value_assert(Datum(stream).d, 0x00, "end-of-chunk flag")
         elif self.data.datums[1].d == AssetType.STG:
             self.data.datums += Array(stream, parent=self, stop=(DatumType.UINT16, 0x0000)).datums
 
