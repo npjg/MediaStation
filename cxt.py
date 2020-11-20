@@ -394,8 +394,8 @@ class Image(Object):
             value_assert(Datum(stream).d, ChunkType.IMAGE, "image signature")
             self.header = Array(stream, bytes=0x16-0x04)
 
-        logging.debug("Reading 0x{:04x} raw image bytes".format(end-stream.tell()))
         self.raw = io.BytesIO(stream.read(end-stream.tell()))
+        logging.debug("Read 0x{:04x} raw image bytes".format(size))
         self.offset = 0
 
     @property
