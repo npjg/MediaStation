@@ -180,7 +180,7 @@ class Datum(Object):
 
     def __repr__(self):
         data = ""
-        base = "<Datum: +0x{:0>4x}; type: 0x{:0>4x}, ".format(
+        base = "<Datum: 0x{:0>4x}; type: 0x{:0>4x}, ".format(
             self.start, self.t
         )
         
@@ -212,7 +212,7 @@ class Ref(Object):
 
             self.append(stream)
         else:
-            raise ValueError("Reference for unexpected asset type: {}".format(type.d))
+            raise ValueError("Reference for unexpected asset type: {} (0x{:04x})".format(type.d, type.d))
 
     def append(self, stream):
         self.refs.append(
