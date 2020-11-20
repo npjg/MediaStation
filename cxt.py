@@ -849,13 +849,19 @@ class CxtData(Object):
 ############### SYSTEM PARSER (BOOT.STM)  ################################
 
 class System(Object):
-    def __init__(self, stream):
+    def __init__(self, stream, string=True):
         end = stream.tell() + read_riff(stream)
         chunk = read_chunk(stream)
-        header = Array(stream, datums=8)
+
+        logging.debug("Reading header information...")
+        header = Array(stream, datums=3)
+        stream.read(2) # Why is a random 00 13 hanging around?
+
+        header.datums += Array(stream, datums=5).datums
         unk = Array(stream, datums=2*3) # 401 402 403 (?)
 
         # Read resource information
+        logging.debug("Reading resource information...")
         self.resources = []
         type = Datum(stream)
         while type.d == RecordType.RES_NAME:
@@ -869,6 +875,7 @@ class System(Object):
             type = Datum(stream)
 
         # Read file headers
+        logging.debug("Reading file headers...")
         value_assert(type.d, BootRecord.FILES_1, "root signature")
         files = []
         while True: # breaking condition is below
@@ -882,19 +889,21 @@ class System(Object):
                 break
 
             if type.d == 0x0003:
+                refstring = None
                 value_assert(Datum(stream).d, 0x0004, "file signature")
 
                 filenum = Datum(stream)
                 value_assert(Datum(stream).d, 0x0005, "file signature")
                 assert Datum(stream).d == filenum.d
 
-                value_assert(Datum(stream).d, 0x0bb8, "string signature")
-                string = Datum(stream)
+                if string:
+                    value_assert(Datum(stream).d, 0x0bb8, "string signature")
+                    refstring = Datum(stream)
             else:
                 raise ValueError("Received unexpected file signature: {}".format(type.d))
 
-            logging.debug("Found file {} ({})".format(filenum.d, string.d))
-            files.append((refs, filenum.d, string.d))
+            logging.debug("Found file {}{}".format(filenum.d, " ({})".format(refstring.d) if string else ""))
+            files.append((refs, filenum.d, refstring.d if string else None))
 
         # Read unknown file information
         value_assert(Datum(stream).d, BootRecord.FILES_2)
