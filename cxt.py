@@ -420,20 +420,20 @@ class Image(Object):
                 if code == 0x00: # control mode
                     op = int.from_bytes(self.raw.read(1), byteorder='little')
                     if op == 0x00: # end of line
-                        logging.debug("Image.image: Reached end of line")
+                        # logging.debug("Image.image: Reached end of line")
                         break
 
                     if op == 0x01: # end of image
-                        logging.debug("Image.image: Reached end of image")
+                        # logging.debug("Image.image: Reached end of image")
                         done = True
                         break
 
                     if op == 0x03: # offset for RLE
                         delta = struct.unpack("<H", self.raw.read(2))[0]
                         self.offset += delta
-                        logging.debug("Image.image: Set new offset {} (delta {})".format(self.offset, delta))
+                        # logging.debug("Image.image: Set new offset {} (delta {})".format(self.offset, delta))
                     else: # uncompressed data of given length
-                        logging.debug("Image.image: Found {} uncompressed bytes at 0x{:04x}".format(op, self.raw.tell()))
+                        # logging.debug("Image.image: Found {} uncompressed bytes at 0x{:04x}".format(op, self.raw.tell()))
                         pix = self.raw.read(op)
 
                         loc = (h * self.width) + self.offset
@@ -444,7 +444,7 @@ class Image(Object):
 
                         self.offset += len(pix)
                 else: # RLE data
-                    logging.debug("Image.image: Found {} RLE pixels".format(code))
+                    # logging.debug("Image.image: Found {} RLE pixels".format(code))
                     loc = (h * self.width) + self.offset
 
                     pix = self.raw.read(1)
