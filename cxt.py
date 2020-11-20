@@ -786,7 +786,7 @@ class CxtData(Object):
                 logging.debug("(@0x{:012x}) Throwing away chunk {} (0x{:04x} bytes)".format(
                     stream.tell(), chunk["code"], chunk["size"])
                 )
-                stream.read(chunk["size"])
+                Array(stream, bytes=chunk["size"]).log()
                 if stream.tell() >= end:
                     break
 
