@@ -40,6 +40,7 @@ class HeaderType(IntEnum):
     PALETTE = 0x05aa,
     ASSET   = 0x0011,
     LINK    = 0x0013,
+    FUNC    = 0x0031,
 
 class AssetType(IntEnum):
     SCR  = 0x0001,
@@ -54,6 +55,7 @@ class AssetType(IntEnum):
     TXT  = 0x001a,
     FON  = 0x001b,
     CVS  = 0x001e,
+    FUN  = 0x0069,
 
 class DatumType(IntEnum):
     UINT8   = 0x0002,
@@ -286,6 +288,16 @@ class Array(Object):
         for datum in self.datums:
             logging.debug(" -> {}".format(datum))
 
+    def export(self, directory, filename, fmt="bytes.txt", **kwargs):
+        filename = os.path.join(directory, filename)
+
+        if filename[-4:] != ".{}".format(fmt):
+            filename += (".{}".format(fmt))
+
+        with open(filename, 'w') as f:
+            for datum in self.datums:
+                print(datum, file=f)
+
     def __repr__(self):
         return "<Array: size: {:0>4d}>".format(len(self.datums))
 
@@ -319,6 +331,8 @@ class AssetHeader(Object):
                 value_assert(Datum(stream).d, DatumType.POLY, "polygon header")
                 self.child = Polygon(stream)
                 value_assert(Datum(stream).d, 0x0000, "end of polygon")
+        elif self.data.datums[1].d == AssetType.FUN: # Put the bytecode in an array for now
+            self.child = Array(stream, parent=self, bytes=end-stream.tell())
         else:
             self.child = None
             self.data.datums += Array(stream, parent=self, bytes=end-stream.tell(), stop=stop).datums
@@ -697,7 +711,7 @@ class CxtData(Object):
                 logging.debug("Found context root")
                 assert not self.root # We cannot have more than 1 root
                 self.root = Array(stream, bytes=chunk["size"] - 8) # We read 2 datums
-            elif type.d == HeaderType.ASSET:
+            elif type.d == HeaderType.ASSET or type.d == HeaderType.FUNC:
                 contents = [AssetHeader(stream, size=chunk["size"]-12)]
 
                 if contents[0].type.d == AssetType.STG:
@@ -711,7 +725,9 @@ class CxtData(Object):
                         for ref in header.ref.d.id(string=True):
                             headers.update({ref: header})
                     else: # We have an asset that has all necessary data in the header
-                        self.assets.update({header.id.d: (header, None)})
+                        self.assets.update(
+                            {header.id.d: (header, header.child if type.d == HeaderType.FUNC else None)}
+                        )
 
                 value_assert(Datum(stream).d, 0x00, "end-of-chunk flag")
             else:
