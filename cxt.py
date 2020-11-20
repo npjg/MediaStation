@@ -323,8 +323,9 @@ class AssetHeader(Object):
             if self.data.datums[10].d != 0x0000: # TODO: What is this, exactly?
                 value_assert(Datum(stream).d, HeaderType.ASSET, "stage asset chunk")
                 while stream.tell() < end:
-                    self.child.append(AssetHeader(stream, size=end-stream.tell(), stop=(DatumType.UINT16, HeaderType.ASSET)))
-                    logging.debug(" -> {}".format(self.child[-1]))
+                    header = AssetHeader(stream, size=end-stream.tell(), stop=(DatumType.UINT16, HeaderType.ASSET))
+                    self.child.append(header)
+                    logging.debug("Added asset header to stage: -> {}".format(header))
         elif self.data.datums[1].d == AssetType.HSP:
             self.data.datums += Array(stream, parent=self, stop=(DatumType.UINT16, 0x0000)).datums
 
