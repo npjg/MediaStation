@@ -689,12 +689,14 @@ class CxtData(Object):
                 stream.seek(stream.tell() - 8)
                 break
             if type.d == HeaderType.PALETTE:
+                logging.debug("Found context palette (0x{:04x} bytes)".format(0x300))
                 assert not self.palette # We cannot have more than 1 palette
                 self.palette = stream.read(0x300)
                 value_assert(Datum(stream).d, 0x00, "end-of-chunk flag")
             elif type.d == HeaderType.ROOT:
+                logging.debug("Found context root")
                 assert not self.root # We cannot have more than 1 root
-                self.root = Array(stream, stop=(DatumType.UINT16, 0x0000))
+                self.root = Array(stream, bytes=chunk["size"] - 8) # We read 2 datums
             elif type.d == HeaderType.ASSET:
                 contents = [AssetHeader(stream, size=chunk["size"]-12)]
 
