@@ -45,6 +45,7 @@ class HeaderType(IntEnum):
 class AssetType(IntEnum):
     SCR  = 0x0001,
     STG  = 0x0002,
+    PTH  = 0x0004,
     SND  = 0x0005,
     TMR  = 0x0006,
     IMG  = 0x0007,
