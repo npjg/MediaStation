@@ -307,6 +307,7 @@ class AssetHeader(Object):
         self.data = Array(stream, datums=4)
 
         # TODO: Handle children more generally.
+        self.child = None
         if self.data.datums[1].d == AssetType.PAL:
             self.data.datums.append(Datum(stream))
             value_assert(Datum(stream).d, DatumType.PALETTE, "palette signature")
@@ -337,7 +338,6 @@ class AssetHeader(Object):
         elif self.data.datums[1].d == AssetType.FUN: # Put the bytecode in an array for now
             self.child = Array(stream, parent=self, bytes=end-stream.tell())
         else:
-            self.child = None
             self.data.datums += Array(stream, parent=self, bytes=end-stream.tell(), stop=stop).datums
 
         if size and not stop and stream.tell() < end:
