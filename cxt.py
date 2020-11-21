@@ -303,26 +303,30 @@ class Array(Object):
         return "<Array: size: {:0>4d}>".format(len(self.datums))
 
 class AssetHeader(Object):
-    def __init__(self, stream, size, stop=None):
+    def __init__(self, stream, size, stop=None, string=True):
         end = stream.tell() + size
         self.data = Array(stream, datums=4)
 
         # TODO: Handle children more generally.
         self.child = None
+        if string: self.data.datums.pop(-1) # pop the string header to keep indexing consistent
+        self.string = Datum(stream) if string else None
+
         if self.data.datums[1].d == AssetType.PAL:
-            self.data.datums.append(Datum(stream))
             value_assert(Datum(stream).d, DatumType.PALETTE, "palette signature")
             self.child = stream.read(0x300)
             logging.debug("Read 0x{:04x} palette bytes".format(0x300))
             value_assert(Datum(stream).d, 0x00, "end-of-chunk flag")
         elif self.data.datums[1].d == AssetType.STG:
+            logging.debug("Reading stage asset...")
+
             self.data.datums += Array(stream, parent=self, stop=(DatumType.UINT16, 0x0000)).datums
 
             value_assert(Datum(stream).d, HeaderType.LINK, "link signature")
             value_assert(Datum(stream).d, self.id.d, "asset id")
 
             self.child = []
-            if self.data.datums[10].d != 0x0000: # TODO: What is this, exactly?
+            if self.data.datums[8].d != 0x0000: # TODO: What is this, exactly?
                 value_assert(Datum(stream).d, HeaderType.ASSET, "stage asset chunk")
                 while stream.tell() < end:
                     header = AssetHeader(stream, size=end-stream.tell(), stop=(DatumType.UINT16, HeaderType.ASSET))
@@ -355,9 +359,7 @@ class AssetHeader(Object):
 
     @property
     def name(self):
-        for datum in self.data.datums:
-            if datum.t == DatumType.STRING:
-                return datum
+        return self.string
 
     @property
     def ref(self):
@@ -650,7 +652,7 @@ class Sound(Object):
         if not stream or not header or not chunk:
             return
 
-        chunks = header.data.datums[11].d
+        chunks = header.data.datums[9].d
         logging.debug(" *** Sound(): Expecting {} sound chunks ***".format(chunks))
 
         asset_id = chunk["code"]
