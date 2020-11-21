@@ -6,14 +6,14 @@ import logging
 
 import cxt
 
-def main(directory):
+def main(directory, string):
     results = {}
 
     for entry in os.listdir(directory):
         if entry.endswith("cxt") and entry.split('.')[0].isnumeric():
             logging.info("Opened context {}".format(entry))
             try:
-                cxt.main(os.path.join(directory, entry))
+                cxt.main(os.path.join(directory, entry), string)
                 result = "Pass"
             except Exception as e:
                 result = e
@@ -28,7 +28,8 @@ logging.basicConfig(level=logging.DEBUG)
 
 parser = argparse.ArgumentParser(prog="test")
 parser.add_argument("input")
+parser.add_argument("--string", default=False, action='store_true', help="Parse contexts with debug strings")
 
 args = parser.parse_args()
-main(args.input)
+main(args.input, args.string)
 

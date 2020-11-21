@@ -303,7 +303,7 @@ class Array(Object):
         return "<Array: size: {:0>4d}>".format(len(self.datums))
 
 class AssetHeader(Object):
-    def __init__(self, stream, size, stop=None, string=True):
+    def __init__(self, stream, size, string, stop=None):
         end = stream.tell() + size
         self.data = Array(stream, datums=4)
 
@@ -329,7 +329,7 @@ class AssetHeader(Object):
             if self.data.datums[8].d != 0x0000: # TODO: What is this, exactly?
                 value_assert(Datum(stream).d, HeaderType.ASSET, "stage asset chunk")
                 while stream.tell() < end:
-                    header = AssetHeader(stream, size=end-stream.tell(), stop=(DatumType.UINT16, HeaderType.ASSET))
+                    header = AssetHeader(stream, size=end-stream.tell(), string=string, stop=(DatumType.UINT16, HeaderType.ASSET))
                     self.child.append(header)
                     logging.debug("Added asset header to stage: -> {}".format(header))
         elif self.data.datums[1].d == AssetType.HSP:
@@ -687,7 +687,7 @@ class Sound(Object):
             f.write(str(len(self.chunks)))
 
 class CxtData(Object):
-    def __init__(self, stream):
+    def __init__(self, stream, string):
         riffs, total = read_init(stream)
 
         self.assets = {}
@@ -718,7 +718,7 @@ class CxtData(Object):
                 assert not self.root # We cannot have more than 1 root
                 self.root = Array(stream, bytes=chunk["size"] - 8) # We read 2 datums
             elif type.d == HeaderType.ASSET or type.d == HeaderType.FUNC:
-                contents = [AssetHeader(stream, size=chunk["size"]-12)]
+                contents = [AssetHeader(stream, size=chunk["size"]-12, string=string)]
 
                 if contents[0].type.d == AssetType.STG:
                     contents += contents[0].child
@@ -855,7 +855,7 @@ class CxtData(Object):
 ############### SYSTEM PARSER (BOOT.STM)  ################################
 
 class System(Object):
-    def __init__(self, stream, string=True):
+    def __init__(self, stream, string):
         end = stream.tell() + read_riff(stream)
         chunk = read_chunk(stream)
 
@@ -977,14 +977,14 @@ class System(Object):
 
         self.footer = stream.read()
 
-def main(infile):
+def main(infile, string):
     logging.basicConfig(level=logging.DEBUG)
 
     global c
     with open(infile, mode='rb') as f:
         stream = mmap.mmap(f.fileno(), length=0, access=mmap.ACCESS_READ)
         try:
-            c = CxtData(stream)
+            c = CxtData(stream, string)
         except:
             logging.error("Exception at {}:0x{:012x}".format(infile, stream.tell()))
             raise
@@ -993,8 +993,9 @@ def main(infile):
 
 parser = argparse.ArgumentParser(prog="cxt")
 parser.add_argument("input")
+parser.add_argument("--string", default=False, action='store_true', help="Parse contexts with debug strings")
 
 args = parser.parse_args()
 
 if __name__ == "__main__":
-    main(args.input)
+    main(args.input, args.string)
