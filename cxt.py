@@ -908,7 +908,10 @@ class System(Object):
             else:
                 raise ValueError("Received unexpected file signature: {}".format(type.d))
 
-            logging.debug("Found file {}{}".format(filenum.d, " ({})".format(refstring.d) if string else ""))
+            logging.debug("Found file {}{} (refs: {})".format(
+                filenum.d, " ({})".format(refstring.d) if string else "", refs)
+            )
+
             files.append((refs, filenum.d, refstring.d if string else None))
 
         # Read unknown file information
