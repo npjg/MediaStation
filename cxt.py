@@ -694,8 +694,7 @@ class CxtData(Object):
         end = stream.tell() + read_riff(stream)
         chunk = read_chunk(stream)
 
-        # TODO: Fix up these conditions. We don't need all three.
-        while chunk["code"] == 'igod' and stream.tell() < end:
+        while chunk["code"] == 'igod':
             if Datum(stream).d != ChunkType.HEADER:
                 break
 
