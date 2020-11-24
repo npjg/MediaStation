@@ -10,6 +10,7 @@ from pathlib import Path
 import os
 import subprocess
 import mmap
+import pprint
 
 import PIL.Image as PILImage
 
@@ -833,6 +834,9 @@ class CxtData(Object):
         logging.info("Finished parsing context!")
 
     def export(self, directory):
+        if not directory:
+            return
+
         for id, asset in self.assets.items():
             logging.info("Exporting asset {}".format(id))
             logging.debug(" >>> {}".format(asset[0]))
@@ -855,7 +859,10 @@ class CxtData(Object):
 ############### SYSTEM PARSER (BOOT.STM)  ################################
 
 class System(Object):
-    def __init__(self, stream, string):
+    def __init__(self, directory, stream, string):
+        self.directory = directory
+        self.string = string
+
         end = stream.tell() + read_riff(stream)
         chunk = read_chunk(stream)
 
@@ -864,6 +871,8 @@ class System(Object):
         stream.read(2) # Why is a random 00 13 hanging around?
 
         header.datums += Array(stream, datums=5).datums
+        self.name = header.datums[2].d
+
         unk = Array(stream, datums=2*3) # 401 402 403 (?)
 
         # Read resource information
@@ -912,9 +921,12 @@ class System(Object):
                 filenum.d, " ({})".format(refstring.d) if string else "", refs)
             )
 
-            files.append((refs, filenum.d, refstring.d if string else None))
+            files.append(
+                {"refs": refs, "filenum": filenum.d, "string": refstring.d if string else None}
+            )
 
-        # Read unknown file information
+        logging.debug("Categorizing data files...")
+        is_data = {}
         value_assert(Datum(stream).d, BootRecord.FILES_2)
         type = Datum(stream)
         while type.d == RecordType.FILE_1:
@@ -923,7 +935,7 @@ class System(Object):
             value_assert(Datum(stream).d, 0x0004)
             assert file.d == Datum(stream).d
 
-            logging.debug("Referenced file {}".format(file.d))
+            logging.debug("Referenced data file {}".format(file.d))
             type = Datum(stream)
 
         value_assert(type.d, 0x0000)
@@ -942,7 +954,9 @@ class System(Object):
             filename = Datum(stream)
 
             logging.debug("Read file link {} ({})".format(filename.d, id.d))
-            self.files.update({id.d: (filename.d, files.pop(0) if filetype.d == 0x0007 else None)})
+            self.files.update(
+                {id.d: dict({"file": filename.d}, **(files.pop(0) if filetype.d == 0x0007 else {}))}
+            )
             type = Datum(stream)
 
         value_assert(type.d, 0x0000)
@@ -959,7 +973,7 @@ class System(Object):
             value_assert(Datum(stream).d, 0x002c)
             loc = Datum(stream)
 
-            logging.debug("Read RIFF for asset {} ({}:0x{:08x})".format(asset.d, self.files[id.d][0], loc.d))
+            logging.debug("Read RIFF for asset {} ({}:0x{:08x})".format(asset.d, self.files[id.d], loc.d))
             self.riffs.update({asset.d: (id.d, loc.d)})
             type = Datum(stream)
 
@@ -980,25 +994,81 @@ class System(Object):
 
         self.footer = stream.read()
 
-def main(infile, string):
+        logging.debug(pprint.pformat(self.files))
+
+    def parse(self, directory):
+        if not self.directory:
+            return
+
+        logging.info("Parsing full title: {}".format(self.name))
+        for id, record in self.files.items():
+            if not record.get("filenum"):
+                logging.debug("Skipping context {} ({})".format(record["file"], id))
+                continue
+
+            logging.info("Opened context {} ({})".format(record["file"], id))
+            with open(os.path.join(self.directory, record["file"]), mode='rb') as f:
+                stream = mmap.mmap(f.fileno(), length=0, access=mmap.ACCESS_READ)
+                try:
+                    CxtData(stream, self.string).export(directory)
+                except:
+                    log_location(os.path.join(self.directory, record["file"]), stream.tell())
+                    raise
+    
+def main(input, string, export):
     logging.basicConfig(level=logging.DEBUG)
 
-    global c
-    with open(infile, mode='rb') as f:
-        stream = mmap.mmap(f.fileno(), length=0, access=mmap.ACCESS_READ)
-        try:
-            c = CxtData(stream, string)
-        except:
-            logging.error("Exception at {}:0x{:012x}".format(infile, stream.tell()))
-            raise
+    stream = None
+    if os.path.isdir(input):
+        with open(os.path.join(input, "boot.stm"), mode='rb') as f:
+            stream = mmap.mmap(f.fileno(), length=0, access=mmap.ACCESS_READ)
+            System(input, stream, string).parse(export)
+    elif os.path.isfile(input):
+        with open(input, mode='rb') as f:
+            stream = mmap.mmap(f.fileno(), length=0, access=mmap.ACCESS_READ)
+            
+            if input[-3:].lower() == "cxt":
+                try:
+                    CxtData(stream, string).export(export)
+                except:
+                    log_location(input, stream.tell())
+                    raise
+            elif os.path.split(input)[1].lower() == "boot.stm":
+                if export: logging.warning("Only parsing system information; ignoring export flag")
+                try:
+                    System(None, stream, string)
+                except:
+                    log_location(input, stream.tell())
+                    raise
+            else:
+                raise ValueError(
+                    "Ambiguous input file extension. Ensure a numeric context (CXT) or system (STM) file has been passed."
+                )
+    else:
+        raise ValueError("The path specified is invalid or does not exist.")
 
-        c.export(os.path.split(infile)[1])
+def log_location(file, position):
+    logging.error("Exception at {}:0x{:012x}".format(file, position))
 
-parser = argparse.ArgumentParser(prog="cxt")
-parser.add_argument("input")
-parser.add_argument("--string", default=False, action='store_true', help="Parse contexts with debug strings")
+parser = argparse.ArgumentParser(
+    prog="cxt", description="Parse asset structures and extract assets from Media Station, Inc. games"
+)
+
+parser.add_argument(
+    "input", help="Pass a context (CXT) or system (STM) filename to process the file, or pass a game data directory to process the whole game."
+)
+
+parser.add_argument(
+    '-s', "--string", default=False, action='store_true',
+    help="Specify that context datafiles have embedded debug strings (Tonka Garage)"
+)
+
+parser.add_argument(
+    '-e', "--export", default=None,
+    help="Specify the location for exporting assets. Assets are not exported if not provided"
+)
 
 args = parser.parse_args()
 
 if __name__ == "__main__":
-    main(args.input, args.string)
+    main(args.input, args.string, args.export)
