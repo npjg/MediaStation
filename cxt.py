@@ -801,22 +801,22 @@ class CxtData(Object):
         logging.debug("(@0x{:012x}) CxtData.get_minor_asset(): CxtData.get_minor_asset: {}".format(stream.tell(), header))
 
         if header.type.d == AssetType.IMG:
-            self.assets.update({header.id.d: (header, Image(stream, size=chunk["size"]))})
+            self.assets.update(self.structure_asset(header, Image(stream, size=chunk["size"])))
         elif header.type.d == AssetType.SND:
             if not header.id.d in self.assets:
-                self.assets.update({header.id.d: [header, Sound()]})
+                self.assets.update(self.structure_asset(header, Sound()))
 
-            self.assets[header.id.d][1].append(stream, size=chunk["size"])
+            self.assets[header.id.d]["asset"].append(stream, size=chunk["size"])
         elif header.type.d == AssetType.SPR:
             if header.id.d not in self.assets:
-                self.assets.update({header.id.d: [header, Sprite()]})
+                self.assets.update(self.structure_asset(header, Sprite()))
                         
-            self.assets[header.id.d][1].append(stream, size=chunk["size"])
+            self.assets[header.id.d]["asset"].append(stream, size=chunk["size"])
         elif header.type.d == AssetType.FON:
             if header.id.d not in self.assets:
-                self.assets.update({header.id.d: [header, Font()]})
+                self.assets.update(self.structure_asset(header, Font()))
 
-            self.assets[header.id.d][1].append(stream, size=chunk["size"])
+            self.assets[header.id.d]["asset"].append(stream, size=chunk["size"])
         elif header.type.d == AssetType.MOV:
             if header.id.d not in self.stills:
                 self.stills.update({header.id.d: [[], []]})
@@ -833,24 +833,21 @@ class CxtData(Object):
 
     def get_major_asset(self, stream, chunk):
         header = self.headers[chunk_int(chunk)]
-        object = None
-
         logging.debug("(@0x{:012x}) CxtData.get_major_asset: {}".format(stream.tell(), header))
+
         if header.type.d == AssetType.MOV:
-            object = Movie(stream, header, chunk, stills=self.stills.get(header.id.d))
+            return self.structure_asset(header, Movie(stream, header, chunk, stills=self.stills.get(header.id.d)))
         elif header.type.d == AssetType.SND:
-            object = Sound(stream, header, chunk)
+            return self.structure_asset(header, Sound(stream, header, chunk))
         else:
             raise TypeError("Unhandled major asset type: {}".format(header.type.d))
-
-        return {header.id.d: (header, object)}
 
     def export(self, directory):
         if not directory:
             return
 
         for id, asset in self.assets.items():
-            logging.info("Exporting asset {}".format(id))
+            logging.info("CxtData.export(): Exporting asset {}".format(id))
             logging.debug(" >>> {}".format(asset[0]))
 
             path = os.path.join(directory, str(id))
@@ -858,14 +855,17 @@ class CxtData(Object):
 
             with open(os.path.join(directory, str(id), "{}.txt".format(id)), 'w') as header:
                 print(repr(asset[0]), file=header)
-                for datum in asset[0].data.datums:
+                for datum in asset["header"].data.datums:
                     print(repr(datum), file=header)
 
-            if asset[1]: asset[1].export(path, str(id), palette=self.palette)
+            if asset["asset"]: asset["asset"].export(path, str(id), palette=self.palette)
 
         if len(self.junk) > 0:
             with open(os.path.join(directory, "junk"), 'wb') as f:
                 f.write(self.junk)
+
+    def structure_asset(self, header, asset):
+        return {header.id.d: {"header": header, "asset": asset}}
 
 
 ############### SYSTEM PARSER (BOOT.STM)  ################################
