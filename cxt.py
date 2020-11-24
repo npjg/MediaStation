@@ -301,7 +301,7 @@ class AssetHeader(Object):
         # TODO: Handle children more generally.
         self.child = None
         if string: self.data.datums.pop(-1) # pop the string header to keep indexing consistent
-        self.string = Datum(stream) if string else None
+        self.name = Datum(stream) if string else None
 
         if self.data.datums[1].d == AssetType.PAL:
             value_assert(Datum(stream).d, DatumType.PALETTE, "palette signature")
@@ -341,16 +341,16 @@ class AssetHeader(Object):
             stream.read(end - stream.tell())
 
     @property
+    def filenum(self):
+        return self.data.datums[0]
+
+    @property
     def type(self):
         return self.data.datums[1]
 
     @property
     def id(self):
         return self.data.datums[2]
-
-    @property
-    def name(self):
-        return self.string
 
     @property
     def ref(self):
