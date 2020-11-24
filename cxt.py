@@ -680,7 +680,7 @@ class Sound(Object):
 
 ############### CONTEXT PARSER (*.CXT)  ##################################
 
-class CxtData(Object):
+class Context(Object):
     def __init__(self, stream, string, standalone):
         self.string = string
         riffs, total = self.get_prelude(stream)
@@ -1047,7 +1047,7 @@ def main(input, string, export):
             if input[-3:].lower() == "cxt":
                 logging.info("Received single context, operating in standalone mode")
                 try:
-                    CxtData(stream, string, standalone=True).export(export)
+                    Context(stream, string, standalone=True).export(export)
                 except:
                     log_location(input, stream.tell())
                     raise
