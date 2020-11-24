@@ -1011,25 +1011,23 @@ class System(Object):
 
         logging.debug(pprint.pformat(self.files))
 
-    def parse(self, directory):
-        if not self.directory:
-            return
-
+    def parse(self):
+        self.contexts = {}
         logging.info("Parsing full title: {}".format(self.name))
         for id, record in self.files.items():
             if not record.get("filenum"):
                 logging.debug("System.parse(): No headers in context {} ({})".format(record["file"], id))
                 continue
 
-            logging.info("Opened context {} ({})".format(record["file"], id))
             with open(os.path.join(self.directory, record["file"]), mode='rb') as f:
                 stream = mmap.mmap(f.fileno(), length=0, access=mmap.ACCESS_READ)
+                logging.info("System.parse(): Opened context {} ({})".format(record["file"], id))
                 try:
-                    CxtData(stream, self.string, standalone=False).export(directory)
+                    self.contexts.update({id: Context(stream, self.string, standalone=False)})
                 except:
                     log_location(os.path.join(self.directory, record["file"]), stream.tell())
                     raise
-    
+
 
 ############### INTERACTIVE LOGIC  #######################################
 
@@ -1040,7 +1038,8 @@ def main(input, string, export):
     if os.path.isdir(input):
         with open(os.path.join(input, "boot.stm"), mode='rb') as f:
             stream = mmap.mmap(f.fileno(), length=0, access=mmap.ACCESS_READ)
-            System(input, stream, string).parse(export)
+            s = System(input, stream, string)
+            s.parse()
     elif os.path.isfile(input):
         with open(input, mode='rb') as f:
             stream = mmap.mmap(f.fileno(), length=0, access=mmap.ACCESS_READ)
