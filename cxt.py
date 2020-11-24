@@ -109,16 +109,6 @@ def read_riff(stream):
     value_assert(stream, b'data', "signature")
     return inner["size"] + (stream.tell() - outer["start"]) - 8
 
-def read_init(stream):
-    stream.seek(0)
-
-    assert stream.read(4) == b'II\x00\x00', "Incorrect file signature"
-    struct.unpack("<L", stream.read(4))[0]
-    riffs = struct.unpack("<L", stream.read(4))[0]
-    total = struct.unpack("<L", stream.read(4))[0]
-
-    return riffs, total
-
 def value_assert(stream, target, type="value", warn=False):
     s = 0
     ax = stream
@@ -688,150 +678,173 @@ class Sound(Object):
             f.write(str(len(self.chunks)))
 
 class CxtData(Object):
-    def __init__(self, stream, string):
-        riffs, total = read_init(stream)
+    def __init__(self, stream, string, standalone):
+        self.string = string
+        riffs, total = self.get_prelude(stream)
 
+        self.headers = {}
+        self.stills = {}
         self.assets = {}
+
         self.palette = None
         self.root = None
 
         ################ Asset headers ###################################
-        logging.info("(@0x{:012x}) Reading asset headers...".format(stream.tell()))
-        headers = {}
-
+        logging.info("(@0x{:012x}) CxtData(): Reading asset headers...".format(stream.tell()))
         end = stream.tell() + read_riff(stream)
         chunk = read_chunk(stream)
+
+        # TODO: Fix up these conditions. We don't need all three.
         while chunk["code"] == 'igod' and stream.tell() < end:
             if Datum(stream).d != ChunkType.HEADER:
                 break
 
-            type = Datum(stream)
-            if type.d == HeaderType.LINK:
-                stream.seek(stream.tell() - 8)
-                break
-            if type.d == HeaderType.PALETTE:
-                logging.debug("Found context palette (0x{:04x} bytes)".format(0x300))
-                assert not self.palette # We cannot have more than 1 palette
-                self.palette = stream.read(0x300)
-                value_assert(Datum(stream).d, 0x00, "end-of-chunk flag")
-            elif type.d == HeaderType.ROOT:
-                logging.debug("Found context root")
-                assert not self.root # We cannot have more than 1 root
-                self.root = Array(stream, bytes=chunk["size"] - 8) # We read 2 datums
-            elif type.d == HeaderType.ASSET or type.d == HeaderType.FUNC:
-                contents = [AssetHeader(stream, size=chunk["size"]-12, string=string)]
-
-                if contents[0].type.d == AssetType.STG:
-                    contents += contents[0].child
-
-                for header in contents:
-                    logging.debug("Found asset header {}".format(header))
-                    # TODO: Deal with shared assets.
-                    if header.ref and not isinstance(header.ref.d, int):
-                        # We have an asset that has further data coming
-                        for ref in header.ref.d.id(string=True):
-                            headers.update({ref: header})
-                    else: # We have an asset that has all necessary data in the header
-                        self.assets.update(
-                            {header.id.d: (header, header.child if type.d == HeaderType.FUNC else None)}
-                        )
-
-                value_assert(Datum(stream).d, 0x00, "end-of-chunk flag")
-            else:
-                raise TypeError("Unknown header type: {}".format(type))
-
+            if not self.get_header(stream, chunk): break
             chunk = read_chunk(stream)
 
-        ################ First-RIFF assets ###############################
-        logging.info("(@0x{:012x}) Reading first-RIFF assets...".format(stream.tell()))
+        ################ Minor assets ##################################
+        logging.info("(@0x{:012x}) CxtData(): Reading minor assets...".format(stream.tell()))
 
-        movie_stills = {}
         while stream.tell() < end:
             if chunk_int(chunk):
-                logging.debug("(@0x{:012x}) Accepted chunk {} (0x{:04x} bytes)".format(
+                logging.debug("(@0x{:012x}) CxtData(): Accepted chunk {} (0x{:04x} bytes)".format(
                     stream.tell(), chunk["code"], chunk["size"])
                 )
 
-                header = headers[chunk_int(chunk)]
-                logging.debug("Linked to header {}".format(header))
-
-                if header.type.d == AssetType.IMG:
-                    self.assets.update({header.id.d: (header, Image(stream, size=chunk["size"]))})
-                elif header.type.d == AssetType.SND:
-                    if not header.id.d in self.assets:
-                        self.assets.update({header.id.d: [header, Sound()]})
-
-                    self.assets[header.id.d][1].append(stream, size=chunk["size"])
-                elif header.type.d == AssetType.SPR:
-                    if header.id.d not in self.assets:
-                        self.assets.update({header.id.d: [header, Sprite()]})
-
-                    self.assets[header.id.d][1].append(stream, size=chunk["size"])
-                elif header.type.d == AssetType.FON:
-                    if header.id.d not in self.assets:
-                        self.assets.update({header.id.d: [header, Font()]})
-
-                    self.assets[header.id.d][1].append(stream, size=chunk["size"])
-                elif header.type.d == AssetType.MOV:
-                    if header.id.d not in movie_stills:
-                        movie_stills.update({header.id.d: [[], []]})
-
-                    d = Datum(stream) # read the header
-                    if d.d == ChunkType.MOVIE_FRAME:
-                        movie_stills[header.id.d][0].append(MovieFrame(stream, size=chunk["size"]-0x04))
-                    elif d.d == ChunkType.MOVIE_HEADER:
-                        movie_stills[header.id.d][1].append(Array(stream, bytes=chunk["size"]-0x04))
-                    else:
-                        raise ValueError("Unknown header type in movie still area: {}".format(d.d))
-                else:
-                    raise TypeError("Unhandled asset type found in first chunk: {}".format(header.type.d))
-
+                self.get_minor_asset(stream, chunk) # updates self.assets
                 chunk = read_chunk(stream)
 
-            # TODO: Properly throw away asset links
+            # TODO: Properly throw away asset links (or understand them)
             while not chunk_int(chunk):
-                logging.debug("(@0x{:012x}) Throwing away chunk {} (0x{:04x} bytes)".format(
+                logging.debug("(@0x{:012x}) CxtData(): Throwing away chunk {} (0x{:04x} bytes)".format(
                     stream.tell(), chunk["code"], chunk["size"])
                 )
+
                 Array(stream, bytes=chunk["size"]).log()
                 if stream.tell() >= end:
                     break
 
                 chunk = read_chunk(stream)
 
-        ################# Chunked assets ##################################
-        logging.info("(@0x{:012x}) Reading chunked assets ({} RIFFs)...".format(stream.tell(), riffs-1))
+        logging.info("(@0x{:012x}) CxtData(): Parsed asset headers and minor assets".format(stream.tell()))
+        if not standalone:
+            return
 
+        ################# Major assets ###################################
+        logging.info("(@0x{:012x}) CxtData(): Reading major assets ({} RIFFs)...".format(stream.tell(), riffs-1))
         for i in range(riffs-1):
-            start = stream.tell()
-
-            size = read_riff(stream) - 0x24
-            end = stream.tell() + size
+            read_riff(stream)
 
             chunk = read_chunk(stream)
-            header = headers.pop(chunk_int(chunk), None)
+            self.assets.update(self.get_major_asset(stream, chunk))
 
-            if header:
-                logging.debug("  >>> {}".format(header))
-                if header.type.d == AssetType.MOV:
-                    self.assets.update({
-                        header.id.d: [
-                            header, Movie(stream, header, chunk, stills=movie_stills.get(header.id.d))
-                        ]
-                    })
-                elif header.type.d == AssetType.SND:
-                    self.assets.update({header.id.d: [header, Sound(stream, header, chunk)]})
-                else:
-                    raise TypeError("Unhandled RIFF asset type: {}".format(header.type.d))
+            logging.debug("(@0x{:012x}) CxtData(): Read RIFF {} of {}".format(stream.tell(), i+1, riffs-1))
 
-            logging.debug("CxtData(): Read RIFF {} of {}".format(i+1, riffs-1))
-
-        ################# Junk data #######################################
+        ################# Junk data ######################################
         self.junk = stream.read()
         if len(self.junk) > 0:
             logging.warning("Found {} bytes at end of file".format(len(self.junk)))
 
-        logging.info("Finished parsing context!")
+        logging.info("(@0x{:012x}) CxtData(): Parsed entire context".format(stream.tell()))
+
+    def get_prelude(self, stream):
+        stream.seek(0)
+
+        assert stream.read(4) == b'II\x00\x00', "Incorrect context file signature"
+        struct.unpack("<L", stream.read(4))[0]
+        riffs = struct.unpack("<L", stream.read(4))[0]
+        total = struct.unpack("<L", stream.read(4))[0]
+        
+        return riffs, total
+
+    def get_header(self, stream, chunk):
+        type = Datum(stream)
+
+        if type.d == HeaderType.LINK:
+            stream.seek(stream.tell() - 8)
+            return False
+        if type.d == HeaderType.PALETTE:
+            logging.debug("(@0x{:012x}) CxtData.get_header(): Found context palette (0x{:04x} bytes)".format(stream.tell(), 0x300))
+            assert not self.palette # We cannot have more than 1 palette
+            self.palette = stream.read(0x300)
+            value_assert(Datum(stream).d, 0x00, "end-of-chunk flag")
+        elif type.d == HeaderType.ROOT:
+            logging.debug("(@0x{:012x}) CxtData.get_header(): Found context root".format(stream.tell()))
+            assert not self.root # We cannot have more than 1 root
+            self.root = Array(stream, bytes=chunk["size"] - 8) # We read 2 datums
+        elif type.d == HeaderType.ASSET or type.d == HeaderType.FUNC:
+            contents = [AssetHeader(stream, size=chunk["size"]-12, string=self.string)]
+
+            if contents[0].type.d == AssetType.STG:
+                contents += contents[0].child
+
+            for header in contents:
+                logging.debug("(@0x{:012x}) CxtData.get_header(): Found asset header {}".format(stream.tell(), header))
+
+                # TODO: Deal with shared assets.
+                if header.ref and not isinstance(header.ref.d, int):
+                    # Actual data is in another chunk
+                    for ref in header.ref.d.id(string=True):
+                        self.headers.update({ref: header})
+                else: # All needed data is here in the header
+                    self.assets.update(
+                        {header.id.d: (header, header.child if type.d == HeaderType.FUNC else None)}
+                    )
+
+            value_assert(Datum(stream).d, 0x00, "end-of-chunk flag")
+        else:
+            raise TypeError("Unknown header type: {}".format(type))
+
+        return True
+
+    def get_minor_asset(self, stream, chunk):
+        header = self.headers[chunk_int(chunk)]
+        logging.debug("(@0x{:012x}) CxtData.get_minor_asset(): CxtData.get_minor_asset: {}".format(stream.tell(), header))
+
+        if header.type.d == AssetType.IMG:
+            self.assets.update({header.id.d: (header, Image(stream, size=chunk["size"]))})
+        elif header.type.d == AssetType.SND:
+            if not header.id.d in self.assets:
+                self.assets.update({header.id.d: [header, Sound()]})
+
+            self.assets[header.id.d][1].append(stream, size=chunk["size"])
+        elif header.type.d == AssetType.SPR:
+            if header.id.d not in self.assets:
+                self.assets.update({header.id.d: [header, Sprite()]})
+                        
+            self.assets[header.id.d][1].append(stream, size=chunk["size"])
+        elif header.type.d == AssetType.FON:
+            if header.id.d not in self.assets:
+                self.assets.update({header.id.d: [header, Font()]})
+
+            self.assets[header.id.d][1].append(stream, size=chunk["size"])
+        elif header.type.d == AssetType.MOV:
+            if header.id.d not in self.stills:
+                self.stills.update({header.id.d: [[], []]})
+
+            d = Datum(stream) # Read the movie frame header
+            if d.d == ChunkType.MOVIE_FRAME:
+                self.stills[header.id.d][0].append(MovieFrame(stream, size=chunk["size"]-0x04))
+            elif d.d == ChunkType.MOVIE_HEADER:
+                self.stills[header.id.d][1].append(Array(stream, bytes=chunk["size"]-0x04))
+            else:
+                raise ValueError("Unknown header type in movie still area: {}".format(d.d))
+        else:
+            raise TypeError("Unhandled asset type found in first chunk: {}".format(header.type.d))
+
+    def get_major_asset(self, stream, chunk):
+        header = self.headers[chunk_int(chunk)]
+        object = None
+
+        logging.debug("(@0x{:012x}) CxtData.get_major_asset: {}".format(stream.tell(), header))
+        if header.type.d == AssetType.MOV:
+            object = Movie(stream, header, chunk, stills=self.stills.get(header.id.d))
+        elif header.type.d == AssetType.SND:
+            object = Sound(stream, header, chunk)
+        else:
+            raise TypeError("Unhandled major asset type: {}".format(header.type.d))
+
+        return {header.id.d: (header, object)}
 
     def export(self, directory):
         if not directory:
@@ -973,7 +986,7 @@ class System(Object):
             value_assert(Datum(stream).d, 0x002c)
             loc = Datum(stream)
 
-            logging.debug("Read RIFF for asset {} ({}:0x{:08x})".format(asset.d, self.files[id.d], loc.d))
+            logging.debug("Read RIFF for asset {} ({}:0x{:08x})".format(asset.d, self.files[id.d]["file"], loc.d))
             self.riffs.update({asset.d: (id.d, loc.d)})
             type = Datum(stream)
 
@@ -1003,14 +1016,14 @@ class System(Object):
         logging.info("Parsing full title: {}".format(self.name))
         for id, record in self.files.items():
             if not record.get("filenum"):
-                logging.debug("Skipping context {} ({})".format(record["file"], id))
+                logging.debug("System.parse(): No headers in context {} ({})".format(record["file"], id))
                 continue
 
             logging.info("Opened context {} ({})".format(record["file"], id))
             with open(os.path.join(self.directory, record["file"]), mode='rb') as f:
                 stream = mmap.mmap(f.fileno(), length=0, access=mmap.ACCESS_READ)
                 try:
-                    CxtData(stream, self.string).export(directory)
+                    CxtData(stream, self.string, standalone=False).export(directory)
                 except:
                     log_location(os.path.join(self.directory, record["file"]), stream.tell())
                     raise
@@ -1028,8 +1041,9 @@ def main(input, string, export):
             stream = mmap.mmap(f.fileno(), length=0, access=mmap.ACCESS_READ)
             
             if input[-3:].lower() == "cxt":
+                logging.info("Received single context, operating in standalone mode")
                 try:
-                    CxtData(stream, string).export(export)
+                    CxtData(stream, string, standalone=True).export(export)
                 except:
                     log_location(input, stream.tell())
                     raise
