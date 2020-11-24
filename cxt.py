@@ -677,6 +677,9 @@ class Sound(Object):
         with open(os.path.join(directory, str(len(self.chunks))), 'w') as f:
             f.write(str(len(self.chunks)))
 
+
+############### CONTEXT PARSER (*.CXT)  ##################################
+
 class CxtData(Object):
     def __init__(self, stream, string, standalone):
         self.string = string
@@ -1027,6 +1030,9 @@ class System(Object):
                     log_location(os.path.join(self.directory, record["file"]), stream.tell())
                     raise
     
+
+############### INTERACTIVE LOGIC  #######################################
+
 def main(input, string, export):
     logging.basicConfig(level=logging.DEBUG)
 
