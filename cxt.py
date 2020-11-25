@@ -980,7 +980,8 @@ class System(Object):
 
         # Link RIFF asset chunks
         value_assert(Datum(stream).d, BootRecord.RIFF)
-        self.riffs = {}
+        self.riffs = []
+
         type = Datum(stream)
         while type.d == RecordType.RIFF:
             value_assert(Datum(stream).d, 0x002a)
@@ -991,7 +992,9 @@ class System(Object):
             loc = Datum(stream)
 
             logging.debug("Read RIFF for asset {} ({}:0x{:08x})".format(asset.d, self.files[id.d]["file"], loc.d))
-            self.riffs.update({asset.d: (id.d, loc.d)})
+
+            # Note that this really should be a dictionary.
+            self.riffs.append({"assetid": asset.d, "fileid": id.d, "offset": loc.d})
             type = Datum(stream)
 
         value_assert(type.d, 0x0000)
@@ -1010,25 +1013,40 @@ class System(Object):
             self.cursors.update({id.d: [unk.d, name.d]})
 
         self.footer = stream.read()
-
         logging.debug(pprint.pformat(self.files))
 
-    def parse(self):
-        self.contexts = {}
-        logging.info("Parsing full title: {}".format(self.name))
-        for id, record in self.files.items():
-            if not record.get("filenum"):
-                logging.debug("System.parse(): No headers in context {} ({})".format(record["file"], id))
-                continue
+    def parse(self, export):
+        riffs = self.riffs
+        riffs.reverse()
 
-            with open(os.path.join(self.directory, record["file"]), mode='rb') as f:
+        logging.info("System.parse(): Parsing full title: {}".format(self.name))
+        for id, entry in self.files.items():
+            with open(os.path.join(self.directory, entry["file"]), mode='rb') as f:
                 stream = mmap.mmap(f.fileno(), length=0, access=mmap.ACCESS_READ)
-                logging.info("System.parse(): Opened context {} ({})".format(record["file"], id))
-                try:
-                    self.contexts.update({id: Context(stream, self.string, standalone=False)})
-                except:
-                    log_location(os.path.join(self.directory, record["file"]), stream.tell())
-                    raise
+
+                logging.info("System.parse(): Opened context {} ({})".format(entry["file"], id))
+                cxt = Context(stream, self.string)
+
+                # Process the root first (if it exists).
+                logging.debug("System.parse(): Parsing root entry...")
+                if entry.get("filenum"):
+                    riff = riffs.pop()
+                    cxt.parse(stream)
+                    if export: cxt.export(export)
+
+                # Now process all major assets in this file.
+                for i in range(cxt.riffs-1):
+                    logging.debug("System.parse(): ({}) Parsing major asset {} of {}...".format(entry["file"], i+1, cxt.riffs-1))
+                    riff = riffs.pop()
+
+                    if stream.tell() % 2 == 1:
+                        stream.read(1)
+
+                    value_assert(stream.tell(), riff["offset"], "stream position")
+                    # stream.seek(manifest["offset"])
+                    read_riff(stream)
+                    asset = cxt.get_major_asset(stream)
+                    if export: cxt.export_structured_asset(export, asset, riff["assetid"])
 
 
 ############### INTERACTIVE LOGIC  #######################################
