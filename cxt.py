@@ -1034,38 +1034,37 @@ class System(Object):
 ############### INTERACTIVE LOGIC  #######################################
 
 def main(input, string, export):
-    logging.basicConfig(level=logging.DEBUG)
-
     stream = None
-    if os.path.isdir(input):
-        with open(os.path.join(input, "boot.stm"), mode='rb') as f:
-            stream = mmap.mmap(f.fileno(), length=0, access=mmap.ACCESS_READ)
-            s = System(input, stream, string)
-            s.parse()
-    elif os.path.isfile(input):
-        with open(input, mode='rb') as f:
-            stream = mmap.mmap(f.fileno(), length=0, access=mmap.ACCESS_READ)
-            
-            if input[-3:].lower() == "cxt":
-                logging.info("Received single context, operating in standalone mode")
-                try:
-                    Context(stream, string, standalone=True).export(export)
-                except:
-                    log_location(input, stream.tell())
-                    raise
-            elif os.path.split(input)[1].lower() == "boot.stm":
-                if export: logging.warning("Only parsing system information; ignoring export flag")
-                try:
+    try:
+        if os.path.isdir(input):
+            with open(os.path.join(input, "boot.stm"), mode='rb') as f:
+                stream = mmap.mmap(f.fileno(), length=0, access=mmap.ACCESS_READ)
+
+                stm = System(input, stream, string)
+                stm.parse(export)
+        elif os.path.isfile(input):
+            with open(input, mode='rb') as f:
+                stream = mmap.mmap(f.fileno(), length=0, access=mmap.ACCESS_READ)
+
+                if input[-3:].lower() == "cxt":
+                    logging.info("Received single context, operating in standalone mode")
+                    cxt = Context(stream, string)
+                    cxt.parse(stream)
+                    cxt.majors(stream)
+
+                    if export: cxt.export(export)
+                elif os.path.split(input)[1].lower() == "boot.stm":
+                    if export: logging.warning("Only parsing system information; ignoring export flag")
                     System(None, stream, string)
-                except:
-                    log_location(input, stream.tell())
-                    raise
-            else:
-                raise ValueError(
-                    "Ambiguous input file extension. Ensure a numeric context (CXT) or system (STM) file has been passed."
-                )
-    else:
-        raise ValueError("The path specified is invalid or does not exist.")
+                else:
+                    raise ValueError(
+                        "Ambiguous input file extension. Ensure a numeric context (CXT) or system (STM) file has been passed."
+                    )
+        else:
+            raise ValueError("The path specified is invalid or does not exist.")
+    except:
+        if stream: log_location(input, stream.tell())
+        raise
 
 def log_location(file, position):
     logging.error("Exception at {}:0x{:012x}".format(file, position))
@@ -1088,6 +1087,7 @@ parser.add_argument(
     help="Specify the location for exporting assets. Assets are not exported if not provided"
 )
 
+logging.basicConfig(level=logging.DEBUG)
 args = parser.parse_args()
 
 if __name__ == "__main__":
