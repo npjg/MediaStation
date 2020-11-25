@@ -681,9 +681,9 @@ class Sound(Object):
 ############### CONTEXT PARSER (*.CXT)  ##################################
 
 class Context(Object):
-    def __init__(self, stream, string, standalone):
+    def __init__(self, stream, string):
         self.string = string
-        riffs, total = self.get_prelude(stream)
+        self.riffs, total = self.get_prelude(stream)
 
         self.headers = {}
         self.stills = {}
@@ -691,7 +691,9 @@ class Context(Object):
 
         self.palette = None
         self.root = None
+        self.junk = None
 
+    def parse(self, stream):
         ################ Asset headers ###################################
         logging.info("(@0x{:012x}) CxtData(): Reading asset headers...".format(stream.tell()))
         end = stream.tell() + read_riff(stream)
@@ -728,26 +730,23 @@ class Context(Object):
 
                 chunk = read_chunk(stream)
 
-        logging.info("(@0x{:012x}) CxtData(): Parsed asset headers and minor assets".format(stream.tell()))
-        if not standalone:
-            return
+        logging.info("(@0x{:012x}) CxtData(): Parsed asset headers and minor assets!".format(stream.tell()))
 
+    def majors(self, stream):
         ################# Major assets ###################################
-        logging.info("(@0x{:012x}) CxtData(): Reading major assets ({} RIFFs)...".format(stream.tell(), riffs-1))
-        for i in range(riffs-1):
+        logging.info("(@0x{:012x}) CxtData(): Reading major assets ({} RIFFs)...".format(stream.tell(), self.riffs-1))
+        for i in range(self.riffs-1):
             read_riff(stream)
+            self.assets.update(self.get_major_asset(stream))
 
-            chunk = read_chunk(stream)
-            self.assets.update(self.get_major_asset(stream, chunk))
-
-            logging.debug("(@0x{:012x}) CxtData(): Read RIFF {} of {}".format(stream.tell(), i+1, riffs-1))
+            logging.debug("(@0x{:012x}) CxtData(): Read RIFF {} of {}".format(stream.tell(), i+1, self.riffs-1))
 
         ################# Junk data ######################################
         self.junk = stream.read()
         if len(self.junk) > 0:
             logging.warning("Found {} bytes at end of file".format(len(self.junk)))
 
-        logging.info("(@0x{:012x}) CxtData(): Parsed entire context".format(stream.tell()))
+        logging.info("(@0x{:012x}) CxtData(): Parsed entire context!".format(stream.tell()))
 
     def get_prelude(self, stream):
         stream.seek(0)
@@ -801,23 +800,23 @@ class Context(Object):
 
     def get_minor_asset(self, stream, chunk):
         header = self.headers[chunk_int(chunk)]
-        logging.debug("(@0x{:012x}) CxtData.get_minor_asset(): CxtData.get_minor_asset: {}".format(stream.tell(), header))
+        logging.debug("(@0x{:012x}) CxtData.get_minor_asset(): {}".format(stream.tell(), header))
 
         if header.type.d == AssetType.IMG:
-            self.assets.update(self.structure_asset(header, Image(stream, size=chunk["size"])))
+            self.assets.update(self.make_structured_asset(header, Image(stream, size=chunk["size"])))
         elif header.type.d == AssetType.SND:
             if not header.id.d in self.assets:
-                self.assets.update(self.structure_asset(header, Sound()))
+                self.assets.update(self.make_structured_asset(header, Sound()))
 
             self.assets[header.id.d]["asset"].append(stream, size=chunk["size"])
         elif header.type.d == AssetType.SPR:
             if header.id.d not in self.assets:
-                self.assets.update(self.structure_asset(header, Sprite()))
+                self.assets.update(self.make_structured_asset(header, Sprite()))
                         
             self.assets[header.id.d]["asset"].append(stream, size=chunk["size"])
         elif header.type.d == AssetType.FON:
             if header.id.d not in self.assets:
-                self.assets.update(self.structure_asset(header, Font()))
+                self.assets.update(self.make_structured_asset(header, Font()))
 
             self.assets[header.id.d]["asset"].append(stream, size=chunk["size"])
         elif header.type.d == AssetType.MOV:
@@ -834,40 +833,43 @@ class Context(Object):
         else:
             raise TypeError("Unhandled asset type found in first chunk: {}".format(header.type.d))
 
-    def get_major_asset(self, stream, chunk):
+    def get_major_asset(self, stream):
+        chunk = read_chunk(stream)
         header = self.headers[chunk_int(chunk)]
         logging.debug("(@0x{:012x}) CxtData.get_major_asset: {}".format(stream.tell(), header))
 
         if header.type.d == AssetType.MOV:
-            return self.structure_asset(header, Movie(stream, header, chunk, stills=self.stills.get(header.id.d)))
+            return self.make_structured_asset(header, Movie(stream, header, chunk, stills=self.stills.get(header.id.d)))
         elif header.type.d == AssetType.SND:
-            return self.structure_asset(header, Sound(stream, header, chunk))
+            return self.make_structured_asset(header, Sound(stream, header, chunk))
         else:
             raise TypeError("Unhandled major asset type: {}".format(header.type.d))
 
     def export(self, directory):
-        if not directory:
-            return
-
         for id, asset in self.assets.items():
-            logging.info("CxtData.export(): Exporting asset {}".format(id))
-            logging.debug(" >>> {}".format(asset[0]))
+            self.export_structured_asset(directory, asset, id)
 
-            path = os.path.join(directory, str(id))
-            Path(path).mkdir(parents=True, exist_ok=True)
-
-            with open(os.path.join(directory, str(id), "{}.txt".format(id)), 'w') as header:
-                print(repr(asset[0]), file=header)
-                for datum in asset["header"].data.datums:
-                    print(repr(datum), file=header)
-
-            if asset["asset"]: asset["asset"].export(path, str(id), palette=self.palette)
-
-        if len(self.junk) > 0:
+        if self.junk and len(self.junk) > 0:
             with open(os.path.join(directory, "junk"), 'wb') as f:
                 f.write(self.junk)
 
-    def structure_asset(self, header, asset):
+    def export_structured_asset(self, directory, asset, id):
+        logging.info("CxtData.export_structured_asset(): Exporting asset {}".format(id))
+        logging.debug(" >>> {}".format(asset["header"]))
+
+        path = os.path.join(directory, str(id))
+        Path(path).mkdir(parents=True, exist_ok=True)
+
+        with open(os.path.join(directory, str(id), "{}.txt".format(id)), 'w') as header:
+            print(repr(asset["header"]), file=header)
+            for datum in asset["header"].data.datums:
+                print(repr(datum), file=header)
+
+        # TODO: Get palette handling generalized.
+        if asset["asset"]: asset["asset"].export(path, str(id), palette=self.palette)
+
+    @staticmethod
+    def make_structured_asset(header, asset):
         return {header.id.d: {"header": header, "asset": asset}}
 
 
