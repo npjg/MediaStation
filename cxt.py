@@ -1067,7 +1067,7 @@ class System(Object):
                     value_assert(stream.tell(), riff["offset"], "stream position")
                     read_riff(stream)
 
-                    asset = self.contexts[header.filenum.d].get_major_asset(stream)
+                    asset = self.contexts[header.filenum.d].get_major_asset(stream)[riff["assetid"]]
                     if export: self.contexts[header.filenum.d].export_structured_asset(export, asset, riff["assetid"])
 
 
