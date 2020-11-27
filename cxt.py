@@ -685,6 +685,7 @@ class Context(Object):
         self.string = string
         self.riffs, total = self.get_prelude(stream)
 
+        self.refs = {}
         self.headers = {}
         self.stills = {}
         self.assets = {}
@@ -765,7 +766,10 @@ class Context(Object):
             stream.seek(stream.tell() - 8)
             return False
         if type.d == HeaderType.PALETTE:
-            logging.debug("(@0x{:012x}) CxtData.get_header(): Found context palette (0x{:04x} bytes)".format(stream.tell(), 0x300))
+            logging.debug(
+                "(@0x{:012x}) CxtData.get_header(): Found context palette (0x{:04x} bytes)".format(stream.tell(), 0x300)
+            )
+
             assert not self.palette # We cannot have more than 1 palette
             self.palette = stream.read(0x300)
             value_assert(Datum(stream).d, 0x00, "end-of-chunk flag")
@@ -781,12 +785,13 @@ class Context(Object):
 
             for header in contents:
                 logging.debug("(@0x{:012x}) CxtData.get_header(): Found asset header {}".format(stream.tell(), header))
+                self.headers.update({header.id.d: header})
 
                 # TODO: Deal with shared assets.
                 if header.ref and not isinstance(header.ref.d, int):
                     # Actual data is in another chunk
                     for ref in header.ref.d.id(string=True):
-                        self.headers.update({ref: header})
+                        self.refs.update({ref: header})
                 else: # All needed data is here in the header
                     self.assets.update(
                         {header.id.d: (header, header.child if type.d == HeaderType.FUNC else None)}
@@ -799,7 +804,7 @@ class Context(Object):
         return True
 
     def get_minor_asset(self, stream, chunk):
-        header = self.headers[chunk_int(chunk)]
+        header = self.refs[chunk_int(chunk)]
         logging.debug("(@0x{:012x}) CxtData.get_minor_asset(): {}".format(stream.tell(), header))
 
         if header.type.d == AssetType.IMG:
@@ -835,7 +840,7 @@ class Context(Object):
 
     def get_major_asset(self, stream):
         chunk = read_chunk(stream)
-        header = self.headers[chunk_int(chunk)]
+        header = self.refs[chunk_int(chunk)]
         logging.debug("(@0x{:012x}) CxtData.get_major_asset: {}".format(stream.tell(), header))
 
         if header.type.d == AssetType.MOV:
