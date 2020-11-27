@@ -868,7 +868,7 @@ class Context(Object):
         path = os.path.join(directory, str(id))
         Path(path).mkdir(parents=True, exist_ok=True)
 
-        with open(os.path.join(directory, str(id), "{}.txt".format(id)), 'w') as header:
+        with open(os.path.join(path, "{}.txt".format(id)), 'w') as header:
             print(repr(asset["header"]), file=header)
             for datum in asset["header"].data.datums:
                 print(repr(datum), file=header)
