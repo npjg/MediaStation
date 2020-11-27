@@ -320,7 +320,10 @@ class AssetHeader(Object):
             if self.data.datums[8].d != 0x0000: # TODO: What is this, exactly?
                 value_assert(Datum(stream).d, HeaderType.ASSET, "stage asset chunk")
                 while stream.tell() < end:
-                    header = AssetHeader(stream, size=end-stream.tell(), string=string, stop=(DatumType.UINT16, HeaderType.ASSET))
+                    header = AssetHeader(
+                        stream, size=end-stream.tell(), string=string, stop=(DatumType.UINT16, HeaderType.ASSET)
+                    )
+
                     self.child.append(header)
                     logging.debug("Added asset header to stage: -> {}".format(header))
         elif self.data.datums[1].d == AssetType.HSP:
@@ -650,7 +653,7 @@ class Sound(Object):
         self.append(stream, chunk["size"])
         for i in range(1, chunks):
             chunk = read_chunk(stream)
-            assert chunk["code"] == asset_id
+            value_assert(chunk["code"], asset_id, "sound chunk label")
             self.append(stream, chunk["size"])
             logging.debug(" ~~ Sound(): Finished chunk {} of {} ~~".format(i+1, chunks))
 
@@ -793,8 +796,8 @@ class Context(Object):
                     for ref in header.ref.d.id(string=True):
                         self.refs.update({ref: header})
                 else: # All needed data is here in the header
-                    self.assets.update(
-                        {header.id.d: (header, header.child if type.d == HeaderType.FUNC else None)}
+                    self.assets.update(self.make_structured_asset(
+                        header, header.child if type.d == HeaderType.FUNC else None)
                     )
 
             value_assert(Datum(stream).d, 0x00, "end-of-chunk flag")
