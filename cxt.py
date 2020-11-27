@@ -885,6 +885,10 @@ class System(Object):
         self.directory = directory
         self.string = string
 
+        self.contexts = {}
+        self.assets = {}
+        self.headers = {}
+
         end = stream.tell() + read_riff(stream)
         chunk = read_chunk(stream)
 
@@ -1028,30 +1032,40 @@ class System(Object):
         for id, entry in self.files.items():
             with open(os.path.join(self.directory, entry["file"]), mode='rb') as f:
                 stream = mmap.mmap(f.fileno(), length=0, access=mmap.ACCESS_READ)
-
                 logging.info("System.parse(): Opened context {} ({})".format(entry["file"], id))
-                cxt = Context(stream, self.string)
 
+                cxt = Context(stream, self.string)
                 # Process the root first (if it exists).
-                logging.debug("System.parse(): Parsing root entry...")
                 if entry.get("filenum"):
+                    logging.debug("System.parse(): ({}) Parsing root entry...".format(entry["file"]))
                     riff = riffs.pop()
+
+                    self.contexts.update({entry["filenum"]: cxt})
                     cxt.parse(stream)
+                    self.headers.update(cxt.headers)
+
                     if export: cxt.export(export)
 
                 # Now process all major assets in this file.
                 for i in range(cxt.riffs-1):
-                    logging.debug("System.parse(): ({}) Parsing major asset {} of {}...".format(entry["file"], i+1, cxt.riffs-1))
                     riff = riffs.pop()
+                    header = self.headers[riff["assetid"]]
+
+                    logging.debug(
+                        "System.parse(): ({}) Parsing major asset {} ({} of {})...".format(
+                            entry["file"], riff["assetid"], i+1, cxt.riffs-1
+                        )
+                    )
+                    logging.debug(" >>> ".format(header))
 
                     if stream.tell() % 2 == 1:
                         stream.read(1)
 
                     value_assert(stream.tell(), riff["offset"], "stream position")
-                    # stream.seek(manifest["offset"])
                     read_riff(stream)
-                    asset = cxt.get_major_asset(stream)
-                    if export: cxt.export_structured_asset(export, asset, riff["assetid"])
+
+                    asset = self.contexts[header.filenum.d].get_major_asset(stream)
+                    if export: self.contexts[header.filenum.d].export_structured_asset(export, asset, riff["assetid"])
 
 
 ############### INTERACTIVE LOGIC  #######################################
