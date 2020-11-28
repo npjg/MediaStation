@@ -340,7 +340,7 @@ class AssetHeader(Object):
             self.data.datums += Array(stream, parent=self, bytes=end-stream.tell(), stop=stop).datums
 
         if size and not stop and stream.tell() < end:
-            logging.warning("{} bytes left in asset header".format(end-stream.tell()))
+            logging.warning("{} bytes left in asset header >>> {}".format(end-stream.tell(), self))
             stream.read(end - stream.tell())
 
     @property
