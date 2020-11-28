@@ -646,7 +646,10 @@ class Sound(Object):
         if not stream or not header or not chunk:
             return
 
+        # TODO: Determine what adds more information here.
         chunks = header.data.datums[9].d
+        if chunks == header.id.d:
+            chunks = header.data.datums[11].d
         logging.debug(" *** Sound(): Expecting {} sound chunks ***".format(chunks))
 
         asset_id = chunk["code"]
