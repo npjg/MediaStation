@@ -1112,26 +1112,27 @@ def main(input, string, export):
 def log_location(file, position):
     logging.error("Exception at {}:0x{:012x}".format(file, position))
 
-parser = argparse.ArgumentParser(
-    prog="cxt", description="Parse asset structures and extract assets from Media Station, Inc. games"
-)
-
-parser.add_argument(
-    "input", help="Pass a context (CXT) or system (STM) filename to process the file, or pass a game data directory to process the whole game."
-)
-
-parser.add_argument(
-    '-s', "--string", default=False, action='store_true',
-    help="Specify that context datafiles have embedded debug strings (Tonka Garage)"
-)
-
-parser.add_argument(
-    '-e', "--export", default=None,
-    help="Specify the location for exporting assets. Assets are not exported if not provided"
-)
-
-logging.basicConfig(level=logging.DEBUG)
-args = parser.parse_args()
 
 if __name__ == "__main__":
+    parser = argparse.ArgumentParser(
+        prog="cxt", description="Parse asset structures and extract assets from Media Station, Inc. games"
+    )
+
+    parser.add_argument(
+        "input", help="Pass a context (CXT) or system (STM) filename to process the file, or pass a game data directory to process the whole game."
+    )
+
+    parser.add_argument(
+        '-s', "--string", default=False, action='store_true',
+        help="Specify that context datafiles have embedded debug strings (Tonka Garage)"
+    )
+
+    parser.add_argument(
+        '-e', "--export", default=None,
+        help="Specify the location for exporting assets. Assets are not exported if not provided"
+    )
+
+    logging.basicConfig(level=logging.DEBUG)
+    args = parser.parse_args()
+
     main(args.input, args.string, args.export)
