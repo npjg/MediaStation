@@ -987,7 +987,8 @@ class System(Object):
 
             logging.debug("Read file link {} ({})".format(filename.d, id.d))
             self.files.update(
-                {id.d: dict({"file": filename.d}, **(files.pop(0) if filetype.d == 0x0007 else {}))}
+                # INSTALL.CXT has ID 3
+                {id.d: dict({"file": filename.d}, **(files.pop(0) if id.d != 0x0003 else {}))}
             )
             type = Datum(stream)
 
