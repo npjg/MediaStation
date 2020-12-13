@@ -1036,78 +1036,88 @@ class System(Object):
 
         logging.info("System.parse(): Parsing full title: {}".format(self.name))
         for id, entry in self.files.items():
-            with open(os.path.join(self.directory, entry["file"]), mode='rb') as f:
+            cxtname = os.path.join(self.directory, entry["file"])
+            with open(cxtname, mode='rb') as f:
                 stream = mmap.mmap(f.fileno(), length=0, access=mmap.ACCESS_READ)
                 logging.info("System.parse(): Opened context {} ({})".format(entry["file"], id))
 
-                cxt = Context(stream, self.string)
-                # Process the root first (if it exists).
-                if entry.get("filenum"):
-                    logging.debug("System.parse(): ({}) Parsing root entry...".format(entry["file"]))
-                    riff = riffs.pop()
+                try:
+                    cxt = Context(stream, self.string)
+                    # Process the root first (if it exists).
+                    if entry.get("filenum"):
+                        logging.debug("System.parse(): ({}) Parsing root entry...".format(entry["file"]))
+                        riff = riffs.pop()
 
-                    self.contexts.update({entry["filenum"]: cxt})
-                    cxt.parse(stream)
-                    self.headers.update(cxt.headers)
+                        self.contexts.update({entry["filenum"]: cxt})
+                        cxt.parse(stream)
+                        self.headers.update(cxt.headers)
 
-                    if export: cxt.export(export)
+                        if export: cxt.export(export)
 
-                # Now process all major assets in this file.
-                for i in range(cxt.riffs-1):
-                    riff = riffs.pop()
-                    header = self.headers[riff["assetid"]]
+                    # Now process all major assets in this file.
+                    for i in range(cxt.riffs-1):
+                        riff = riffs.pop()
+                        header = self.headers[riff["assetid"]]
 
-                    logging.debug(
-                        "System.parse(): ({}) Parsing major asset {} ({} of {})...".format(
-                            entry["file"], riff["assetid"], i+1, cxt.riffs-1
+                        logging.debug(
+                            "System.parse(): ({}) Parsing major asset {} ({} of {})...".format(
+                                entry["file"], riff["assetid"], i+1, cxt.riffs-1
+                            )
                         )
-                    )
-                    logging.debug(" >>> ".format(header))
+                        logging.debug(" >>> {} ".format(header))
 
-                    if stream.tell() % 2 == 1:
-                        stream.read(1)
+                        if stream.tell() % 2 == 1:
+                            stream.read(1)
 
-                    value_assert(stream.tell(), riff["offset"], "stream position")
-                    read_riff(stream)
+                        value_assert(stream.tell(), riff["offset"], "stream position")
+                        read_riff(stream)
 
-                    asset = self.contexts[header.filenum.d].get_major_asset(stream)[riff["assetid"]]
-                    if export: self.contexts[header.filenum.d].export_structured_asset(export, asset, riff["assetid"])
+                        asset = self.contexts[header.filenum.d].get_major_asset(stream)[riff["assetid"]]
+                        if export: self.contexts[header.filenum.d].export_structured_asset(export, asset, riff["assetid"])
+                except Exception as e:
+                    log_location(cxtname, stream.tell())
+                    raise
 
 
 ############### INTERACTIVE LOGIC  #######################################
 
 def main(input, string, export):
     stream = None
-    try:
-        if os.path.isdir(input):
-            with open(os.path.join(input, "boot.stm"), mode='rb') as f:
-                stream = mmap.mmap(f.fileno(), length=0, access=mmap.ACCESS_READ)
+    if os.path.isdir(input):
+        with open(os.path.join(input, "boot.stm"), mode='rb') as f:
+            stream = mmap.mmap(f.fileno(), length=0, access=mmap.ACCESS_READ)
 
+            try:
                 stm = System(input, stream, string)
                 stm.parse(export)
-        elif os.path.isfile(input):
-            with open(input, mode='rb') as f:
-                stream = mmap.mmap(f.fileno(), length=0, access=mmap.ACCESS_READ)
+            except Exception as e:
+                log_location(os.path.join(input, "boot.stm"), stream.tell())
+                raise
+    elif os.path.isfile(input):
+        with open(input, mode='rb') as f:
+            stream = mmap.mmap(f.fileno(), length=0, access=mmap.ACCESS_READ)
 
-                if input[-3:].lower() == "cxt":
-                    logging.info("Received single context, operating in standalone mode")
+            if input[-3:].lower() == "cxt":
+                logging.info("Received single context, operating in standalone mode")
+
+                try:
                     cxt = Context(stream, string)
                     cxt.parse(stream)
                     cxt.majors(stream)
+                except Exception as e:
+                    log_location(input, stream.tell())
+                    raise
 
-                    if export: cxt.export(export)
-                elif os.path.split(input)[1].lower() == "boot.stm":
-                    if export: logging.warning("Only parsing system information; ignoring export flag")
-                    System(None, stream, string)
-                else:
-                    raise ValueError(
-                        "Ambiguous input file extension. Ensure a numeric context (CXT) or system (STM) file has been passed."
-                    )
-        else:
-            raise ValueError("The path specified is invalid or does not exist.")
-    except:
-        if stream: log_location(input, stream.tell())
-        raise
+                if export: cxt.export(export)
+            elif os.path.split(input)[1].lower() == "boot.stm":
+                if export: logging.warning("Only parsing system information; ignoring export flag")
+                System(None, stream, string)
+            else:
+                raise ValueError(
+                    "Ambiguous input file extension. Ensure a numeric context (CXT) or system (STM) file has been passed."
+                )
+    else:
+        raise ValueError("The path specified is invalid or does not exist.")
 
 def log_location(file, position):
     logging.error("Exception at {}:0x{:012x}".format(file, position))
