@@ -256,12 +256,14 @@ class Polygon(Object):
 
 class Array(Object):
     def __init__(self, stream, parent=None, bytes=None, datums=None, stop=None):
+        self.datums = []
+        start = stream.tell()
+
+        if bytes == 0 and not datums and not stop:
+            return
         if not datums and not bytes and not stop:
             raise AttributeError("Creating an array requires providing a bytes size or a stop parameter.")
 
-        start = stream.tell()
-
-        self.datums = []
         while True:
             d = Datum(stream, parent=parent if parent else self)
             if stop and d.t == stop[0] and d.d == stop[1]:
