@@ -1065,8 +1065,8 @@ class System(Object):
                         header = self.headers[riff["assetid"]]
 
                         logging.debug(
-                            "System.parse(): ({}) Parsing major asset {} ({} of {})...".format(
-                                entry["file"], riff["assetid"], i+1, cxt.riffs-1
+                            "System.parse(): ({}) Parsing major asset {}@0x{:012x} ({} of {})...".format(
+                                entry["file"], riff["assetid"], riff["offset"], i+1, cxt.riffs-1
                             )
                         )
                         logging.debug(" >>> {} ".format(header))
