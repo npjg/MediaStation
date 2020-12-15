@@ -165,7 +165,7 @@ class Datum(Object):
         elif self.t == DatumType.POINT or self.t == DatumType.POINT_2:
             self.d = Point(stream)
         elif self.t == DatumType.REF:
-            self.d = Ref(stream, parent.type)
+            self.d = Ref(stream, parent.type if parent else None)
         else:
             raise TypeError(
                 "(@ 0x{:0>12x}) Unknown datum type 0x{:0>4x}".format(stream.tell(), self.t)
@@ -196,7 +196,10 @@ class Ref(Object):
     def __init__(self, stream, type):
         self.refs = []
 
-        if type.d in (AssetType.SPR, AssetType.IMG, AssetType.SND, AssetType.FON):
+        if not type:
+            logging.warning("cxt.Ref(): No parent type specified, assuming simple type")
+            self.append(stream)
+        elif type.d in (AssetType.SPR, AssetType.IMG, AssetType.SND, AssetType.FON):
             self.append(stream)
         elif type.d == AssetType.MOV:
             self.append(stream)
@@ -207,7 +210,7 @@ class Ref(Object):
 
             self.append(stream)
         else:
-            raise ValueError("Reference for unexpected asset type: {} (0x{:04x})".format(type.d, type.d))
+            raise ValueError("cxt.Ref(): Reference for unexpected asset type: {} (0x{:04x})".format(type.d, type.d))
 
     def append(self, stream):
         self.refs.append(
