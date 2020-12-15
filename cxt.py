@@ -41,6 +41,7 @@ class ChunkType(IntEnum):
 class HeaderType(IntEnum):
     ROOT    = 0x000e,
     PALETTE = 0x05aa,
+    UNK_D   = 0x0010,
     ASSET   = 0x0011,
     LINK    = 0x0013,
     FUNC    = 0x0031,
@@ -807,7 +808,14 @@ class Context(Object):
                         header, header.child if type.d == HeaderType.FUNC else None)
                     )
 
+                if type.d == HeaderType.FUNC:
+                    logging.info("CxtData.get_header(): Found bytecode >>> {}".format(header))
+                    logging.info(pprint.pformat(header.data.datums))
+
             value_assert(Datum(stream).d, 0x00, "end-of-chunk flag")
+        elif type.d == HeaderType.UNK_D:
+            logging.warning("CxtData.get_header(): Found unknown header type 0x0010")
+            stream.seek(stream.tell() + chunk["size"] - 0x04)
         else:
             raise TypeError("Unknown header type: {}".format(type))
 
