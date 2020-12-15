@@ -12,6 +12,8 @@ import subprocess
 import mmap
 import pprint
 
+import traceback
+
 import PIL.Image as PILImage
 
 class RecordType(IntEnum):
@@ -1039,12 +1041,12 @@ class System(Object):
 
         logging.info("System.parse(): Parsing full title: {}".format(self.name))
         for id, entry in self.files.items():
-            cxtname = os.path.join(self.directory, entry["file"])
-            with open(cxtname, mode='rb') as f:
-                stream = mmap.mmap(f.fileno(), length=0, access=mmap.ACCESS_READ)
-                logging.info("System.parse(): Opened context {} ({})".format(entry["file"], id))
+            try:
+                cxtname = os.path.join(self.directory, entry["file"])
+                with open(cxtname, mode='rb') as f:
+                    stream = mmap.mmap(f.fileno(), length=0, access=mmap.ACCESS_READ)
+                    logging.info("System.parse(): Opened context {} ({})".format(entry["file"], id))
 
-                try:
                     cxt = Context(stream, self.string)
                     # Process the root first (if it exists).
                     if entry.get("filenum"):
@@ -1077,9 +1079,10 @@ class System(Object):
 
                         asset = self.contexts[header.filenum.d].get_major_asset(stream)[riff["assetid"]]
                         if export: self.contexts[header.filenum.d].export_structured_asset(export, asset, riff["assetid"])
-                except Exception as e:
-                    log_location(cxtname, stream.tell())
-                    raise
+            except Exception as e:
+                log_location(cxtname, stream.tell())
+                traceback.print_exc()
+                input("Press return to continue...")
 
 
 ############### INTERACTIVE LOGIC  #######################################
