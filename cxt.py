@@ -113,24 +113,20 @@ def read_riff(stream):
     return inner["size"] + (stream.tell() - outer["start"]) - 8
 
 def value_assert(stream, target, type="value", warn=False):
-    s = 0
     ax = stream
     try:
-        s = stream.tell()
         ax = stream.read(len(target))
     except AttributeError:
         pass
 
-    msg = "(@ +0x{:0>4x}) Expected {} {}{}, received {}{}".format(
-        s, type, target, " (0x{:0>4x})".format(target) if isinstance(target, int) else "",
+    msg = "Expected {} {}{}, received {}{}".format(
+        type, target, " (0x{:0>4x})".format(target) if isinstance(target, int) else "",
         ax, " (0x{:0>4x})".format(ax) if isinstance(ax, int) else "",
     )
     if warn and ax != target:
         logging.warning(msg)
     else:
         assert ax == target, msg
-
-        return ax
 
 
 ############### INTERNAL DATA REPRESENTATIONS ############################
