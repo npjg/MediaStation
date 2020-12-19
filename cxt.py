@@ -580,7 +580,6 @@ class Movie(Object):
                 for datum in frame[1].header.datums:
                     print(repr(datum), file=image_headers)
 
-                logging.debug("Movie.export: Exporting cell {}-{}".format(i, j))
                 if frame[1].image:
                     frame[1].image.export(directory, "{}-{}".format(i, j), fmt=fmt[0], **kwargs)
 
@@ -665,7 +664,6 @@ class Sound(Object):
 
     def append(self, stream, size=0):
         if isinstance(stream, bytes):
-            logging.debug("Sound(): Appending pre-processed bytes")
             self.chunks.append(stream)
         else:
             logging.debug("Sound(): Reading sound chunk of size 0x{:04x}".format(size))
