@@ -69,9 +69,9 @@ class DatumType(IntEnum):
     UINT32_2  = 0x0007,
     UINT16_2  = 0x0006,
     UINT16_3  = 0x0013,
-    UINT64  = 0x0009,
     SINT16  = 0x0010,
-    SINT64  = 0x0011,
+    FLOAT64_1  = 0x0011,
+    FLOAT64_2  = 0x0009,
     STRING  = 0x0012,
     FILE    = 0x000a,
     POINT   = 0x000f,
@@ -153,10 +153,8 @@ class Datum(Object):
             self.d = struct.unpack("<H", stream.read(2))[0]
         elif self.t == DatumType.UINT32 or self.t == DatumType.UINT32_2:
             self.d = struct.unpack("<L", stream.read(4))[0]
-        elif self.t == DatumType.UINT64:
-            self.d = struct.unpack("<Q", stream.read(8))[0]
-        elif self.t == DatumType.SINT64:
-            self.d = struct.unpack("<q", stream.read(8))[0]
+        elif self.t == DatumType.FLOAT64_1 or self.t == DatumType.FLOAT64_2:
+            self.d = struct.unpack("<d", stream.read(8))[0]
         elif self.t == DatumType.STRING or self.t == DatumType.FILE:
             size = Datum(stream)
             self.d = stream.read(size.d).decode("utf-8")
@@ -185,8 +183,9 @@ class Datum(Object):
             else:
                 data = "data: {}>".format(self.d)
         except:
-            data = "data: {}{:0>6x}{}>".format(
-                "0x" if isinstance(self.d, int) else "", self.d,
+            data = "data: {}{}{}>".format(
+                "0x" if isinstance(self.d, int) else "",
+                "{:0>6x}".format(self.d) if isinstance(self.d, int) else "{:0>6.2f}".format(self.d),
                 " ({:0>4d})".format(self.d) if isinstance(self.d, int) else ""
             )
             
