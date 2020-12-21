@@ -599,51 +599,88 @@ class Movie(Object):
     def __repr__(self):
         return "<Movie: chunks: {}>".format(len(self.chunks))
 
+class SpriteHeader(Object):
+    def __init__(self, stream):
+        self.start = stream.tell()
+
+        value_assert(Datum(stream).d, 0x0024) # Is this a size?
+        self.dims = Datum(stream)
+        value_assert(Datum(stream).d, 0x0001)
+        self.unk1 = Datum(stream)
+        self.index = Datum(stream)
+        self.bbox = Datum(stream)
+
+    def __repr__(self):
+        return "<SpriteHeader: 0x{:06x}; index: {}, dims: {}, bbox: {}, unk: 0x{:04x}>".format(
+            self.start, self.index.d, self.dims.d, self.bbox.d, self.unk1.d
+        )
+
 class Sprite(Object):
     def __init__(self):
         self.frames = []
 
     def append(self, stream, size):
         end = stream.tell() + size
-        header = Array(stream, bytes=0x24)
-        image = Image(stream, dims=header.datums[1], size=end-stream.tell(), sprite=True)
 
-        self.frames.append((header, image))
+        header = SpriteHeader(stream)
+        self.frames.append({
+            "header": header,
+            "image": Image(stream, dims=header.dims, size=end-stream.tell(), sprite=True)
+        })
 
     def export(self, directory, filename, fmt="png", **kwargs):
-        frame_headers = open(os.path.join(directory, "frame_headers.txt"), 'w')
+        with open(os.path.join(directory, "headers.txt"), 'w') as headers:
+            for i, frame in enumerate(self.frames):
+                print(" --- {} --- ".format(i), file=headers)
+                print(repr(frame["header"]), file=headers)
 
-        for i, frame in enumerate(self.frames):
-            print(" --- {}---".format(i), file=frame_headers)
-            for datum in frame[0].datums:
-                print(repr(datum), file=frame_headers)
+                if frame["image"].header:
+                    print ("  |-- Image header --|  ", file=headers)
+                    print(repr(frame["image"].header), file=headers)
 
-            frame[1].export(directory, str(i), fmt=fmt, **kwargs)
+                frame["image"].export(directory, str(i), fmt=fmt, **kwargs)
 
-        frame_headers.close()
+class FontHeader(Object):
+    def __init__(self, stream):
+        self.start = stream.tell()
+
+        self.asc = Datum(stream) 
+        self.unk1 = Datum(stream)
+        self.unk2 = Datum(stream)
+        value_assert(Datum(stream).d, 0x0024)
+        self.dims = Datum(stream)
+        value_assert(Datum(stream).d, 0x0001)
+        self.unk3 = Datum(stream)
+
+    def __repr__(self):
+        return "<FontHeader: 0x{:06x}; ascii: 0x{:04x}, dims: {}, unk1: 0x{:04x}, unk2: 0x{:04x}, unk3: 0x{:04x}>".format(
+            self.start, self.asc.d, self.dims.d, self.unk1.d, self.unk2.d, self.unk3.d
+        )
 
 class Font(Object):
     def __init__(self):
         self.glyphs = []
 
     def append(self, stream, size):
-        start = stream.tell()
-        header = Array(stream, bytes=0x22)
-        glyph = Image(stream, dims=header.datums[4], size=size+start-stream.tell(), sprite=True)
+        end = stream.tell() + size
 
-        self.glyphs.append((header, glyph))
+        header = FontHeader(stream)
+        self.glyphs.append({
+            "header": header,
+            "glyph": Image(stream, dims=header.dims, size=end-stream.tell(), sprite=True)
+        })
 
     def export(self, directory, filename, fmt="png", **kwargs):
-        frame_headers = open(os.path.join(directory, "frame_headers.txt"), 'w')
+        with open(os.path.join(directory, "headers.txt"), 'w') as headers:
+            for i, glyph in enumerate(self.glyphs):
+                print(" --- {} ---".format(i), file=headers)
+                print(repr(glyph["header"]), file=headers)
 
-        for i, glyph in enumerate(self.glyphs):
-            print(" --- {}---".format(i), file=frame_headers)
-            for datum in glyph[0].datums:
-                print(repr(datum), file=frame_headers)
+                if glyph["glyph"].header:
+                    print ("  |-- Image header --|  ", file=headers)
+                    print(repr(glyph["glyph"].header), file=headers)
 
-            glyph[1].export(directory, str(i), fmt=fmt, **kwargs)
-
-        frame_headers.close()
+                glyph["glyph"].export(directory, str(i), fmt=fmt, **kwargs)
 
 class Sound(Object):
     def __init__(self, stream=None, header=None, chunk=None):
