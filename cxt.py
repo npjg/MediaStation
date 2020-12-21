@@ -387,6 +387,20 @@ class AssetLink(Object):
 
 ############### EXTERNAL DATA REPRESENTATIONS ############################
 
+class ImageHeader(Object):
+    def __init__(self, stream):
+        self.start = stream.tell()
+
+        value_assert(Datum(stream).d, ChunkType.IMAGE, "image signature") # Is this actually a byte count?
+        self.dims = Datum(stream)
+        self.compressed = Datum(stream)
+        self.unk1 = Datum(stream)
+
+    def __repr__(self):
+        return "<ImageHeader: 0x{:06x}; dims: {}, compressed: {}, unk1: 0x{:04x} ({:04d})".format(
+            self.start, self.dims.d, self.compressed.d, self.unk1.d, self.unk1.d
+        )
+
 class Image(Object):
     def __init__(self, stream, size, dims=None, sprite=False):
         end = stream.tell() + size
@@ -394,9 +408,7 @@ class Image(Object):
 
         self.header = None
         self.dims = dims
-        if not dims:
-            value_assert(Datum(stream).d, ChunkType.IMAGE, "image signature")
-            self.header = Array(stream, bytes=0x16-0x04)
+        if not dims: self.header = ImageHeader(stream)
 
         self.raw = io.BytesIO(stream.read(end-stream.tell()))
         logging.debug("Read 0x{:04x} raw image bytes".format(size))
@@ -468,8 +480,7 @@ class Image(Object):
         filename = os.path.join(directory, filename)
         if kwargs.get("with_header") and self.header:
             with open(os.path.join(directory, "header.txt"), 'w') as header:
-                for datum in self.header.datums:
-                    print(repr(datum), file=header)
+                print(repr(self.header), file=header)
 
         if filename[-4:] != ".{}".format(fmt):
             filename += (".{}".format(fmt))
@@ -483,15 +494,15 @@ class Image(Object):
 
     @property
     def compressed(self):
-        return bool((self.header and self.header.datums[1].d) or self.dims)
+        return bool((self.header and self.header.compressed.d) or self.dims)
 
     @property
     def width(self):
-        return self.dims.d.x if self.dims else self.header.datums[0].d.x
+        return self.dims.d.x if self.dims else self.header.dims.d.x
 
     @property
     def height(self):
-        return self.dims.d.y if self.dims else self.header.datums[0].d.y
+        return self.dims.d.y if self.dims else self.header.dims.d.y
 
     def __repr__(self):
         return "<Image: size: {} x {}>".format(self.width, self.height)
