@@ -6,8 +6,8 @@ import mmap
 
 import cxt
 
-def main(input, start, end): 
-    with open(input, mode='rb') as f:
+def main(inp, start, end): 
+    with open(inp, mode='rb') as f:
         stream = mmap.mmap(f.fileno(), length=0, access=mmap.ACCESS_READ)
         stream.seek(start)
 
