@@ -59,16 +59,17 @@ class AssetType(IntEnum):
     PAL  = 0x0017,
     TXT  = 0x001a,
     FON  = 0x001b,
+    CAM  = 0x001c,
     CVS  = 0x001e,
     FUN  = 0x0069,
 
 class DatumType(IntEnum):
     UINT8   = 0x0002,
     UINT16  = 0x0003,
-    UINT32  = 0x0004,
+    UINT32_1  = 0x0004,
     UINT32_2  = 0x0007,
-    UINT16_2  = 0x0006,
-    UINT16_3  = 0x0013,
+    UINT16_2 = 0x0013,
+    UINT16_3  = 0x0006,
     SINT16  = 0x0010,
     FLOAT64_1  = 0x0011,
     FLOAT64_2  = 0x0009,
@@ -147,7 +148,7 @@ class Datum(Object):
             self.d = struct.unpack("<H", stream.read(2))[0]
         elif self.t == DatumType.SINT16:
             self.d = struct.unpack("<H", stream.read(2))[0]
-        elif self.t == DatumType.UINT32 or self.t == DatumType.UINT32_2:
+        elif self.t == DatumType.UINT32_1 or self.t == DatumType.UINT32_2:
             self.d = struct.unpack("<L", stream.read(4))[0]
         elif self.t == DatumType.FLOAT64_1 or self.t == DatumType.FLOAT64_2:
             self.d = struct.unpack("<d", stream.read(8))[0]
