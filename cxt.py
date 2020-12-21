@@ -514,7 +514,32 @@ class Image(Object):
     def __repr__(self):
         return "<Image: size: {} x {}>".format(self.width, self.height)
 
-class MovieFrameHeader(Object):
+class MovieHeaderOuter(Object):
+    def __init__(self, stream):
+        self.start = stream.tell()
+
+        value_assert(Datum(stream).d, 0x0001)
+        value_assert(Datum(stream).d, 0x0000)
+        self.unks = []
+
+        self.unks.append(Datum(stream))
+        self.duration = (Datum(stream), Datum(stream)) # milliseconds
+        self.dims = Point(None, x=Datum(stream).d, y=Datum(stream).d) # inside bbox
+
+        for _ in range(3):
+            self.unks.append(Datum(stream))
+
+        self.index = Datum(stream)
+
+        for _ in range(2):
+            self.unks.append(Datum(stream))
+
+    def __repr__(self):
+        return "<MovieHeaderOuter: 0x{:06x}; index: {:03d}, duration: {}, dims: {}\n ---> unks: {}".format(
+            self.start, self.index.d, ["{:06d}".format(d.d) for d in self.duration], self.dims, self.unks
+        )
+
+class MovieHeaderInner(Object):
     def __init__(self, stream):
         self.start = stream.tell()
 
@@ -526,14 +551,14 @@ class MovieFrameHeader(Object):
         self.end = Datum(stream)
 
     def __repr__(self):
-        return "<MovieFrameHeader: 0x{:06x}; index: {:03d}, end: {:06d}, dims: {}".format(
+        return "<MovieHeaderInner: 0x{:06x}; index: {:03d}, end: {:06d}, dims: {}".format(
             self.start, self.index.d, self.end.d, self.dims.d
         )
 
 class MovieFrame(Object):
     def __init__(self, stream, size):
         end = stream.tell() + size
-        self.header = MovieFrameHeader(stream)
+        self.header = MovieHeaderInner(stream)
         self.image = Image(stream, size=end-stream.tell(), dims=self.header.dims)
 
 class Movie(Object):
@@ -572,7 +597,7 @@ class Movie(Object):
                     frames.append(MovieFrame(stream, size=chunk['size']-0x04))
                 elif type.d == ChunkType.MOVIE_HEADER:
                     logging.debug("Movie(): Reading movie frame header of size 0x{:04x}".format(chunk['size']-0x04))
-                    headers.append(Array(stream, bytes=chunk['size']-0x04))
+                    headers.append(MovieHeaderOuter(stream))
 
                 chunk = read_chunk(stream)
 
@@ -615,8 +640,7 @@ class Movie(Object):
             for j, frame in enumerate(chunk["frames"]):
                 # Handle the frame headers first
                 print(" --- {}-{} ---".format(i, j), file=frame_headers)
-                for datum in frame[0].datums:
-                    print(repr(datum), file=frame_headers)
+                print(repr(frame[0]), file=frame_headers)
 
                 # Now handle the actual frames
                 print(" --- {}-{} ---".format(i, j), file=image_headers)
