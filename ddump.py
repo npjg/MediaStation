@@ -3,6 +3,7 @@
 import logging
 import argparse
 import mmap
+import traceback
 
 import cxt
 
@@ -13,8 +14,28 @@ def main(inp, start, end):
 
         if not end: end = cxt.read_chunk(stream)["size"] + start + 0x04
         print("---- START OF DUMP ----")
+
+        i = 0
+        pause = False
+        prev = None
+
         while stream.tell() < end:
-            print(cxt.Datum(stream))
+            try:
+                datum = cxt.Datum(stream)
+                if i == 3 and datum.d == cxt.AssetType.STG:
+                    logging.info("Detected stage chunk; enabled automatic pausing on each asset")
+                    pause = True
+
+                if pause and datum.d == cxt.HeaderType.ASSET and prev.d == 0:
+                    input("Press any key to continue...")
+
+                print(datum)
+            except Exception as e:
+                traceback.print_exc()
+                stream.read(int(input("Bytes to skip? "), 0))
+
+            i += 1
+            prev = datum
 
         print("---- END OF DUMP ----")
 
