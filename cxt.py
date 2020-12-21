@@ -514,11 +514,27 @@ class Image(Object):
     def __repr__(self):
         return "<Image: size: {} x {}>".format(self.width, self.height)
 
+class MovieFrameHeader(Object):
+    def __init__(self, stream):
+        self.start = stream.tell()
+
+        value_assert(Datum(stream).d, 0x0028)
+        self.dims = Datum(stream)
+        value_assert(Datum(stream).d, 0x0001)
+        unk1 = Datum(stream)
+        self.index = Datum(stream)
+        self.end = Datum(stream)
+
+    def __repr__(self):
+        return "<MovieFrameHeader: 0x{:06x}; index: {:03d}, end: {:06d}, dims: {}".format(
+            self.start, self.index.d, self.end.d, self.dims.d
+        )
+
 class MovieFrame(Object):
     def __init__(self, stream, size):
         end = stream.tell() + size
-        self.header = Array(stream, bytes=0x22)
-        self.image = Image(stream, size=end-stream.tell(), dims=self.header.datums[1])
+        self.header = MovieFrameHeader(stream)
+        self.image = Image(stream, size=end-stream.tell(), dims=self.header.dims)
 
 class Movie(Object):
     def __init__(self, stream, header, chunk, stills=None):
@@ -604,8 +620,7 @@ class Movie(Object):
 
                 # Now handle the actual frames
                 print(" --- {}-{} ---".format(i, j), file=image_headers)
-                for datum in frame[1].header.datums:
-                    print(repr(datum), file=image_headers)
+                print(repr(frame[1].header), file=image_headers)
 
                 if frame[1].image:
                     frame[1].image.export(directory, "{}-{}".format(i, j), fmt=fmt[0], **kwargs)
