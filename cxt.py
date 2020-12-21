@@ -35,6 +35,7 @@ class BootRecord(IntEnum):
 class ChunkType(IntEnum):
     HEADER         = 0x000d,
     IMAGE          = 0x0018,
+    MOVIE_ROOT     = 0x06a8,
     MOVIE_FRAME    = 0x06a9,
     MOVIE_HEADER   = 0x06aa,
 
@@ -524,20 +525,24 @@ class Movie(Object):
         self.stills = stills
         self.chunks = []
 
-        start = stream.tell()
+        end = stream.tell() + chunk['size']
         codes = {
             "header": chunk_int(chunk),
             "video" : chunk_int(chunk) + 1,
             "audio" : chunk_int(chunk) + 2,
         }
 
-        movie_header = Array(stream, bytes=chunk['size'])
-        movie_header.log()
+        value_assert(Datum(stream).d, ChunkType.MOVIE_ROOT, "movie root signature")
+        self.chunk_count = Datum(stream)
+        self.start = Datum(stream)
+        self.sizes = []
+        for _ in range(self.chunk_count.d):
+            self.sizes.append(Datum(stream))
 
-        chunks = movie_header.datums[1].d
-        logging.debug(" *** Movie(): Expecting {} movie framesets ***".format(chunks))
+        assert stream.tell() == end
+        logging.debug(" *** Movie(): Expecting {} movie framesets ***".format(self.chunk_count.d))
 
-        for i in range(chunks):
+        for i in range(self.chunk_count.d):
             chunk = read_chunk(stream)
             frames = []
             headers = []
@@ -558,8 +563,7 @@ class Movie(Object):
             self.chunks.append({
                 "frames": list(zip(headers, frames)),
                 "audio": stream.read(chunk['size']) if chunk_int(chunk) == codes["audio"] else None
-                }
-            )
+            })
 
             # Audio for the frameset comes last
             if chunk_int(chunk) == codes["audio"]:
@@ -574,7 +578,7 @@ class Movie(Object):
             else:
                 raise ValueError("Got unexpected delimiter at end of movie frameset: {}".format(chunk['code']))
 
-            logging.debug(" ~~ Movie(): Finished frameset {} of {} ~~".format(i+1, chunks))
+            logging.debug(" ~~ Movie(): Finished frameset {} of {} ~~".format(i+1, self.chunk_count.d))
 
         logging.debug("Movie(): Finished reading movie: 0x{:012x}".format(stream.tell()))
 
