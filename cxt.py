@@ -461,15 +461,20 @@ class Image(Object):
         return bytes(image)
 
     def export(self, directory, filename, fmt="png", **kwargs):
-        filename = os.path.join(directory, filename)
-
         if self.width == 0 and self.height == 0:
             logging.warning("Found image with length and width 0, skipping export")
             return
 
+        filename = os.path.join(directory, filename)
+        if kwargs.get("with_header") and self.header:
+            with open(os.path.join(directory, "header.txt"), 'w') as header:
+                for datum in self.header.datums:
+                    print(repr(datum), file=header)
+
         if filename[-4:] != ".{}".format(fmt):
             filename += (".{}".format(fmt))
 
+        # TODO: Find out where the palette information is stored.
         image = PILImage.frombytes("P", (self.width, self.height), self.image)
         if 'palette' in kwargs and kwargs['palette']:
             image.putpalette(kwargs['palette'])
@@ -886,7 +891,7 @@ class Context(Object):
                 print(repr(datum), file=header)
 
         # TODO: Get palette handling generalized.
-        if asset["asset"]: asset["asset"].export(path, str(id), palette=self.palette)
+        if asset["asset"]: asset["asset"].export(path, str(id), palette=self.palette, with_header=True)
 
     @staticmethod
     def make_structured_asset(header, asset):
