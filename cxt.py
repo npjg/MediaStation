@@ -450,6 +450,9 @@ class Image(Object):
                         pix = self.raw.read(op)
 
                         loc = (h * self.width) + self.offset
+                        if loc + len(pix) > self.width * self.height:
+                            logging.warning("Image(): Exceeded bounds of array by 0x{:04x}".format((loc + len(pix)) - self.width * self.height))
+
                         image[loc:loc+len(pix)] = pix
 
                         if self.raw.tell() % 2 == 1:
@@ -462,6 +465,8 @@ class Image(Object):
 
                     pix = self.raw.read(1)
                     image[loc:loc+code] = code * pix
+                    if loc + code > self.width * self.height:
+                        logging.warning("Image(): Exceeded bounds of array by 0x{:04x}".format((loc + code) - self.width * self.height))
 
                     self.offset += code
 
