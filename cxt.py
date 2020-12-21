@@ -228,7 +228,7 @@ class Point(Object):
         self.y = struct.unpack("<H", m.read(2))[0]
 
     def __repr__(self):
-        return "<Point: x: {}, y: {}>".format(self.x, self.y)
+        return "<Point: x: {:03d}, y: {:03d}>".format(self.x, self.y)
 
 class Bbox(Object):
     def __init__(self, m):
