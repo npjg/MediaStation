@@ -402,23 +402,24 @@ class ImageHeader(Object):
         )
 
 class Image(Object):
-    def __init__(self, stream, size, dims=None, sprite=False):
+    def __init__(self, stream, size, dims=None):
         end = stream.tell() + size
-        self.check = not sprite
 
         self.header = None
         self.dims = dims
-        if not dims: self.header = ImageHeader(stream)
+        if not dims:
+            self.header = ImageHeader(stream)
 
         self.raw = io.BytesIO(stream.read(end-stream.tell()))
+        if not dims:
+            value_assert(self.raw, b'\x00\x00', "image row header")
+
         logging.debug("Read 0x{:04x} raw image bytes".format(size))
         self.offset = 0
 
     @property
     def image(self):
         self.raw.seek(0)
-        if self.check: value_assert(self.raw, b'\x00\x00', "image row header")
-
         if not self.compressed:
             return self.raw.read()
 
@@ -636,7 +637,7 @@ class Sprite(Object):
         header = SpriteHeader(stream)
         self.frames.append({
             "header": header,
-            "image": Image(stream, dims=header.dims, size=end-stream.tell(), sprite=True)
+            "image": Image(stream, dims=header.dims, size=end-stream.tell())
         })
 
     def export(self, directory, filename, fmt="png", **kwargs):
@@ -678,7 +679,7 @@ class Font(Object):
         header = FontHeader(stream)
         self.glyphs.append({
             "header": header,
-            "glyph": Image(stream, dims=header.dims, size=end-stream.tell(), sprite=True)
+            "glyph": Image(stream, dims=header.dims, size=end-stream.tell())
         })
 
     def export(self, directory, filename, fmt="png", **kwargs):
