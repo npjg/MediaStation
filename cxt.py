@@ -308,7 +308,7 @@ class AssetHeader(Object):
                     if token.d == 0x0005:
                         Datum(stream)
                         self.triggers["timecode"].append(Datum(stream))
-                    elif token.d == 0x0006:
+                    elif token.d == 0x0006 or token.d == 0x0011:
                         Datum(stream)
 
                     Datum(stream)
