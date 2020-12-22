@@ -748,27 +748,26 @@ class Font(Object):
                 glyph["glyph"].export(directory, str(i), fmt=fmt, **kwargs)
 
 class Sound(Object):
-    def __init__(self, stream=None, header=None, chunk=None):
+    def __init__(self, stream=None, chunk=None, **kwargs):
         self.chunks = []
+        self.encoding = kwargs.get("encoding")
 
         # If we provide these arguments, we want to read a while RIFF;
         # otherwise, this is for movie sound that we will add separately.
-        if not stream or not header or not chunk:
+        if not stream or not chunk:
             return
 
-        # TODO: Determine what adds more information here.
-        chunks = header.data.datums[9].d
-        if chunks == header.id.d:
-            chunks = header.data.datums[11].d
-        logging.debug(" *** Sound(): Expecting {} sound chunks ***".format(chunks))
+        self.chunk_count = kwargs.get("chunks")
+
+        logging.debug(" *** Sound(): Expecting {} sound chunks ***".format(self.chunk_count.d))
 
         asset_id = chunk["code"]
         self.append(stream, chunk["size"])
-        for i in range(1, chunks):
+        for i in range(1, self.chunk_count.d):
             chunk = read_chunk(stream)
             value_assert(chunk["code"], asset_id, "sound chunk label")
             self.append(stream, chunk["size"])
-            logging.debug(" ~~ Sound(): Finished chunk {} of {} ~~".format(i+1, chunks))
+            logging.debug(" ~~ Sound(): Finished chunk {} of {} ~~".format(i+1, self.chunk_count.d))
 
     def append(self, stream, size=0):
         if isinstance(stream, bytes):
@@ -778,16 +777,29 @@ class Sound(Object):
             self.chunks.append(stream.read(size))
 
     def export(self, directory, filename, fmt="wav", **kwargs):
-        filename = os.path.join(directory, filename)
+        filename = "{}.{}".format(os.path.join(directory, filename), fmt.lower())
 
-        with subprocess.Popen(
-                ['ffmpeg', '-y', '-f', 's16le', '-ar', '11.025k', '-ac', '2', '-i', 'pipe:', filename+".{}".format(fmt)],
-                stdin=subprocess.PIPE, stdout=subprocess.PIPE
-        ) as process:
-            for chunk in self.chunks:
-                process.stdin.write(chunk)
+        if fmt.lower() == "raw":
+            with open(filename, 'wb') as raw:
+                for chunk in self.chunks:
+                    raw.write(chunk)
+        else:
+            if self.encoding and self.encoding.d == 0x0010:
+                command = ['ffmpeg', '-y', '-f', 's16le', '-ar', '11.025k', '-ac', '2', '-i', 'pipe:', filename]
+            elif self.encoding and self.encoding.d == 0x0004:
+                # TODO: Fine the proper codec. This ALMOST sounds right.
+                command = ['ffmpeg', '-y', '-f', 's16le', '-ar', '22.050k', '-ac', '1', "-acodec", "adpcm_ima_ws", '-i', 'pipe:', filename]
+            else:
+                logging.warning("Sound.export(): Received unknown encoding specifier: 0x{:04x}. Resetting to default.".format(
+                    self.encoding.d if self.encoding else 0
+                ))
+                command = ['ffmpeg', '-y', '-f', 's16le', '-ar', '11.025k', '-ac', '2', '-i', 'pipe:', filename]
 
-            process.communicate()
+            with subprocess.Popen(command, stdin=subprocess.PIPE, stdout=subprocess.PIPE) as process:
+                for chunk in self.chunks:
+                    process.stdin.write(chunk)
+
+                process.communicate()
 
         with open(os.path.join(directory, str(len(self.chunks))), 'w') as f:
             f.write(str(len(self.chunks)))
@@ -933,7 +945,7 @@ class Context(Object):
             self.assets.update(self.make_structured_asset(header, Image(stream, size=chunk["size"])))
         elif header.type.d == AssetType.SND:
             if not header.id.d in self.assets:
-                self.assets.update(self.make_structured_asset(header, Sound()))
+                self.assets.update(self.make_structured_asset(header, Sound(encoding=header.data.datums[-2])))
 
             self.assets[header.id.d]["asset"].append(stream, size=chunk["size"])
         elif header.type.d == AssetType.SPR:
@@ -968,7 +980,12 @@ class Context(Object):
         if header.type.d == AssetType.MOV:
             return self.make_structured_asset(header, Movie(stream, header, chunk, stills=self.stills.get(header.id.d)))
         elif header.type.d == AssetType.SND:
-            return self.make_structured_asset(header, Sound(stream, header, chunk))
+            # TODO: Determine what adds more information here.
+            chunks = header.data.datums[9]
+
+            if chunks.d == header.id.d:
+                chunks = header.data.datums[11]
+            return self.make_structured_asset(header, Sound(stream, chunk, chunks=chunks, encoding=header.data.datums[-2]))
         else:
             raise TypeError("Unhandled major asset type: {}".format(header.type.d))
 
