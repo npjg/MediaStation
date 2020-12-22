@@ -1268,27 +1268,27 @@ class System(Object):
 
 ############### INTERACTIVE LOGIC  #######################################
 
-def main(input, string, export):
+def main(args):
     stream = None
-    if os.path.isdir(input):
-        with open(os.path.join(input, "boot.stm"), mode='rb') as f:
+    if os.path.isdir(args.input):
+        with open(os.path.join(args.input, "boot.stm"), mode='rb') as f:
             stream = mmap.mmap(f.fileno(), length=0, access=mmap.ACCESS_READ)
 
             try:
-                stm = System(input, stream, string)
-                stm.parse(export)
+                stm = System(args.input, stream, args.string)
+                stm.parse(args.export)
             except Exception as e:
-                log_location(os.path.join(input, "boot.stm"), stream.tell())
+                log_location(os.path.join(args.input, "boot.stm"), stream.tell())
                 raise
-    elif os.path.isfile(input):
-        with open(input, mode='rb') as f:
+    elif os.path.isfile(args.input):
+        with open(args.input, mode='rb') as f:
             stream = mmap.mmap(f.fileno(), length=0, access=mmap.ACCESS_READ)
 
-            if input[-3:].lower() == "cxt":
-                logging.info("Received single context, operating in standalone mode")
+            if args.input[-3:].lower() == "cxt":
+                logging.info("Received single context, operating in standalone mode. Make sure all flags are properly set!")
 
                 try:
-                    cxt = Context(stream, string)
+                    cxt = Context(stream, args.string)
                     cxt.parse(stream)
                     cxt.majors(stream)
                 except Exception as e:
@@ -1296,9 +1296,11 @@ def main(input, string, export):
                     raise
 
                 if export: cxt.export(export)
-            elif os.path.split(input)[1].lower() == "boot.stm":
-                if export: logging.warning("Only parsing system information; ignoring export flag")
-                System(None, stream, string)
+            elif os.path.split(args.input)[1].lower() == "boot.stm":
+                if args.export:
+                    logging.warning("Only parsing system information; ignoring export flag")
+
+                System(None, stream, args.string)
             else:
                 raise ValueError(
                     "Ambiguous input file extension. Ensure a numeric context (CXT) or system (STM) file has been passed."
@@ -1332,4 +1334,4 @@ if __name__ == "__main__":
     logging.basicConfig(level=logging.DEBUG)
     args = parser.parse_args()
 
-    main(args.input, args.string, args.export)
+    main(args)
