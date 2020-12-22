@@ -16,22 +16,6 @@ import traceback
 
 import PIL.Image as PILImage
 
-class RecordType(IntEnum):
-    CXT      = 0x0006,
-    FILE_1   = 0x0008,
-    FILE_3   = 0x0029,
-    RIFF     = 0x0028,
-    CURSOR   = 0x0015,
-    RES_NAME = 0x0bba,
-    RES_ID   = 0x0bbb,
-
-class BootRecord(IntEnum):
-    FILES_1  = 0x0002,
-    FILES_2  = 0x0007,
-    FILES_3  = 0x000a,
-    RIFF     = 0x000b,
-    CURSOR   = 0x000c,
-
 class ChunkType(IntEnum):
     HEADER         = 0x000d,
     IMAGE          = 0x0018,
@@ -1073,145 +1057,140 @@ class System(Object):
     def __init__(self, directory, stream):
         self.directory = directory
 
+        self.resources = {}
         self.contexts = {}
         self.assets = {}
         self.headers = {}
+        self.files = {}
+        self.riffs = []
+        self.cursors = {}
+
+        self.name = None
+        self.version = None
+        self.source = None
 
         end = stream.tell() + read_riff(stream)
         chunk = read_chunk(stream)
-
-        logging.debug("System(): Reading header information...")
-        header = Array(stream, datums=3)
-        stream.read(2) # Why is a random 00 13 hanging around?
-
-        header.datums += Array(stream, datums=5).datums
-        self.name = header.datums[2].d.lower()
-        logging.info("Detected title: {}".format(self.name))
-
-        unk = Array(stream, datums=2*3) # 401 402 403 (?)
-
-        # Read resource information
-        logging.debug("System(): Reading resource information...")
-        self.resources = []
-        type = Datum(stream)
-        while type.d == RecordType.RES_NAME:
-            name = Datum(stream)
-
-            value_assert(Datum(stream).d, RecordType.RES_ID)
-            id = Datum(stream)
-
-            logging.debug("Found resource {} ({})".format(id.d, name.d))
-            self.resources.append((id, name))
-            type = Datum(stream)
-
-        # Read file headers
-        logging.debug("System(): Reading file headers...")
-        value_assert(type.d, BootRecord.FILES_1, "root signature")
         files = []
 
+        logging.debug("System(): Reading title information...")
+        value_assert(Datum(stream).d, 0x0001)
+
         type = Datum(stream)
-        while True: # breaking condition is below
-            refs = []
+        while type.d != 0x0000:
+            if type.d == 0x190: # No metadata: LIONKING
+                self.name = Datum(stream)
+                stream.read(2)
+                self.version = {
+                    "number": (Datum(stream), Datum(stream), Datum(stream)),
+                    "string": Datum(stream)
+                }
+                self.source = Datum(stream)
 
-            while type.d == RecordType.CXT:
-                refs.append(Datum(stream).d)
-                type = Datum(stream)
+                logging.info("System(): 1. Detected title: {} (compiler version {:01d}.{:02d}.{:02d})".format(
+                    self.name.d, *[digit.d for digit in self.version["number"]])
+                )
+            elif type.d == 0x191 or type.d == 0x192 or type.d == 0x193:
+                logging.warning("System(): 2. Detected unknown field 0x{:04x}: 0x{:04x}".format(type.d, Datum(stream).d))
+            elif type.d == 0x0bba:
+                name = Datum(stream)
+                value_assert(Datum(stream).d, 0x0bbb)
+                id = Datum(stream)
 
-            name = None
-            if type.d == 0x0000:
-                break
-            elif type.d == 0x0003:
-                value_assert(Datum(stream).d, 0x0004, "file signature")
+                logging.debug("System(): 3. Found resource {} ({})".format(id.d, name.d))
+                self.resources.update({id.d: name})
+            elif type.d == 0x0002:
+                token = Datum(stream)
+                while True: # breaking condition is below
+                    refs = []
 
-                filenum = Datum(stream)
-                value_assert(Datum(stream).d, 0x0005, "file signature")
-                assert Datum(stream).d == filenum.d
+                    while token.d == 0x0006:
+                        refs.append(Datum(stream).d)
+                        token = Datum(stream)
 
-                type = Datum(stream)
-                if type.d == 0x0bb8:
-                    name = Datum(stream)
-                    type = Datum(stream)
-            else:
-                raise ValueError("Received unexpected file signature: {}".format(type.d))
+                    if token.d == 0x0000:
+                        break
+                    elif token.d == 0x0003:
+                        value_assert(Datum(stream).d, 0x0004)
 
-            logging.debug("System(): Found file {}{} (refs: {})".format(
-                filenum.d, " ({})".format(name.d) if name else "", refs)
-            )
+                        filenum = Datum(stream)
+                        value_assert(Datum(stream).d, 0x0005)
+                        assert Datum(stream).d == filenum.d
 
-            files.append(
-                {"refs": refs, "filenum": filenum.d, "name": name.d if name else None}
-            )
+                        token = Datum(stream)
+                        if token.d == 0x0bb8:
+                            name = Datum(stream)
+                            token = Datum(stream)
+                        else:
+                            name = None
+                    else:
+                        raise ValueError("Received unexpected file signature: {}".format(type.d))
 
-        logging.debug("System(): Categorizing data files...")
-        is_data = {}
-        value_assert(Datum(stream).d, BootRecord.FILES_2)
-        type = Datum(stream)
-        while type.d == RecordType.FILE_1:
-            value_assert(Datum(stream).d, 0x0009)
-            file = Datum(stream)
-            value_assert(Datum(stream).d, 0x0004)
-            assert file.d == Datum(stream).d
+                    logging.debug("System(): 4. Found file {}{} (refs: {})".format(
+                        filenum.d, " ({})".format(name.d) if name else "", refs)
+                    )
 
-            logging.debug("System(): Referenced data file {}".format(file.d))
+                    files.append(
+                        {"refs": refs, "filenum": filenum.d, "name": name.d if name else None}
+                    )
+            elif type.d == 0x0007:
+                token = Datum(stream)
+                while token.d == 0x0008:
+                    value_assert(Datum(stream).d, 0x0009)
+                    file = Datum(stream)
+                    value_assert(Datum(stream).d, 0x0004)
+                    assert file.d == Datum(stream).d
+
+                    logging.debug("System(): 5. Referenced data file {}".format(file.d))
+                    token = Datum(stream)
+
+                value_assert(token.d, 0x0000)
+            elif type.d == 0x000a:
+                token = Datum(stream)
+                while token.d == 0x0029:
+                    value_assert(Datum(stream).d, 0x002b)
+                    id = Datum(stream)
+                    value_assert(Datum(stream).d, 0x002d)
+
+                    filetype = Datum(stream)
+                    filename = Datum(stream)
+
+                    self.files.update(
+                        # INSTALL.CXT has ID 3
+                        {id.d: dict({"file": filename.d}, **(files.pop(0) if id.d != 0x0003 else {}))}
+                    )
+
+                    logging.debug("System(): 6. Read file link {} ({})".format(filename.d, id.d))
+                    token = Datum(stream)
+
+                value_assert(token.d, 0x0000)
+            elif type.d == 0x000b:
+                token = Datum(stream)
+                while token.d == 0x0028:
+                    value_assert(Datum(stream).d, 0x002a)
+                    asset = Datum(stream)
+                    value_assert(Datum(stream).d, 0x002b)
+                    id = Datum(stream)
+                    value_assert(Datum(stream).d, 0x002c)
+                    loc = Datum(stream)
+
+                    logging.debug("System(): 7. Read RIFF for asset {} ({}:0x{:08x})".format(asset.d, self.files[id.d]["file"], loc.d))
+
+                    # Note that this really should be a dictionary.
+                    self.riffs.append({"assetid": asset.d, "fileid": id.d, "offset": loc.d})
+                    token = Datum(stream)
+
+                value_assert(token.d, 0x0000)
+            elif type.d == 0x0015:
+                value_assert(Datum(stream).d, 0x0001)
+                id = Datum(stream)
+                unk = Datum(stream)
+                name = Datum(stream)
+
+                logging.debug("System(): 8. Read cursor {}: {} ({})".format(id.d, name.d, id.d))
+                self.cursors.update({id.d: [unk.d, name.d]})
+
             type = Datum(stream)
-
-        value_assert(type.d, 0x0000)
-
-        # Now link asset IDs to file names
-        value_assert(Datum(stream).d, BootRecord.FILES_3)
-        self.files = {}
-        type = Datum(stream)
-
-        while type.d == RecordType.FILE_3:
-            value_assert(Datum(stream).d, 0x002b)
-            id = Datum(stream)
-            value_assert(Datum(stream).d, 0x002d)
-
-            filetype = Datum(stream)
-            filename = Datum(stream)
-
-            logging.debug("System(): Read file link {} ({})".format(filename.d, id.d))
-            self.files.update(
-                # INSTALL.CXT has ID 3
-                {id.d: dict({"file": filename.d}, **(files.pop(0) if id.d != 0x0003 else {}))}
-            )
-            type = Datum(stream)
-
-        value_assert(type.d, 0x0000)
-
-        # Link RIFF asset chunks
-        value_assert(Datum(stream).d, BootRecord.RIFF)
-        self.riffs = []
-
-        type = Datum(stream)
-        while type.d == RecordType.RIFF:
-            value_assert(Datum(stream).d, 0x002a)
-            asset = Datum(stream)
-            value_assert(Datum(stream).d, 0x002b)
-            id = Datum(stream)
-            value_assert(Datum(stream).d, 0x002c)
-            loc = Datum(stream)
-
-            logging.debug("System(): Read RIFF for asset {} ({}:0x{:08x})".format(asset.d, self.files[id.d]["file"], loc.d))
-
-            # Note that this really should be a dictionary.
-            self.riffs.append({"assetid": asset.d, "fileid": id.d, "offset": loc.d})
-            type = Datum(stream)
-
-        value_assert(type.d, 0x0000)
-
-        # Link resource data
-        self.cursors = {}
-        value_assert(Datum(stream).d, BootRecord.CURSOR)
-        for _ in range(Datum(stream).d, Datum(stream).d): # start and stop
-            value_assert(Datum(stream).d, RecordType.CURSOR)
-            value_assert(Datum(stream).d, 0x0001)
-            id = Datum(stream)
-            unk = Datum(stream)
-            name = Datum(stream)
-
-            logging.debug("System(): Read cursor {}: {} ({})".format(id.d, name.d, id.d))
-            self.cursors.update({id.d: [unk.d, name.d]})
 
         self.footer = stream.read()
         logging.debug(pprint.pformat(self.files))
@@ -1220,7 +1199,7 @@ class System(Object):
         riffs = self.riffs
         riffs.reverse()
 
-        logging.info("System.parse(): Parsing full title: {}".format(self.name))
+        logging.info("System.parse(): Parsing full title{}!".format(": {}".format(self.name.d) if self.name else ""))
         for id, entry in self.files.items():
             try:
                 cxtname = os.path.join(self.directory, entry["file"])
