@@ -163,6 +163,7 @@ class Datum(Object):
         elif self.t == DatumType.REF:
             self.d = Ref(stream, parent.type if parent else None)
         else:
+            stream.seek(self.start)
             raise TypeError(
                 "(@ 0x{:0>12x}) Unknown datum type 0x{:0>4x}".format(stream.tell(), self.t)
             )
