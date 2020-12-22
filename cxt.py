@@ -695,7 +695,7 @@ class Movie(Object):
                         print(repr(datum), file=still_header)
 
         headers = open(os.path.join(directory, "headers.txt"), 'w')
-        sound = Sound()
+        sound = Sound(encoding=0x0010)
 
         for i, chunk in enumerate(self.chunks):
             for j, frame in enumerate(chunk["frames"]):
@@ -810,6 +810,8 @@ class Sound(Object):
     def __init__(self, stream=None, chunk=None, **kwargs):
         self.chunks = []
         self.encoding = kwargs.get("encoding")
+        if isinstance(self.encoding, Datum):
+            self.encoding = self.encoding.d
 
         # If we provide these arguments, we want to read a while RIFF;
         # otherwise, this is for movie sound that we will add separately.
@@ -817,7 +819,6 @@ class Sound(Object):
             return
 
         self.chunk_count = kwargs.get("chunks")
-
         logging.debug(" *** Sound(): Expecting {} sound chunks ***".format(self.chunk_count.d))
 
         asset_id = chunk["code"]
@@ -843,15 +844,13 @@ class Sound(Object):
                 for chunk in self.chunks:
                     raw.write(chunk)
         else:
-            if self.encoding and self.encoding.d == 0x0010:
+            if self.encoding and self.encoding == 0x0010:
                 command = ['ffmpeg', '-y', '-f', 's16le', '-ar', '11.025k', '-ac', '2', '-i', 'pipe:', filename]
-            elif self.encoding and self.encoding.d == 0x0004:
+            elif self.encoding and self.encoding == 0x0004:
                 # TODO: Fine the proper codec. This ALMOST sounds right.
                 command = ['ffmpeg', '-y', '-f', 's16le', '-ar', '22.050k', '-ac', '1', "-acodec", "adpcm_ima_ws", '-i', 'pipe:', filename]
             else:
-                logging.warning("Sound.export(): Received unknown encoding specifier: 0x{:04x}. Resetting to default.".format(
-                    self.encoding.d if self.encoding else 0
-                ))
+                raise ValueError("Sound.export(): Received unknown encoding specifier: 0x{:04x}.".format(self.encoding))
                 command = ['ffmpeg', '-y', '-f', 's16le', '-ar', '11.025k', '-ac', '2', '-i', 'pipe:', filename]
 
             with subprocess.Popen(command, stdin=subprocess.PIPE, stdout=subprocess.PIPE) as process:
@@ -859,9 +858,6 @@ class Sound(Object):
                     process.stdin.write(chunk)
 
                 process.communicate()
-
-        with open(os.path.join(directory, str(len(self.chunks))), 'w') as f:
-            f.write(str(len(self.chunks)))
 
 
 ############### CONTEXT PARSER (*.CXT)  ##################################
