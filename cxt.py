@@ -138,7 +138,7 @@ class Object:
         return self.__repr__()
 
 class Datum(Object):
-    def __init__(self, stream, parent=None, peek=False):
+    def __init__(self, stream, peek=False):
         self.start = stream.tell()
         self.d = None
         self.t = struct.unpack("<H", stream.read(2))[0]
@@ -161,7 +161,7 @@ class Datum(Object):
         elif self.t == DatumType.POINT or self.t == DatumType.POINT_2:
             self.d = Point(stream)
         elif self.t == DatumType.REF:
-            self.d = Ref(stream, parent.type if parent else None)
+            self.d = Ref(stream)
         else:
             stream.seek(self.start)
             raise TypeError(
@@ -191,35 +191,14 @@ class Datum(Object):
         return base + data
 
 class Ref(Object):
-    def __init__(self, stream, type):
-        self.refs = []
-
-        if not type:
-            logging.warning("cxt.Ref(): No parent type specified, assuming simple type")
-            self.append(stream)
-        elif type.d in (AssetType.SPR, AssetType.IMG, AssetType.SND, AssetType.FON):
-            self.append(stream)
-        elif type.d == AssetType.MOV:
-            self.append(stream)
-            stream.read(2)
-
-            self.append(stream)
-            stream.read(2)
-
-            self.append(stream)
-        else:
-            raise ValueError("cxt.Ref(): Reference for unexpected asset type: {} (0x{:04x})".format(type.d, type.d))
-
-    def append(self, stream):
-        self.refs.append(
-            (stream.read(4).decode("utf-8"), Datum(stream))
-        )
+    def __init__(self, stream):
+        self.data = stream.read(4).decode("utf-8")
 
     def id(self, string=False):
-        return [int(ref[0][1:], 16) if string else ref[0] for ref in self.refs]
+        return int(self.data[1:], 16) if string else self.data
 
     def __repr__(self):
-        return "<Ref: {})>".format([(s, i) for s, i in zip(self.id(), self.id(string=True))])
+        return "<Ref: {} ({:0>4d})>".format(self.id(), self.id(string=True))
 
 class Point(Object):
     def __init__(self, m, **kwargs):
@@ -255,7 +234,7 @@ class Polygon(Object):
         size = Datum(stream)
 
         self.points = []
-        for _ in range(size):
+        for _ in range(size.d):
             stream.read(2)
             self.points.append(Point(stream))
 
@@ -263,7 +242,7 @@ class Polygon(Object):
         return "<Polygon: points: {}>".format(len(self.points))
 
 class Array(Object):
-    def __init__(self, stream, parent=None, bytes=None, datums=None, stop=None):
+    def __init__(self, stream, bytes=None, datums=None, stop=None):
         self.datums = []
         start = stream.tell()
 
@@ -273,7 +252,7 @@ class Array(Object):
             raise AttributeError("Creating an array requires providing a bytes size or a stop parameter.")
 
         while True:
-            d = Datum(stream, parent=parent if parent else self)
+            d = Datum(stream)
             if stop and d.t == stop[0] and d.d == stop[1]:
                 break
 
@@ -304,78 +283,157 @@ class Array(Object):
         return "<Array: size: {:0>4d}>".format(len(self.datums))
 
 class AssetHeader(Object):
-    def __init__(self, stream, size, string, stop=None):
-        end = stream.tell() + size
-        self.data = Array(stream, datums=4)
+    def __init__(self, stream):
+        logging.debug("AssetHeader(): Beginning header read")
 
-        # TODO: Handle children more generally.
-        self.child = None
-        if string: self.data.datums.pop(-1) # pop the string header to keep indexing consistent
-        self.name = Datum(stream) if string else None
+        self.filenum = Datum(stream)
+        self.type = Datum(stream)
+        self.id = Datum(stream)
+        self.ref = None
+        self.triggers = {}
 
-        if self.data.datums[1].d == AssetType.PAL:
-            value_assert(Datum(stream).d, DatumType.PALETTE, "palette signature")
-            self.child = stream.read(0x300)
-            logging.debug("Read 0x{:04x} palette bytes".format(0x300))
-            value_assert(Datum(stream).d, 0x00, "end-of-chunk flag")
-        elif self.data.datums[1].d == AssetType.STG:
-            logging.debug("Reading stage asset...")
+        self.raw = {}
+        type = Datum(stream)
+        while type.d != 0x0000:
+            d = None
+            logging.debug("(@0x{:012x}) AssetHeader(): Read type 0x{:04x}".format(stream.tell(), type.d))
 
-            self.data.datums += Array(stream, parent=self, stop=(DatumType.UINT16, 0x0000)).datums
+            if type.d == 0x0017: # TMR, MOV
+                if not self.triggers.get("timecode"):
+                    self.triggers.update({"timecode": []})
 
+                    # Only supports Garage, not Dalmatians bytecode.
+                token = Datum(stream)
+                while token.d != 0x0000:
+                    if token.d == 0x0005:
+                        Datum(stream)
+                        self.triggers["timecode"].append(Datum(stream))
+                    elif token.d == 0x0006:
+                        Datum(stream)
+
+                    Datum(stream)
+                    Datum(stream)
+                    token = Datum(stream)
+            elif type.d == 0x0019: # STG, IMG, SPR, MOV, TXT, CAM, CVS
+                d = Datum(stream)
+            elif type.d == 0x001a: # SND, MOV
+                d = Datum(stream)
+            elif type.d == 0x001b: # SND, IMG, SPR, MOV, FON
+                if self.type.d == AssetType.MOV:
+                    self.ref = []
+                    for _ in range(2):
+                        self.ref.append(Datum(stream))
+                        Datum(stream)
+
+                    self.ref.append(Datum(stream))
+                else: self.ref = [Datum(stream)]
+            elif type.d == 0x001c: # STG, IMG, HSP, SPR, MOV, TXT, CAM, CVS
+                self.bbox = Datum(stream)
+            elif type.d == 0x001d:
+                self.poly = Polygon(stream)
+            elif type.d == 0x001e: # STG, IMG, HSP, SPR, MOV, TXT, CAM, CVS
+                d = Datum(stream)
+            elif type.d == 0x001f: # IMG, HSP, SPR, MOV, TXT, CVS
+                d = Datum(stream)
+            elif type.d == 0x0020: # IMG, SPR, CVS
+                d = Datum(stream)
+            elif type.d == 0x0021: # SND
+                d = Datum(stream)
+            elif type.d == 0x0022: # SCR, TXT, CVS
+                d = Datum(stream)
+            elif type.d == 0x0024: # SPR
+                d = Datum(stream)
+            elif type.d == 0x0032: # IMG, SPR
+                d = Datum(stream)
+            elif type.d == 0x0033: # SND, MOV
+                self.chunks = Datum(stream)
+                self.rate = Datum(stream)
+            elif type.d == 0x0037:
+                d = Datum(stream)
+            elif type.d == 0x0258: # TXT
+                d = Datum(stream)
+            elif type.d == 0x0259: # TXT
+                d = Datum(stream)
+            elif type.d == 0x025a: # TXT
+                d = Datum(stream)
+            elif type.d == 0x025b: # TXT
+                d = Datum(stream)
+            elif type.d == 0x025f: # TXT
+                d = Datum(stream)
+            elif type.d == 0x0263: # TXT
+                Array(stream, stop=(DatumType.UINT16, 0x0000))
+                stream.seek(stream.tell() - 4)
+            elif type.d == 0x03e8: # SPR
+                self.chunks = Datum(stream)
+            elif type.d == 0x03e9: # SPR
+                if not self.triggers.get("mouse"):
+                    self.triggers.update({"mouse": []})
+
+                self.triggers["mouse"].append(Array(stream, datums=3))
+            elif type.d == 0x03ea:
+                d = Datum(stream)
+            elif type.d == 0x03eb: # IMG, SPR, TXT, CVS
+                d = Datum(stream)
+            elif type.d == 0x05aa: # PAL
+                self.palette = stream.read(0x300)
+            elif type.d == 0x05dc: # IMG, SPR, MOV, CVS
+                d = Datum(stream)
+            elif type.d == 0x05dd:
+                d = Datum(stream)
+            elif type.d == 0x05de: # IMG
+                self.x = Datum(stream)
+            elif type.d == 0x05df: # IMG
+                self.y = Datum(stream)
+            elif type.d == 0x060e: # PTH
+                self.start = [Datum(stream)]
+            elif type.d == 0x060f: # PTH
+                self.end = [Datum(stream)]
+            elif type.d == 0x0610: # PTH
+                d = Datum(stream)
+            elif type.d == 0x0611: # PTH
+                self.end.append(Datum(stream))
+            elif type.d == 0x0612: # PTH
+                self.start.append(Datum(stream))
+            elif type.d == 0x076f: # CAM
+                d = Datum(stream)
+            elif type.d == 0x0770: # CAM
+                d = Datum(stream)
+            elif type.d == 0x0772: # STG
+                d = Datum(stream)
+                pass
+            elif type.d == 0x077b: # IMG
+                self.ref = [Datum(stream)] # an integer holding refd asset ID
+            elif type.d == 0x0bb8:
+                self.name = Datum(stream)
+            elif type.d == 0x0001: # SND
+                self.encoding = Datum(stream)
+            else:
+                raise TypeError("AssetHeader(): Unknown field delimiter in header: 0x{:0>4x}".format(type.d))
+
+            if d: self.raw.update({repr(type): d.d})
+            if type.d == 0x0000: break
+
+            type = Datum(stream)
+
+        logging.debug("(@0x{:012x}) AssetHeader(): Finished reading asset header".format(stream.tell()))
+
+        # CAUTION: Potential infinite recursion if file is malformed.
+        if self.type.d == AssetType.STG:
+            self.children = []
+
+            # type = Datum(stream)
             value_assert(Datum(stream).d, HeaderType.LINK, "link signature")
             value_assert(Datum(stream).d, self.id.d, "asset id")
 
-            self.child = []
-            if self.data.datums[8].d != 0x0000: # TODO: What is this, exactly?
-                value_assert(Datum(stream).d, HeaderType.ASSET, "stage asset chunk")
-                while stream.tell() < end:
-                    header = AssetHeader(
-                        stream, size=end-stream.tell(), string=string, stop=(DatumType.UINT16, HeaderType.ASSET)
-                    )
-
-                    self.child.append(header)
-                    logging.debug("Added asset header to stage: -> {}".format(header))
-        elif self.data.datums[1].d == AssetType.HSP:
-            self.data.datums += Array(stream, parent=self, stop=(DatumType.UINT16, 0x0000)).datums
-
-            if stream.tell() < end and Datum(stream).d == DatumType.POLY:
-                logging.debug("Searching for polygon points...")
-                value_assert(Datum(stream).d, DatumType.POLY, "polygon header")
-                self.child = Polygon(stream)
-                value_assert(Datum(stream).d, 0x0000, "end of polygon")
-        elif self.data.datums[1].d == AssetType.FUN: # Put the bytecode in an array for now
-            self.child = Array(stream, parent=self, bytes=end-stream.tell())
-        else:
-            self.data.datums += Array(stream, parent=self, bytes=end-stream.tell(), stop=stop).datums
-
-        if size and not stop and stream.tell() < end:
-            logging.warning("{} bytes left in asset header >>> {}".format(end-stream.tell(), self))
-            stream.read(end - stream.tell())
-
-    @property
-    def filenum(self):
-        return self.data.datums[0]
-
-    @property
-    def type(self):
-        return self.data.datums[1]
-
-    @property
-    def id(self):
-        return self.data.datums[2]
-
-    @property
-    def ref(self):
-        # TODO: Enumerate all types that have associated data chunks
-        for datum in self.data.datums:
-            if datum.t == DatumType.REF:
-                return datum
+            type = Datum(stream)
+            while type.d == HeaderType.ASSET:
+                self.children.append(AssetHeader(stream))
+                type = Datum(stream)
 
     def __repr__(self):
         return "<AssetHeader: parent: {}, type: 0x{:0>4x}, id: 0x{:0>4x} ({:0>4d}){}{}>".format(
             self.filenum.d, self.type.d, self.id.d, self.id.d,
-            " {}".format(self.ref.d) if self.ref else "",
+            " {}".format([ref.d if isinstance(ref.d, int) else ref.d.id() for ref in self.ref]) if self.ref else "",
             ", name: {}".format(self.name.d) if self.name else ""
         )
 
@@ -906,30 +964,32 @@ class Context(Object):
             assert not self.root # We cannot have more than 1 root
             self.root = Array(stream, bytes=chunk["size"] - 8) # We read 2 datums
         elif type.d == HeaderType.ASSET or type.d == HeaderType.FUNC:
-            contents = [AssetHeader(stream, size=chunk["size"]-12, string=self.string)]
+            contents = [AssetHeader(stream)]
 
             if contents[0].type.d == AssetType.STG:
-                contents += contents[0].child
+                contents += contents[0].children
 
             for header in contents:
                 logging.debug("(@0x{:012x}) CxtData.get_header(): Found asset header {}".format(stream.tell(), header))
                 self.headers.update({header.id.d: header})
 
                 # TODO: Deal with shared assets.
-                if header.ref and not isinstance(header.ref.d, int):
+                if header.ref and not isinstance(header.ref[0].d, int):
                     # Actual data is in another chunk
-                    for ref in header.ref.d.id(string=True):
-                        self.refs.update({ref: header})
+                    for ref in header.ref:
+                        self.refs.update({ref.d.id(string=True): header})
                 else: # All needed data is here in the header
                     self.assets.update(self.make_structured_asset(
-                        header, header.child if type.d == HeaderType.FUNC else None)
+                        header, header.targets if type.d == HeaderType.FUNC else None)
                     )
 
+                # TODO: Clean up bytecode handling big-time.
                 if type.d == HeaderType.FUNC:
                     logging.info("CxtData.get_header(): Found bytecode >>> {}".format(header))
                     logging.info(pprint.pformat(header.data.datums))
 
-            value_assert(Datum(stream).d, 0x00, "end-of-chunk flag")
+            if contents[0].type.d != AssetType.STG:
+                value_assert(Datum(stream).d, 0x00, "end-of-chunk flag")
         elif type.d == HeaderType.UNK_D:
             logging.warning("CxtData.get_header(): Found unknown header type 0x0010")
             stream.seek(stream.tell() + chunk["size"] - 0x04)
@@ -946,7 +1006,7 @@ class Context(Object):
             self.assets.update(self.make_structured_asset(header, Image(stream, size=chunk["size"])))
         elif header.type.d == AssetType.SND:
             if not header.id.d in self.assets:
-                self.assets.update(self.make_structured_asset(header, Sound(encoding=header.data.datums[-2])))
+                self.assets.update(self.make_structured_asset(header, Sound(encoding=header.encoding)))
 
             self.assets[header.id.d]["asset"].append(stream, size=chunk["size"])
         elif header.type.d == AssetType.SPR:
@@ -981,12 +1041,7 @@ class Context(Object):
         if header.type.d == AssetType.MOV:
             return self.make_structured_asset(header, Movie(stream, header, chunk, stills=self.stills.get(header.id.d)))
         elif header.type.d == AssetType.SND:
-            # TODO: Determine what adds more information here.
-            chunks = header.data.datums[9]
-
-            if chunks.d == header.id.d:
-                chunks = header.data.datums[11]
-            return self.make_structured_asset(header, Sound(stream, chunk, chunks=chunks, encoding=header.data.datums[-2]))
+            return self.make_structured_asset(header, Sound(stream, chunk, chunks=header.chunks, encoding=header.encoding))
         else:
             raise TypeError("Unhandled major asset type: {}".format(header.type.d))
 
@@ -1007,8 +1062,7 @@ class Context(Object):
 
         with open(os.path.join(path, "{}.txt".format(id)), 'w') as header:
             print(repr(asset["header"]), file=header)
-            for datum in asset["header"].data.datums:
-                print(repr(datum), file=header)
+            print(repr(asset["header"]), file=header)
 
         # TODO: Get palette handling generalized.
         if asset["asset"]: asset["asset"].export(path, str(id), palette=self.palette, with_header=True)
