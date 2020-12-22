@@ -221,12 +221,16 @@ class Ref(Object):
         return "<Ref: {})>".format([(s, i) for s, i in zip(self.id(), self.id(string=True))])
 
 class Point(Object):
-    def __init__(self, m):
-        value_assert(m, b'\x10\x00', "chunk")
-        self.x = struct.unpack("<H", m.read(2))[0]
+    def __init__(self, m, **kwargs):
+        if m:
+            value_assert(m, b'\x10\x00', "chunk")
+            self.x = struct.unpack("<H", m.read(2))[0]
 
-        value_assert(m, b'\x10\x00', "chunk")
-        self.y = struct.unpack("<H", m.read(2))[0]
+            value_assert(m, b'\x10\x00', "chunk")
+            self.y = struct.unpack("<H", m.read(2))[0]
+        else:
+            self.x = kwargs.get("x")
+            self.y = kwargs.get("y")
 
     def __repr__(self):
         return "<Point: x: {:03d}, y: {:03d}>".format(self.x, self.y)
