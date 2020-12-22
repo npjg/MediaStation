@@ -863,8 +863,7 @@ class Sound(Object):
 ############### CONTEXT PARSER (*.CXT)  ##################################
 
 class Context(Object):
-    def __init__(self, stream, string):
-        self.string = string
+    def __init__(self, stream):
         self.riffs, total = self.get_prelude(stream)
 
         self.refs = {}
@@ -1071,9 +1070,8 @@ class Context(Object):
 ############### SYSTEM PARSER (BOOT.STM)  ################################
 
 class System(Object):
-    def __init__(self, directory, stream, string):
+    def __init__(self, directory, stream):
         self.directory = directory
-        self.string = string
 
         self.contexts = {}
         self.assets = {}
@@ -1087,7 +1085,7 @@ class System(Object):
         stream.read(2) # Why is a random 00 13 hanging around?
 
         header.datums += Array(stream, datums=5).datums
-        self.name = header.datums[2].d
+        self.name = header.datums[2].d.lower()
         logging.info("Detected title: {}".format(self.name))
 
         unk = Array(stream, datums=2*3) # 401 402 403 (?)
@@ -1110,36 +1108,38 @@ class System(Object):
         logging.debug("System(): Reading file headers...")
         value_assert(type.d, BootRecord.FILES_1, "root signature")
         files = []
+
+        type = Datum(stream)
         while True: # breaking condition is below
-            type = Datum(stream)
             refs = []
+
             while type.d == RecordType.CXT:
                 refs.append(Datum(stream).d)
                 type = Datum(stream)
 
+            name = None
             if type.d == 0x0000:
                 break
-
-            if type.d == 0x0003:
-                refstring = None
+            elif type.d == 0x0003:
                 value_assert(Datum(stream).d, 0x0004, "file signature")
 
                 filenum = Datum(stream)
                 value_assert(Datum(stream).d, 0x0005, "file signature")
                 assert Datum(stream).d == filenum.d
 
-                if string:
-                    value_assert(Datum(stream).d, 0x0bb8, "string signature")
-                    refstring = Datum(stream)
+                type = Datum(stream)
+                if type.d == 0x0bb8:
+                    name = Datum(stream)
+                    type = Datum(stream)
             else:
                 raise ValueError("Received unexpected file signature: {}".format(type.d))
 
             logging.debug("System(): Found file {}{} (refs: {})".format(
-                filenum.d, " ({})".format(refstring.d) if string else "", refs)
+                filenum.d, " ({})".format(name.d) if name else "", refs)
             )
 
             files.append(
-                {"refs": refs, "filenum": filenum.d, "string": refstring.d if string else None}
+                {"refs": refs, "filenum": filenum.d, "name": name.d if name else None}
             )
 
         logging.debug("System(): Categorizing data files...")
@@ -1228,7 +1228,7 @@ class System(Object):
                     stream = mmap.mmap(f.fileno(), length=0, access=mmap.ACCESS_READ)
                     logging.info("System.parse(): Opened context {} ({})".format(entry["file"], id))
 
-                    cxt = Context(stream, self.string)
+                    cxt = Context(stream)
                     # Process the root first (if it exists).
                     if entry.get("filenum"):
                         logging.debug("System.parse(): ({}) Parsing root entry...".format(entry["file"]))
@@ -1275,7 +1275,7 @@ def main(args):
             stream = mmap.mmap(f.fileno(), length=0, access=mmap.ACCESS_READ)
 
             try:
-                stm = System(args.input, stream, args.string)
+                stm = System(args.input, stream)
                 stm.parse(args.export)
             except Exception as e:
                 log_location(os.path.join(args.input, "boot.stm"), stream.tell())
@@ -1288,7 +1288,7 @@ def main(args):
                 logging.info("Received single context, operating in standalone mode. Make sure all flags are properly set!")
 
                 try:
-                    cxt = Context(stream, args.string)
+                    cxt = Context(stream)
                     cxt.parse(stream)
                     cxt.majors(stream)
                 except Exception as e:
@@ -1300,7 +1300,7 @@ def main(args):
                 if args.export:
                     logging.warning("Only parsing system information; ignoring export flag")
 
-                System(None, stream, args.string)
+                System(None, stream)
             else:
                 raise ValueError(
                     "Ambiguous input file extension. Ensure a numeric context (CXT) or system (STM) file has been passed."
@@ -1311,7 +1311,6 @@ def main(args):
 def log_location(file, position):
     logging.error("Exception at {}:0x{:012x}".format(file, position))
 
-
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(
         prog="cxt", description="Parse asset structures and extract assets from Media Station, Inc. games"
@@ -1319,11 +1318,6 @@ if __name__ == "__main__":
 
     parser.add_argument(
         "input", help="Pass a context (CXT) or system (STM) filename to process the file, or pass a game data directory to process the whole game."
-    )
-
-    parser.add_argument(
-        '-s', "--string", default=False, action='store_true',
-        help="Specify that context datafiles have embedded debug strings (Tonka Garage)"
     )
 
     parser.add_argument(
