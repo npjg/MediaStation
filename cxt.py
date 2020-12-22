@@ -540,7 +540,7 @@ class MovieHeaderOuter(Object):
 
     def __repr__(self):
         return "<MovieHeaderOuter: 0x{:06x}; index: {:03d}, duration: {}, dims: {}\n ---> unks: {}".format(
-            self.start, self.index.d, ["{:06d}".format(d.d) for d in self.duration], self.dims, self.unks
+            self.start, self.index.d, ["{:06d}".format(d.d) for d in self.duration], self.dims, pprint.pformat(self.unks)
         )
 
 class MovieHeaderInner(Object):
@@ -635,30 +635,31 @@ class Movie(Object):
                     for datum in still[1].datums:
                         print(repr(datum), file=still_header)
 
-        frame_headers = open(os.path.join(directory, "frame_headers.txt"), 'w')
-        image_headers = open(os.path.join(directory, "image_headers.txt"), 'w')
-
+        headers = open(os.path.join(directory, "headers.txt"), 'w')
         sound = Sound()
 
         for i, chunk in enumerate(self.chunks):
             for j, frame in enumerate(chunk["frames"]):
                 # Handle the frame headers first
-                print(" --- {}-{} ---".format(i, j), file=frame_headers)
-                print(repr(frame[0]), file=frame_headers)
+                print(" --- {}-{} ---".format(i, j), file=headers)
+                print(repr(frame[0]), file=headers)
+                print(" \\\\\ ", file=headers)
 
                 # Now handle the actual frames
-                print(" --- {}-{} ---".format(i, j), file=image_headers)
-                print(repr(frame[1].header), file=image_headers)
+                print(repr(frame[1].header), file=headers)
 
                 if frame[1].image:
+                    if frame[1].image.header:
+                        print ("  |-- Image header --|  ", file=headers)
+                        print(repr(frame[1].image.header), file=headers)
+
                     frame[1].image.export(directory, "{}-{}".format(i, j), fmt=fmt[0], **kwargs)
 
-            if chunk["audio"]: sound.append(chunk["audio"])
+            if chunk["audio"]:
+                sound.append(chunk["audio"])
 
         sound.export(directory, "sound", fmt=fmt[1], **kwargs)
-
-        frame_headers.close()
-        image_headers.close()
+        headers.close()
 
     def __repr__(self):
         return "<Movie: chunks: {}>".format(len(self.chunks))
