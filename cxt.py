@@ -1082,17 +1082,18 @@ class System(Object):
         end = stream.tell() + read_riff(stream)
         chunk = read_chunk(stream)
 
-        logging.debug("Reading header information...")
+        logging.debug("System(): Reading header information...")
         header = Array(stream, datums=3)
         stream.read(2) # Why is a random 00 13 hanging around?
 
         header.datums += Array(stream, datums=5).datums
         self.name = header.datums[2].d
+        logging.info("Detected title: {}".format(self.name))
 
         unk = Array(stream, datums=2*3) # 401 402 403 (?)
 
         # Read resource information
-        logging.debug("Reading resource information...")
+        logging.debug("System(): Reading resource information...")
         self.resources = []
         type = Datum(stream)
         while type.d == RecordType.RES_NAME:
@@ -1106,7 +1107,7 @@ class System(Object):
             type = Datum(stream)
 
         # Read file headers
-        logging.debug("Reading file headers...")
+        logging.debug("System(): Reading file headers...")
         value_assert(type.d, BootRecord.FILES_1, "root signature")
         files = []
         while True: # breaking condition is below
@@ -1133,7 +1134,7 @@ class System(Object):
             else:
                 raise ValueError("Received unexpected file signature: {}".format(type.d))
 
-            logging.debug("Found file {}{} (refs: {})".format(
+            logging.debug("System(): Found file {}{} (refs: {})".format(
                 filenum.d, " ({})".format(refstring.d) if string else "", refs)
             )
 
@@ -1141,7 +1142,7 @@ class System(Object):
                 {"refs": refs, "filenum": filenum.d, "string": refstring.d if string else None}
             )
 
-        logging.debug("Categorizing data files...")
+        logging.debug("System(): Categorizing data files...")
         is_data = {}
         value_assert(Datum(stream).d, BootRecord.FILES_2)
         type = Datum(stream)
@@ -1151,7 +1152,7 @@ class System(Object):
             value_assert(Datum(stream).d, 0x0004)
             assert file.d == Datum(stream).d
 
-            logging.debug("Referenced data file {}".format(file.d))
+            logging.debug("System(): Referenced data file {}".format(file.d))
             type = Datum(stream)
 
         value_assert(type.d, 0x0000)
@@ -1169,7 +1170,7 @@ class System(Object):
             filetype = Datum(stream)
             filename = Datum(stream)
 
-            logging.debug("Read file link {} ({})".format(filename.d, id.d))
+            logging.debug("System(): Read file link {} ({})".format(filename.d, id.d))
             self.files.update(
                 # INSTALL.CXT has ID 3
                 {id.d: dict({"file": filename.d}, **(files.pop(0) if id.d != 0x0003 else {}))}
@@ -1191,7 +1192,7 @@ class System(Object):
             value_assert(Datum(stream).d, 0x002c)
             loc = Datum(stream)
 
-            logging.debug("Read RIFF for asset {} ({}:0x{:08x})".format(asset.d, self.files[id.d]["file"], loc.d))
+            logging.debug("System(): Read RIFF for asset {} ({}:0x{:08x})".format(asset.d, self.files[id.d]["file"], loc.d))
 
             # Note that this really should be a dictionary.
             self.riffs.append({"assetid": asset.d, "fileid": id.d, "offset": loc.d})
@@ -1209,7 +1210,7 @@ class System(Object):
             unk = Datum(stream)
             name = Datum(stream)
 
-            logging.debug("Read cursor {}: {} ({})".format(id.d, name.d, id.d))
+            logging.debug("System(): Read cursor {}: {} ({})".format(id.d, name.d, id.d))
             self.cursors.update({id.d: [unk.d, name.d]})
 
         self.footer = stream.read()
