@@ -24,6 +24,7 @@ class ChunkType(IntEnum):
     MOVIE_HEADER   = 0x06aa,
 
 class HeaderType(IntEnum):
+    LEGACY  = 0x000d,
     ROOT    = 0x000e,
     PALETTE = 0x05aa,
     UNK_D   = 0x0010,
@@ -66,6 +67,8 @@ class DatumType(IntEnum):
     REF     = 0x001b,
     BBOX    = 0x000d,
     POLY    = 0x001d,
+
+version = None
 
 def chunk_int(chunk):
     try: return int(chunk['code'][1:], 16)
@@ -184,6 +187,60 @@ class Ref(Object):
     def __repr__(self):
         return "<Ref: {} ({:0>4d})>".format(self.id(), self.id(string=True))
 
+class Bytecode(Object):
+    def __init__(self, stream, prologue):
+        self.id = None
+        if prologue: # for actual bytecode chunks, as opposed to 0x0017 asset headers
+            Datum(stream) # file ID
+            self.id = Datum(stream)
+        else:
+            self.type = Datum(stream)
+            Datum(stream)
+            # if self.type.d == 0x0005:
+            Datum(stream)
+
+        start = stream.tell()
+        initial = Datum(stream)
+        logging.debug("Bytecode(): Expecting {} bytes".format(initial.d))
+        self.code = self.chunk(initial, stream)
+        self.length = stream.tell() - start
+        value_assert(self.length - 0x006, self.code[0].d, "length")
+
+    def chunk(self, size, stream):
+        code = [size, []]
+        start = stream.tell()
+        while stream.tell() - start < size.d:
+            code[1].append(self.entity(Datum(stream), stream, end=start + size.d))
+
+        return code
+
+    def entity(self, token, stream, end):
+        if token.t == 0x0004:
+            return self.chunk(token, stream)
+
+        if token.d == 0x0067:
+            code = [token, []]
+            for _ in range(3):
+                code[1].append(self.entity(Datum(stream), stream, end))
+                if stream.tell() >= end:
+                    break
+        elif token.d == 0x0066:
+            code = [token, []]
+            for _ in range(2):
+                code[1].append(self.entity(Datum(stream), stream, end))
+                if stream.tell() >= end:
+                    break
+        elif token.d == 0x0065:
+            code = [token, []]
+            code[1].append(self.entity(Datum(stream), stream, end))
+        else:
+            code = [token]
+
+        return code
+
+    def __repr__(self):
+        return "<Bytecode: {} bytes, {} chunks>".format(self.length, len(self.code))
+
 class Point(Object):
     def __init__(self, m, **kwargs):
         if m:
@@ -273,8 +330,10 @@ class AssetHeader(Object):
         self.filenum = Datum(stream)
         self.type = Datum(stream)
         self.id = Datum(stream)
-        self.ref = None
-        self.triggers = {}
+        self.name = None
+        self.ref = []
+        self.triggers = []
+        self.mouse = []
 
         self.raw = {}
         type = Datum(stream)
@@ -283,28 +342,17 @@ class AssetHeader(Object):
             logging.debug("(@0x{:012x}) AssetHeader(): Read type 0x{:04x}".format(stream.tell(), type.d))
 
             if type.d == 0x0017: # TMR, MOV
-                if not self.triggers.get("timecode"):
-                    self.triggers.update({"timecode": []})
-
-                    # Only supports Garage, not Dalmatians bytecode.
-                token = Datum(stream)
-                while token.d != 0x0000:
-                    if token.d == 0x0005:
-                        Datum(stream)
-                        self.triggers["timecode"].append(Datum(stream))
-                    elif token.d == 0x0006 or token.d == 0x0011 or token.d == 0x0007:
-                        Datum(stream)
-
-                    Datum(stream)
-                    Datum(stream)
-                    token = Datum(stream)
+                logging.debug("--- BEGIN BYTECODE ---")
+                self.triggers = Bytecode(stream, prologue=False)
+                pprint.pprint(self.triggers.code)
+                logging.debug(self.triggers)
+                logging.debug("--- END BYTECODE ---")
             elif type.d == 0x0019: # STG, IMG, SPR, MOV, TXT, CAM, CVS
                 d = Datum(stream)
             elif type.d == 0x001a: # SND, MOV
                 d = Datum(stream)
             elif type.d == 0x001b: # SND, IMG, SPR, MOV, FON
                 if self.type.d == AssetType.MOV:
-                    self.ref = []
                     for _ in range(2):
                         self.ref.append(Datum(stream))
                         Datum(stream)
@@ -350,14 +398,29 @@ class AssetHeader(Object):
             elif type.d == 0x03e8: # SPR
                 self.chunks = Datum(stream)
             elif type.d == 0x03e9: # SPR
-                if not self.triggers.get("mouse"):
-                    self.triggers.update({"mouse": []})
-
-                self.triggers["mouse"].append(Array(stream, datums=3))
+                self.mouse.append(Array(stream, datums=3))
             elif type.d == 0x03ea:
                 d = Datum(stream)
             elif type.d == 0x03eb: # IMG, SPR, TXT, CVS
                 d = Datum(stream)
+            elif type.d == 0x03ec:
+                d = Datum(stream)
+            elif type.d == 0x03ed:
+                try:
+                    Array(stream, stop=(DatumType.UINT16, 0x0011))
+                    stream.seek(stream.tell() - 8)
+                except:
+                    stream.seek(stream.tell() - 4)
+                    return
+                # d = Datum(stream)
+            elif type.d == 0x03f4:
+                d = Datum(stream)
+            elif type.d == 0x0517:
+                try:
+                    Array(stream, stop=(DatumType.UINT16, 0x0011))
+                    stream.seek(stream.tell() - 8)
+                except:
+                    stream.seek(stream.tell() - 4)
             elif type.d == 0x05aa: # PAL
                 self.palette = stream.read(0x300)
             elif type.d == 0x05dc: # IMG, SPR, MOV, CVS
@@ -564,22 +627,26 @@ class Image(Object):
 class MovieHeaderOuter(Object):
     def __init__(self, stream):
         self.start = stream.tell()
-
-        value_assert(Datum(stream).d, 0x0001)
-        value_assert(Datum(stream).d, 0x0000)
         self.unks = []
 
-        self.unks.append(Datum(stream))
-        self.duration = (Datum(stream), Datum(stream)) # milliseconds
-        self.dims = Point(None, x=Datum(stream).d, y=Datum(stream).d) # inside bbox
-
-        for _ in range(3):
+        value_assert(Datum(stream).d, 0x0001)
+        self.unks.append(Datum(stream)) # value_assert(Datum(stream).d, 0x0000)
+        if is_legacy():
+            self.duration = (Datum(stream), Datum(stream)) # milliseconds
+            self.dims = Point(None, x=Datum(stream).d, y=Datum(stream).d) # inside bbox
+            for _ in range(2):
+                self.unks.append(Datum(stream))
+            self.index = Datum(stream)
+        else:
             self.unks.append(Datum(stream))
+            self.duration = (Datum(stream), Datum(stream)) # milliseconds
+            self.dims = Point(None, x=Datum(stream).d, y=Datum(stream).d) # inside bbox
 
-        self.index = Datum(stream)
-
-        for _ in range(2):
-            self.unks.append(Datum(stream))
+            for _ in range(3):
+                self.unks.append(Datum(stream))
+            self.index = Datum(stream)
+            for _ in range(2):
+                self.unks.append(Datum(stream))
 
     def __repr__(self):
         return "<MovieHeaderOuter: 0x{:06x}; index: {:03d}, duration: {}, dims: {}\n ---> unks: {}".format(
@@ -850,6 +917,7 @@ class Context(Object):
     def __init__(self, stream):
         self.riffs, total = self.get_prelude(stream)
 
+        self.functions = []
         self.refs = {}
         self.headers = {}
         self.stills = {}
@@ -865,11 +933,24 @@ class Context(Object):
         end = stream.tell() + read_riff(stream)
         chunk = read_chunk(stream)
 
-        while chunk["code"] == 'igod':
-            if Datum(stream).d != ChunkType.HEADER:
-                break
+        if not is_legacy(): # Headers stored in separate chunks
+            while chunk["code"] == 'igod':
+                if Datum(stream).d != ChunkType.HEADER:
+                    break
 
-            if not self.get_header(stream, chunk): break
+                if not self.get_header(stream, chunk): break
+                chunk = read_chunk(stream)
+        else: # Headers stored in one chunk.
+            logging.warning("CxtData(): Detected early compiler version; using legacy header lookup")
+            value_assert(Datum(stream).d, HeaderType.LEGACY)
+            self.get_header(stream, chunk)
+            chunk = read_chunk(stream)
+            start = stream.tell()
+
+            value_assert(Datum(stream).d, HeaderType.LEGACY)
+            while stream.tell() < chunk["size"] + start:
+                if not self.get_header(stream, chunk): break
+
             chunk = read_chunk(stream)
 
         ################ Minor assets ##################################
@@ -941,8 +1022,14 @@ class Context(Object):
         elif type.d == HeaderType.ROOT:
             logging.debug("(@0x{:012x}) CxtData.get_header(): Found context root".format(stream.tell()))
             assert not self.root # We cannot have more than 1 root
-            self.root = Array(stream, bytes=chunk["size"] - 8) # We read 2 datums
-        elif type.d == HeaderType.ASSET or type.d == HeaderType.FUNC:
+            if not is_legacy():
+                self.root = Array(stream, bytes=chunk["size"] - 8) # We read 2 datums
+            else:
+                self.root = Array(stream, stop=(DatumType.UINT16, 0x0011))
+                self.root.datums += Array(stream, stop=(DatumType.UINT16, 0x0011)).datums
+                self.root.datums += Array(stream, stop=(DatumType.UINT16, 0x0011)).datums
+                stream.seek(stream.tell() - 4)
+        elif type.d == HeaderType.ASSET or (type.d == HeaderType.ROOT and is_legacy()):
             contents = [AssetHeader(stream)]
 
             if contents[0].type.d == AssetType.STG:
@@ -962,16 +1049,18 @@ class Context(Object):
                         header, header.targets if type.d == HeaderType.FUNC else None)
                     )
 
-                # TODO: Clean up bytecode handling big-time.
-                if type.d == HeaderType.FUNC:
-                    logging.info("CxtData.get_header(): Found bytecode >>> {}".format(header))
-                    logging.info(pprint.pformat(header.data.datums))
-
-            if contents[0].type.d != AssetType.STG:
+            if contents[0].type.d != AssetType.STG and not is_legacy():
                 value_assert(Datum(stream).d, 0x00, "end-of-chunk flag")
-        elif type.d == HeaderType.UNK_D:
-            logging.warning("CxtData.get_header(): Found unknown header type 0x0010")
-            stream.seek(stream.tell() + chunk["size"] - 0x04)
+
+                if stream.tell() % 2 == 1:
+                    stream.read(1)
+        elif type.d == HeaderType.FUNC:
+            logging.debug("Found bytecode chunk")
+            self.functions.append(Bytecode(stream, prologue=True))
+            value_assert(Datum(stream).d, 0x00, "end-of-chunk flag")
+        elif type.d == 0x0000:
+            raise ValueError("Leftover end-of-chunk flags should not be present")
+            # return True
         else:
             raise TypeError("Unknown header type: {}".format(type))
 
@@ -1057,6 +1146,9 @@ class System(Object):
     def __init__(self, directory, stream):
         self.directory = directory
 
+        global version
+        version = {"number": (0, 0, 0), "string": None}
+
         self.resources = {}
         self.contexts = {}
         self.assets = {}
@@ -1066,7 +1158,6 @@ class System(Object):
         self.cursors = {}
 
         self.name = None
-        self.version = None
         self.source = None
 
         end = stream.tell() + read_riff(stream)
@@ -1081,14 +1172,14 @@ class System(Object):
             if type.d == 0x190: # No metadata: LIONKING
                 self.name = Datum(stream)
                 stream.read(2)
-                self.version = {
-                    "number": (Datum(stream), Datum(stream), Datum(stream)),
+                version = {
+                    "number": (Datum(stream).d, Datum(stream).d, Datum(stream).d),
                     "string": Datum(stream)
                 }
                 self.source = Datum(stream)
 
-                logging.info("System(): 1. Detected title: {} (compiler version {:01d}.{:02d}.{:02d})".format(
-                    self.name.d, *[digit.d for digit in self.version["number"]])
+                logging.info("System(): 1. Detected title: {} (compiler version {:01d}.{:02d}.{:02d}{})".format(
+                    self.name.d, *[digit for digit in version["number"]], " LEGACY" if is_legacy() else "")
                 )
             elif type.d == 0x191 or type.d == 0x192 or type.d == 0x193:
                 logging.warning("System(): 2. Detected unknown field 0x{:04x}: 0x{:04x}".format(type.d, Datum(stream).d))
@@ -1203,6 +1294,10 @@ class System(Object):
         for id, entry in self.files.items():
             try:
                 cxtname = resolve_filename(self.directory, entry["file"])
+                if os.path.getsize(cxtname) == 0x10: # Some legacy titles have an empty root entry
+                    logging.warning("System.parse(): Skipping empty context {} ({})".format(entry["file"], id))
+                    continue
+
                 with open(cxtname, mode='rb') as f:
                     stream = mmap.mmap(f.fileno(), length=0, access=mmap.ACCESS_READ)
                     logging.info("System.parse(): Opened context {} ({})".format(entry["file"], id))
@@ -1298,6 +1393,9 @@ def resolve_filename(directory, filename):
         open(os.path.join(directory, filename)) # raise exception
 
     return os.path.join(directory, entries.get(filename.lower()))
+
+def is_legacy():
+    return version and version["number"][1] < 2
 
 def log_location(file, position):
     logging.error("Exception at {}:0x{:012x}".format(file, position))
