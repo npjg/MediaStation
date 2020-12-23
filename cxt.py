@@ -1271,7 +1271,7 @@ def main(args):
                     cxt.parse(stream)
                     cxt.majors(stream)
                 except Exception as e:
-                    log_location(input, stream.tell())
+                    log_location(args.input, stream.tell())
                     raise
 
                 if export: cxt.export(export)
@@ -1279,7 +1279,11 @@ def main(args):
                 if args.export:
                     logging.warning("Only parsing system information; ignoring export flag")
 
-                System(None, stream)
+                try:
+                    System(None, stream)
+                except Exception as e:
+                    log_location(args.input, stream.tell())
+                    raise
             else:
                 raise ValueError(
                     "Ambiguous input file extension. Ensure a numeric context (CXT) or system (STM) file has been passed."
