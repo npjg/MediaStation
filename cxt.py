@@ -1202,7 +1202,7 @@ class System(Object):
         logging.info("System.parse(): Parsing full title{}!".format(": {}".format(self.name.d) if self.name else ""))
         for id, entry in self.files.items():
             try:
-                cxtname = os.path.join(self.directory, entry["file"])
+                cxtname = resolve_filename(self.directory, entry["file"])
                 with open(cxtname, mode='rb') as f:
                     stream = mmap.mmap(f.fileno(), length=0, access=mmap.ACCESS_READ)
                     logging.info("System.parse(): Opened context {} ({})".format(entry["file"], id))
@@ -1250,7 +1250,7 @@ class System(Object):
 def main(args):
     stream = None
     if os.path.isdir(args.input):
-        with open(os.path.join(args.input, "boot.stm"), mode='rb') as f:
+        with open(resolve_filename(args.input, "boot.stm"), mode='rb') as f:
             stream = mmap.mmap(f.fileno(), length=0, access=mmap.ACCESS_READ)
 
             try:
@@ -1290,6 +1290,14 @@ def main(args):
                 )
     else:
         raise ValueError("The path specified is invalid or does not exist.")
+
+def resolve_filename(directory, filename):
+    # I don't need a recursive listing (i.e. checking directories for inconsistency)
+    entries = {entry.lower(): entry for entry in os.listdir(directory)}
+    if not entries.get(filename.lower()):
+        open(os.path.join(directory, filename)) # raise exception
+
+    return os.path.join(directory, entries.get(filename.lower()))
 
 def log_location(file, position):
     logging.error("Exception at {}:0x{:012x}".format(file, position))
