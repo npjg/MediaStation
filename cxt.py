@@ -267,7 +267,7 @@ class Array(Object):
         return "<Array: size: {:0>4d}>".format(len(self.datums))
 
 class AssetHeader(Object):
-    def __init__(self, stream):
+    def __init__(self, stream, stage=False):
         logging.debug("AssetHeader(): Beginning header read")
 
         self.filenum = Datum(stream)
@@ -292,7 +292,7 @@ class AssetHeader(Object):
                     if token.d == 0x0005:
                         Datum(stream)
                         self.triggers["timecode"].append(Datum(stream))
-                    elif token.d == 0x0006 or token.d == 0x0011:
+                    elif token.d == 0x0006 or token.d == 0x0011 or token.d == 0x0007:
                         Datum(stream)
 
                     Datum(stream)
@@ -401,17 +401,17 @@ class AssetHeader(Object):
 
         logging.debug("(@0x{:012x}) AssetHeader(): Finished reading asset header".format(stream.tell()))
 
-        # CAUTION: Potential infinite recursion if file is malformed.
         if self.type.d == AssetType.STG:
             self.children = []
 
-            # type = Datum(stream)
             value_assert(Datum(stream).d, HeaderType.LINK, "link signature")
             value_assert(Datum(stream).d, self.id.d, "asset id")
 
+            if stage: return # Tonka Raceway has embedded stages!
+
             type = Datum(stream)
             while type.d == HeaderType.ASSET:
-                self.children.append(AssetHeader(stream))
+                self.children.append(AssetHeader(stream, stage=True))
                 type = Datum(stream)
 
     def __repr__(self):
@@ -592,7 +592,7 @@ class MovieHeaderInner(Object):
 
         value_assert(Datum(stream).d, 0x0028)
         self.dims = Datum(stream)
-        value_assert(Datum(stream).d, 0x0001)
+        unk2 = Datum(stream) # Tonka Raceway: 0x0006
         unk1 = Datum(stream)
         self.index = Datum(stream)
         self.end = Datum(stream)
