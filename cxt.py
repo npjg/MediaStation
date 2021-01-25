@@ -1158,8 +1158,8 @@ class Context(Object):
 ############### SYSTEM PARSER (BOOT.STM)  ################################
 
 class System(Object):
-    def __init__(self, directory, stream):
-        self.directory = directory
+    def __init__(self, argv, stream):
+        self.argv = argv
 
         global version
         version = {"number": (0, 0, 0), "string": None}
@@ -1301,14 +1301,14 @@ class System(Object):
         self.footer = stream.read()
         logging.debug(pprint.pformat(self.files))
 
-    def parse(self, export):
+    def parse(self):
         riffs = self.riffs
         riffs.reverse()
 
         logging.info("System.parse(): Parsing full title{}!".format(": {}".format(self.name.d) if self.name else ""))
         for id, entry in self.files.items():
             try:
-                cxtname = resolve_filename(self.directory, entry["file"])
+                cxtname = resolve_filename(self.argv.input, entry["file"])
                 if os.path.getsize(cxtname) == 0x10: # Some legacy titles have an empty root entry
                     logging.warning("System.parse(): Skipping empty context {} ({})".format(entry["file"], id))
                     continue
@@ -1327,7 +1327,8 @@ class System(Object):
                         cxt.parse(stream)
                         self.headers.update(cxt.headers)
 
-                        if export: cxt.export(export)
+                        if self.argv.export:
+                            cxt.export(os.path.join(self.argv.export, str(entry["filenum"]) if self.argv.separate else ""))
 
                     # Now process all major assets in this file.
                     for i in range(cxt.riffs-1):
@@ -1348,7 +1349,11 @@ class System(Object):
                         read_riff(stream)
 
                         asset = self.contexts[header.filenum.d].get_major_asset(stream)[riff["assetid"]]
-                        if export: self.contexts[header.filenum.d].export_structured_asset(export, asset, riff["assetid"])
+                        if self.argv.export:
+                            self.contexts[header.filenum.d].export_structured_asset(
+                                os.path.join(self.argv.export, str(entry["filenum"]) if self.argv.separate else ""),
+                                asset, riff["assetid"]
+                            )
             except Exception as e:
                 log_location(cxtname, stream.tell())
                 traceback.print_exc()
@@ -1364,8 +1369,8 @@ def main(args):
             stream = mmap.mmap(f.fileno(), length=0, access=mmap.ACCESS_READ)
 
             try:
-                stm = System(args.input, stream)
-                stm.parse(args.export)
+                stm = System(args, stream)
+                stm.parse()
             except Exception as e:
                 log_location(os.path.join(args.input, "boot.stm"), stream.tell())
                 raise
@@ -1422,6 +1427,11 @@ if __name__ == "__main__":
 
     parser.add_argument(
         "input", help="Pass a context (CXT) or system (STM) filename to process the file, or pass a game data directory to process the whole game."
+    )
+
+    parser.add_argument(
+        '-s', "--separate", default=None, action="store_true",
+        help="When exporting, create a new subdirectory for each context. By default, a flat structure with all asset ID directories will be created."
     )
 
     parser.add_argument(
