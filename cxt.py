@@ -1369,7 +1369,7 @@ def main(args):
                     log_location(args.input, stream.tell())
                     raise
 
-                if export: cxt.export(export)
+                if args.export: cxt.export(args.export)
             elif os.path.split(args.input)[1].lower() == "boot.stm":
                 if args.export:
                     logging.warning("Only parsing system information; ignoring export flag")
