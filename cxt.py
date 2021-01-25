@@ -1073,7 +1073,7 @@ class Context(Object):
         header = self.refs[chunk_int(chunk)]
         logging.debug("(@0x{:012x}) CxtData.get_minor_asset(): {}".format(stream.tell(), header))
 
-        if header.type.d == AssetType.IMG:
+        if header.type.d == AssetType.IMG or header.type.d == AssetType.CAM:
             self.assets.update(self.make_structured_asset(header, Image(stream, size=chunk["size"])))
         elif header.type.d == AssetType.SND:
             if not header.id.d in self.assets:
