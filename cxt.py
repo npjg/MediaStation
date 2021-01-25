@@ -233,6 +233,9 @@ class Bytecode(Object):
         elif token.d == 0x0065:
             code = [token, []]
             code[1].append(self.entity(Datum(stream), stream, end))
+        elif token.d == 0x009a: # character string
+            size = Datum(stream)
+            code = [stream.read(size.d)]
         else:
             code = [token]
 
