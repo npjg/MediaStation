@@ -190,10 +190,7 @@ class Ref(Object):
 class Bytecode(Object):
     def __init__(self, stream, prologue):
         self.id = None
-        if prologue: # for actual bytecode chunks, as opposed to 0x0017 asset headers
-            Datum(stream) # file ID
-            self.id = Datum(stream)
-        else:
+        if not prologue: # for 0x0017 asset headers
             self.type = Datum(stream)
             Datum(stream)
             # if self.type.d == 0x0005:
@@ -920,7 +917,7 @@ class Context(Object):
     def __init__(self, stream):
         self.riffs, total = self.get_prelude(stream)
 
-        self.functions = []
+        self.functions = {}
         self.refs = {}
         self.headers = {}
         self.stills = {}
@@ -1058,9 +1055,10 @@ class Context(Object):
                 if stream.tell() % 2 == 1:
                     stream.read(1)
         elif type.d == HeaderType.FUNC:
-            logging.debug("Found bytecode chunk")
-            self.functions.append(Bytecode(stream, prologue=True))
-            value_assert(Datum(stream).d, 0x00, "end-of-chunk flag")
+            Datum(stream) # file ID
+            self.functions.update({Datum(stream).d: Bytecode(stream, prologue=True)})
+            if not is_legacy():
+                value_assert(Datum(stream).d, 0x00, "end-of-chunk flag")
         elif type.d == 0x0000:
             raise ValueError("Leftover end-of-chunk flags should not be present")
             # return True
