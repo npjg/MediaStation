@@ -238,6 +238,10 @@ class Bytecode(Object):
 
         return code
 
+    def export(self, directory, filename, **kwargs):
+        with open(os.path.join(directory, filename + ".txt"), 'w') as bytecode:
+            pprint.pprint(self.code, stream=bytecode)
+
     def __repr__(self):
         return "<Bytecode: {} bytes, {} chunks>".format(self.length, len(self.code))
 
@@ -1118,6 +1122,9 @@ class Context(Object):
         for id, asset in self.assets.items():
             self.export_structured_asset(directory, asset, id)
 
+        for id, func in self.functions.items():
+            self.export_function(directory, func, id)
+
         if self.junk and len(self.junk) > 0:
             with open(os.path.join(directory, "junk"), 'wb') as f:
                 f.write(self.junk)
@@ -1131,10 +1138,17 @@ class Context(Object):
 
         with open(os.path.join(path, "{}.txt".format(id)), 'w') as header:
             print(repr(asset["header"]), file=header)
-            print(repr(asset["header"]), file=header)
 
         # TODO: Get palette handling generalized.
         if asset["asset"]: asset["asset"].export(path, str(id), palette=self.palette, with_header=True)
+
+    def export_function(self, directory, func, id):
+        logging.info("CxtData.export_function()(): Exporting function {}".format(id))
+
+        path = os.path.join(directory, str(id))
+        Path(path).mkdir(parents=True, exist_ok=True)
+
+        func.export(path, str(id))
 
     @staticmethod
     def make_structured_asset(header, asset):
