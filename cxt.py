@@ -3,18 +3,18 @@
 import argparse
 import logging
 
-from enum import IntEnum
 import struct
 import io
-from pathlib import Path
 import os
 import subprocess
 import mmap
 import pprint
-
 import traceback
+import json
 
 import PIL.Image as PILImage
+from enum import IntEnum
+from pathlib import Path
 
 class ChunkType(IntEnum):
     HEADER         = 0x000d,
@@ -117,6 +117,15 @@ def value_assert(stream, target, type="value", warn=False):
     else:
         assert ax == target, msg
 
+def dumper(obj):
+    if isinstance(obj, Datum):
+        return obj.d
+    elif isinstance(obj, bytes):
+        return list(obj)
+    else:
+        return obj.__dict__
+
+json_options = {"default": dumper}
 
 ############### INTERNAL DATA REPRESENTATIONS ############################
 
@@ -239,11 +248,11 @@ class Bytecode(Object):
         return code
 
     def export(self, directory, filename, **kwargs):
-        with open(os.path.join(directory, filename + ".txt"), 'w') as bytecode:
-            pprint.pprint(self.code, stream=bytecode)
+        with open(os.path.join(directory, filename + ".json"), 'w') as f:
+            json.dump(self.code, fp=f, **json_options)
 
     def __repr__(self):
-        return "<Bytecode: {} bytes, {} chunks>".format(self.length, len(self.code))
+        return "<Bytecode: bytes: {}; chunks: {}>".format(self.length, len(self.code))
 
 class Point(Object):
     def __init__(self, m, **kwargs):
@@ -314,15 +323,14 @@ class Array(Object):
         for datum in self.datums:
             logging.debug(" -> {}".format(datum))
 
-    def export(self, directory, filename, fmt="bytes.txt", **kwargs):
+    def export(self, directory, filename, fmt="json", **kwargs):
         filename = os.path.join(directory, filename)
 
         if filename[-4:] != ".{}".format(fmt):
             filename += (".{}".format(fmt))
 
         with open(filename, 'w') as f:
-            for datum in self.datums:
-                print(datum, file=f)
+            json.dump(self.datums, fp=f, **json_options)
 
     def __repr__(self):
         return "<Array: size: {:0>4d}; bytes: {:0>4d}>".format(len(self.datums), self.bytes)
@@ -346,11 +354,7 @@ class AssetHeader(Object):
             logging.debug("(@0x{:012x}) AssetHeader(): Read type 0x{:04x}".format(stream.tell(), type.d))
 
             if type.d == 0x0017: # TMR, MOV
-                logging.debug("--- BEGIN BYTECODE ---")
-                self.triggers = Bytecode(stream, prologue=False)
-                pprint.pprint(self.triggers.code)
-                logging.debug(self.triggers)
-                logging.debug("--- END BYTECODE ---")
+                self.triggers.append(Bytecode(stream, prologue=False))
             elif type.d == 0x0019: # STG, IMG, SPR, MOV, TXT, CAM, CVS
                 d = Datum(stream)
             elif type.d == 0x001a: # SND, MOV
@@ -504,17 +508,13 @@ class AssetLink(Object):
 
 class ImageHeader(Object):
     def __init__(self, stream):
-        self.start = stream.tell()
-
         value_assert(Datum(stream).d, ChunkType.IMAGE, "image signature") # Is this actually a byte count?
         self.dims = Datum(stream)
         self.compressed = Datum(stream)
         self.unk1 = Datum(stream)
 
     def __repr__(self):
-        return "<ImageHeader: 0x{:06x}; dims: {}, compressed: {}, unk1: 0x{:04x} ({:04d})".format(
-            self.start, self.dims.d, self.compressed.d, self.unk1.d, self.unk1.d
-        )
+        return "<ImageHeader: dims: {}, compressed: {}>".format(self.dims.d, self.compressed.d)
 
 class Image(Object):
     def __init__(self, stream, size, dims=None):
@@ -600,8 +600,8 @@ class Image(Object):
 
         filename = os.path.join(directory, filename)
         if kwargs.get("with_header") and self.header:
-            with open(os.path.join(directory, "header.txt"), 'w') as header:
-                print(repr(self.header), file=header)
+            with open(os.path.join(directory, filename + ".json"), 'w') as f:
+                json.dump(self.header, fp=f, **json_options)
 
         if filename[-4:] != ".{}".format(fmt):
             filename += (".{}".format(fmt))
@@ -630,7 +630,6 @@ class Image(Object):
 
 class MovieHeaderOuter(Object):
     def __init__(self, stream):
-        self.start = stream.tell()
         self.unks = []
 
         value_assert(Datum(stream).d, 0x0001)
@@ -653,14 +652,10 @@ class MovieHeaderOuter(Object):
                 self.unks.append(Datum(stream))
 
     def __repr__(self):
-        return "<MovieHeaderOuter: 0x{:06x}; index: {:03d}, duration: {}, dims: {}\n ---> unks: {}".format(
-            self.start, self.index.d, ["{:06d}".format(d.d) for d in self.duration], self.dims, pprint.pformat(self.unks)
-        )
+        return "<MovieHeaderOuter: index: {:03d}>".format(self.index.d)
 
 class MovieHeaderInner(Object):
     def __init__(self, stream):
-        self.start = stream.tell()
-
         value_assert(Datum(stream).d, 0x0028)
         self.dims = Datum(stream)
         unk2 = Datum(stream) # Tonka Raceway: 0x0006
@@ -669,9 +664,7 @@ class MovieHeaderInner(Object):
         self.end = Datum(stream)
 
     def __repr__(self):
-        return "<MovieHeaderInner: 0x{:06x}; index: {:03d}, end: {:06d}, dims: {}".format(
-            self.start, self.index.d, self.end.d, self.dims.d
-        )
+        return "<MovieHeaderInner: index: {:03d}>".format(self.index.d)
 
 class MovieFrame(Object):
     def __init__(self, stream, size):
@@ -745,43 +738,37 @@ class Movie(Object):
         if self.stills:
             for i, still in enumerate(zip(self.stills[0], self.stills[1])):
                 still[0].image.export(directory, "still-{}".format(i), fmt=fmt[0], **kwargs)
-                with open(os.path.join(directory, "still-{}.txt".format(i)), 'w') as still_header:
-                    for datum in still[1].datums:
-                        print(repr(datum), file=still_header)
+                with open(os.path.join(directory, "still-{}.json".format(i)), 'w') as f:
+                    json.dump(still[1], fp=f, **json_options)
 
-        headers = open(os.path.join(directory, "headers.txt"), 'w')
         sound = Sound(encoding=0x0010)
+        headers = {}
 
         for i, chunk in enumerate(self.chunks):
             for j, frame in enumerate(chunk["frames"]):
+                has_image = frame[1].image and frame[1].image.header
+                key = "{}-{}".format(i, j)
+
                 # Handle the frame headers first
-                print(" --- {}-{} ---".format(i, j), file=headers)
-                print(repr(frame[0]), file=headers)
-                print(" \\\\\ ", file=headers)
+                headers.update({
+                    key: [frame[0], frame[1].header, frame[1].image.header if has_image else None]
+                })
 
                 # Now handle the actual frames
-                print(repr(frame[1].header), file=headers)
-
-                if frame[1].image:
-                    if frame[1].image.header:
-                        print ("  |-- Image header --|  ", file=headers)
-                        print(repr(frame[1].image.header), file=headers)
-
-                    frame[1].image.export(directory, "{}-{}".format(i, j), fmt=fmt[0], **kwargs)
+                if has_image: frame[1].image.export(directory, "{}-{}".format(i, j), fmt=fmt[0], **kwargs)
 
             if chunk["audio"]:
                 sound.append(chunk["audio"])
 
         sound.export(directory, "sound", fmt=fmt[1], **kwargs)
-        headers.close()
+        with open(os.path.join(directory, filename + ".json"), 'w') as f:
+            json.dump(headers, fp=f, **json_options)
 
     def __repr__(self):
         return "<Movie: chunks: {}>".format(len(self.chunks))
 
 class SpriteHeader(Object):
     def __init__(self, stream):
-        self.start = stream.tell()
-
         value_assert(Datum(stream).d, 0x0024) # Is this a size?
         self.dims = Datum(stream)
         value_assert(Datum(stream).d, 0x0001)
@@ -790,9 +777,7 @@ class SpriteHeader(Object):
         self.bbox = Datum(stream)
 
     def __repr__(self):
-        return "<SpriteHeader: 0x{:06x}; index: {}, dims: {}, bbox: {}, unk: 0x{:04x}>".format(
-            self.start, self.index.d, self.dims.d, self.bbox.d, self.unk1.d
-        )
+        return "<SpriteHeader: index: {}".format(self.index.d)
 
 class Sprite(Object):
     def __init__(self):
@@ -808,21 +793,17 @@ class Sprite(Object):
         })
 
     def export(self, directory, filename, fmt="png", **kwargs):
-        with open(os.path.join(directory, "headers.txt"), 'w') as headers:
-            for i, frame in enumerate(self.frames):
-                print(" --- {} --- ".format(i), file=headers)
-                print(repr(frame["header"]), file=headers)
+        headers = {}
 
-                if frame["image"].header:
-                    print ("  |-- Image header --|  ", file=headers)
-                    print(repr(frame["image"].header), file=headers)
+        for i, frame in enumerate(self.frames):
+            headers.update({i: [frame["header"], frame["image"].header]})
+            frame["image"].export(directory, str(i), fmt=fmt, **kwargs)
 
-                frame["image"].export(directory, str(i), fmt=fmt, **kwargs)
+        with open(os.path.join(directory, filename + ".json"), 'w') as f:
+            json.dump(headers, fp=f, **json_options)
 
 class FontHeader(Object):
     def __init__(self, stream):
-        self.start = stream.tell()
-
         self.asc = Datum(stream) 
         self.unk1 = Datum(stream)
         self.unk2 = Datum(stream)
@@ -832,9 +813,7 @@ class FontHeader(Object):
         self.unk3 = Datum(stream)
 
     def __repr__(self):
-        return "<FontHeader: 0x{:06x}; ascii: 0x{:04x}, dims: {}, unk1: 0x{:04x}, unk2: 0x{:04x}, unk3: 0x{:04x}>".format(
-            self.start, self.asc.d, self.dims.d, self.unk1.d, self.unk2.d, self.unk3.d
-        )
+        return "<FontHeader: ascii: 0x{:04x}>".format(self.asc.d)
 
 class Font(Object):
     def __init__(self):
@@ -850,16 +829,14 @@ class Font(Object):
         })
 
     def export(self, directory, filename, fmt="png", **kwargs):
-        with open(os.path.join(directory, "headers.txt"), 'w') as headers:
-            for i, glyph in enumerate(self.glyphs):
-                print(" --- {} ---".format(i), file=headers)
-                print(repr(glyph["header"]), file=headers)
+        headers = {}
 
-                if glyph["glyph"].header:
-                    print ("  |-- Image header --|  ", file=headers)
-                    print(repr(glyph["glyph"].header), file=headers)
+        for i, frame in enumerate(self.glyphs):
+            headers.update({i: [frame["header"], frame["glyph"].header]})
+            frame["glyph"].export(directory, str(i), fmt=fmt, **kwargs)
 
-                glyph["glyph"].export(directory, str(i), fmt=fmt, **kwargs)
+        with open(os.path.join(directory, filename + ".json"), 'w') as f:
+            json.dump(headers, fp=f, **json_options)
 
 class Sound(Object):
     def __init__(self, stream=None, chunk=None, **kwargs):
@@ -1136,8 +1113,8 @@ class Context(Object):
         path = os.path.join(directory, str(id))
         Path(path).mkdir(parents=True, exist_ok=True)
 
-        with open(os.path.join(path, "{}.txt".format(id)), 'w') as header:
-            print(repr(asset["header"]), file=header)
+        with open(os.path.join(path, "{}.json".format(id)), 'w') as f:
+            json.dump(asset["header"], fp=f, **json_options)
 
         # TODO: Get palette handling generalized.
         if asset["asset"]: asset["asset"].export(path, str(id), palette=self.palette, with_header=True)
