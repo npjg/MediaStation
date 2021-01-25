@@ -1056,7 +1056,7 @@ class Context(Object):
                     stream.read(1)
         elif type.d == HeaderType.FUNC:
             Datum(stream) # file ID
-            self.functions.update({Datum(stream).d: Bytecode(stream, prologue=True)})
+            self.functions.update({Datum(stream).d + 0x4dbc: Bytecode(stream, prologue=True)})
             if not is_legacy():
                 value_assert(Datum(stream).d, 0x00, "end-of-chunk flag")
         elif type.d == 0x0000:
