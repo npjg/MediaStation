@@ -1331,29 +1331,30 @@ class System(Object):
                             cxt.export(os.path.join(self.argv.export, str(entry["filenum"]) if self.argv.separate else ""))
 
                     # Now process all major assets in this file.
-                    for i in range(cxt.riffs-1):
-                        riff = riffs.pop()
-                        header = self.headers[riff["assetid"]]
+                    if not self.argv.first_chunk_only:
+                        for i in range(cxt.riffs-1):
+                            riff = riffs.pop()
+                            header = self.headers[riff["assetid"]]
 
-                        logging.debug(
-                            "System.parse(): ({}) Parsing major asset {}@0x{:012x} ({} of {})...".format(
-                                entry["file"], riff["assetid"], riff["offset"], i+1, cxt.riffs-1
+                            logging.debug(
+                                "System.parse(): ({}) Parsing major asset {}@0x{:012x} ({} of {})...".format(
+                                    entry["file"], riff["assetid"], riff["offset"], i+1, cxt.riffs-1
+                                )
                             )
-                        )
-                        logging.debug(" >>> {} ".format(header))
+                            logging.debug(" >>> {} ".format(header))
 
-                        if stream.tell() % 2 == 1:
-                            stream.read(1)
+                            if stream.tell() % 2 == 1:
+                                stream.read(1)
 
-                        value_assert(stream.tell(), riff["offset"], "stream position")
-                        read_riff(stream)
+                            value_assert(stream.tell(), riff["offset"], "stream position")
+                            read_riff(stream)
 
-                        asset = self.contexts[header.filenum.d].get_major_asset(stream)[riff["assetid"]]
-                        if self.argv.export:
-                            self.contexts[header.filenum.d].export_structured_asset(
-                                os.path.join(self.argv.export, str(entry["filenum"]) if self.argv.separate else ""),
-                                asset, riff["assetid"]
-                            )
+                            asset = self.contexts[header.filenum.d].get_major_asset(stream)[riff["assetid"]]
+                            if self.argv.export:
+                                self.contexts[header.filenum.d].export_structured_asset(
+                                    os.path.join(self.argv.export, str(entry["filenum"]) if self.argv.separate else ""),
+                                    asset, riff["assetid"]
+                                )
             except Exception as e:
                 log_location(cxtname, stream.tell())
                 traceback.print_exc()
@@ -1384,7 +1385,9 @@ def main(args):
                 try:
                     cxt = Context(stream)
                     cxt.parse(stream)
-                    cxt.majors(stream)
+
+                    if not args.first_chunk_only:
+                        cxt.majors(stream)
                 except Exception as e:
                     log_location(args.input, stream.tell())
                     raise
@@ -1434,6 +1437,10 @@ if __name__ == "__main__":
         help="When exporting, create a new subdirectory for each context. By default, a flat structure with all asset ID directories will be created."
     )
 
+    parser.add_argument(
+        "-f", "--first-chunk-only", default=None, action="store_true",
+        help="Only parse the first chunk, containing asset headers, functions, and minor assets."
+    )
     parser.add_argument(
         '-e', "--export", default=None,
         help="Specify the location for exporting assets. Assets are not exported if not provided"
