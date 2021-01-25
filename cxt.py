@@ -908,7 +908,7 @@ class Sound(Object):
                 raise ValueError("Sound.export(): Received unknown encoding specifier: 0x{:04x}.".format(self.encoding))
                 command = ['ffmpeg', '-y', '-f', 's16le', '-ar', '11.025k', '-ac', '2', '-i', 'pipe:', filename]
 
-            with subprocess.Popen(command, stdin=subprocess.PIPE, stdout=subprocess.PIPE) as process:
+            with subprocess.Popen(command, stdin=subprocess.PIPE, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL) as process:
                 for chunk in self.chunks:
                     process.stdin.write(chunk)
 
