@@ -7,7 +7,7 @@ import traceback
 
 import cxt
 
-def main(inp, start, end): 
+def main(inp, start, end=None): 
     with open(inp, mode='rb') as f:
         stream = mmap.mmap(f.fileno(), length=0, access=mmap.ACCESS_READ)
         stream.seek(start)
@@ -54,25 +54,18 @@ if __name__ == "__main__":
     )
 
     parser.add_argument(
-        "-c", "--chunk", default=None, nargs=1, type=auto_int,
-        help="Pass the starting address of a chunk here to parse all datums in the chunk."
+        "range", nargs='+', type=auto_int,
+        help="The address range to dump. If only one address is provided, it is treated as the start of an IFF chunk."
     )
 
-    parser.add_argument(
-        "-a", "--addrs", default=None, nargs=2, type=auto_int,
-        help="Manually set the starting and ending addresses to parse. The ending address will be aligned up to inclue a full datum at the end."
-    )
 
-    logging.basicConfig(level=logging.DEBUG)
+    # logging.basicConfig(level=logging.DEBUG)
     args = parser.parse_args()
 
-    if args.chunk and args.addrs:
-        raise argparse.ArgumentTypeError("Conflict between chunk and address spefifications. Please supply only one.")
-    elif not args.chunk and not args.addrs:
-        raise argparse.ArgumentTypeError("At least one of the chunk or address spefifications must be supplied.")
-    elif args.chunk:
-        main(args.input, args.chunk[0], None)
-    elif args.addrs:
+    if len(args.range) == 2:
         logging.info("When using manual address mode, make sure the start address is on a datum boundary or strange parser errors will result!")
-        main(args.input, *args.addrs)
+    elif len(args.range) > 2:
+        raise argparse.ArgumentTypeError("More than two range addresses specified")
+
+    main(args.input, *args.range)
 
