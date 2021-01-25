@@ -321,7 +321,7 @@ class Array(Object):
                 print(datum, file=f)
 
     def __repr__(self):
-        return "<Array: size: {:0>4d}>".format(len(self.datums))
+        return "<Array: size: {:0>4d}; bytes: {:0>4d}>".format(len(self.datums), self.bytes)
 
 class AssetHeader(Object):
     def __init__(self, stream, stage=False):
