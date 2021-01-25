@@ -214,7 +214,7 @@ class Bytecode(Object):
 
         return code
 
-    def entity(self, token, stream, end):
+    def entity(self, token, stream, end, string=False):
         if token.t == 0x0004:
             return self.chunk(token, stream)
 
@@ -226,14 +226,14 @@ class Bytecode(Object):
                     break
         elif token.d == 0x0066:
             code = [token, []]
-            for _ in range(2):
-                code[1].append(self.entity(Datum(stream), stream, end))
+            for i in range(2):
+                code[1].append(self.entity(Datum(stream), stream, end, string=not i))
                 if stream.tell() >= end:
                     break
         elif token.d == 0x0065:
             code = [token, []]
             code[1].append(self.entity(Datum(stream), stream, end))
-        elif token.d == 0x009a: # character string
+        elif token.d == 0x009a and string: # character string
             size = Datum(stream)
             code = [stream.read(size.d)]
         else:
