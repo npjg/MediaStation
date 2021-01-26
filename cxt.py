@@ -1289,7 +1289,7 @@ class System(Object):
                         self.headers.update(cxt.headers)
 
                         if self.argv.export:
-                            cxt.export(os.path.join(self.argv.export, str(entry["filenum"]) if self.argv.separate else ""))
+                            cxt.export(os.path.join(self.argv.export, str(entry["filenum"]) if self.argv.separate_context_dirs else ""))
 
                     # Now process all major assets in this file.
                     if not self.argv.first_chunk_only:
@@ -1313,7 +1313,7 @@ class System(Object):
                             asset = self.contexts[header.filenum.d].get_major_asset(stream)[riff["assetid"]]
                             if self.argv.export:
                                 self.contexts[header.filenum.d].export_structured_asset(
-                                    os.path.join(self.argv.export, str(entry["filenum"]) if self.argv.separate else ""),
+                                    os.path.join(self.argv.export, str(entry["filenum"]) if self.argv.separate_context_dirs else ""),
                                     asset, riff["assetid"]
                                 )
             except Exception as e:
@@ -1394,7 +1394,7 @@ if __name__ == "__main__":
     )
 
     parser.add_argument(
-        '-s', "--separate", default=None, action="store_true",
+        '-s', "--separate-context-dirs", default=None, action="store_true",
         help="When exporting, create a new subdirectory for each context. By default, a flat structure with all asset ID directories will be created."
     )
 
