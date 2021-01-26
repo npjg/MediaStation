@@ -1114,7 +1114,7 @@ class Context(Object):
     def export_function(self, directory, func, id):
         logging.info("CxtData.export_function(): Exporting function {}".format(id))
 
-        path = os.path.join(directory, str(id))
+        path = directory if args.headers_only else os.path.join(directory, str(id))
         Path(path).mkdir(parents=True, exist_ok=True)
 
         if args.unified_json: return {id: func.code}
@@ -1405,22 +1405,32 @@ def log_location(file, position):
     logging.error("Exception at {}:0x{:012x}".format(file, position))
 
 if __name__ == "__main__":
+    # TODO: Include a brief description of the format.
     parser = argparse.ArgumentParser(
-        prog="cxt", description="Parse asset structures and extract assets from Media Station, Inc. games"
+        prog="cxt", formatter_class=argparse.RawTextHelpFormatter,
+        description="""Parse asset structures and extract assets from Media Station, Inc. interactive titles.
+
+Each title consists minimally of a data directory and game executable.
+
+ # Data directory
+   - *.CXT       (Context): Stores actual game assets in an adapted RIFF format.
+   - BOOT.STM     (System): Specifies the game's contexts and and manifests all chunks with respective asset IDs.
+   - PROFILE._ST          : Only present in later titles. Manifests all assets in the game by format [assetName] [assetId] [chunkId]."""
+
     )
 
     parser.add_argument(
-        "input", help="Pass a context (CXT) or system (STM) filename to process the file, or pass a game data directory to process the whole game."
+        "input", help="Pass a context (CXT) or system (STM) filename to process the file,\n or pass a game data directory to process the whole game."
     )
 
     parser.add_argument(
         '-s', "--separate-context-dirs", default=None, action="store_true",
-        help="When exporting, create a new subdirectory for each context. By default, a flat structure with all asset ID directories will be created."
+        help="When exporting, create a new subdirectory for each context.\nBy default, a flat structure with all asset ID directories will be created."
     )
 
     parser.add_argument(
         '-S', "--unified-json", default=None, action="store_true",
-        help="When exporting, create a single JSON file in the root export directory for all assets. By default, a JSON file is created in each asset directory for just that asset."
+        help="When exporting, create a single JSON file in the root export directory for all assets.\nBy default, a JSON file is created in each asset directory for just that asset."
     )
 
     parser.add_argument(
@@ -1430,7 +1440,7 @@ if __name__ == "__main__":
 
     parser.add_argument(
         "-C", "--headers-only", default=None, action="store_true",
-        help="When exporting, parse the entire context but only export asset metadata."
+        help="When exporting, parse the entire context but only export asset metadata.\nNo asset ID directories will be created."
     )
 
     parser.add_argument(
@@ -1445,7 +1455,7 @@ if __name__ == "__main__":
 
     parser.add_argument(
         "export", nargs='?', default=None,
-        help="Specify the location for exporting assets. Assets are not exported if not provided"
+        help="Specify the location for exporting assets, or omit to skip export."
     )
 
     args = parser.parse_args()
