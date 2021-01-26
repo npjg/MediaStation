@@ -593,11 +593,13 @@ class Image(Object):
             return
 
         # TODO: Find out where the palette information is stored.
-        image = PILImage.frombytes("P", (self.width, self.height), self.image)
-        if 'palette' in kwargs and kwargs['palette']:
-            image.putpalette(kwargs['palette'])
+        if not args.headers_only:
+            image = PILImage.frombytes("P", (self.width, self.height), self.image)
+            if 'palette' in kwargs and kwargs['palette']:
+                image.putpalette(kwargs['palette'])
 
-        image.save(encode_filename(os.path.join(directory, filename), fmt), fmt)
+            image.save(encode_filename(os.path.join(directory, filename), fmt), fmt)
+
         return self.header
 
     @property
@@ -733,12 +735,11 @@ class Movie(Object):
             headers.append([])
             for j, frame in enumerate(chunk["frames"]):
                 # Handle the frame headers first
-                headers[-1].append({
-                    "outer": frame[0], "inner": frame[1].header
-                })
+                headers[-1].append({"outer": frame[0], "inner": frame[1].header})
 
                 # Now handle the actual frames
-                if frame[1].image: frame[1].image.export(directory, "{}-{}".format(i, j), fmt=fmt[0], **kwargs)
+                if frame[1].image and not args.headers_only:
+                    frame[1].image.export(directory, "{}-{}".format(i, j), fmt=fmt[0], **kwargs)
 
             if chunk["audio"]: sound.append(chunk["audio"])
 
@@ -778,7 +779,7 @@ class Sprite(Object):
 
         for i, frame in enumerate(self.frames):
             headers.append(frame["header"])
-            frame["image"].export(directory, str(i), fmt=fmt, **kwargs)
+            if not args.headers_only: frame["image"].export(directory, str(i), fmt=fmt, **kwargs)
             
         return headers
 
@@ -813,7 +814,7 @@ class Font(Object):
 
         for i, frame in enumerate(self.glyphs):
             headers.append(frame["header"])
-            frame["glyph"].export(directory, str(i), fmt=fmt, **kwargs)
+            if not args.headers_only: frame["glyph"].export(directory, str(i), fmt=fmt, **kwargs)
 
         return headers
 
@@ -848,6 +849,9 @@ class Sound(Object):
             self.chunks.append(stream.read(size))
 
     def export(self, directory, filename, fmt="wav", **kwargs):
+        if args.headers_only:
+            return
+
         filename = encode_filename(os.path.join(directory, filename), fmt)
 
         if fmt.lower() == "raw":
@@ -1089,7 +1093,7 @@ class Context(Object):
         logging.info("CxtData.export_structured_asset(): Exporting asset {}".format(id))
         logging.info(" >>> {}".format(asset["header"]))
 
-        path = os.path.join(directory, str(id))
+        path = directory if args.headers_only else os.path.join(directory, str(id))
         Path(path).mkdir(parents=True, exist_ok=True)
 
         # TODO: Get palette handling generalized.
@@ -1283,8 +1287,7 @@ class System(Object):
                         cxt.parse(stream)
                         self.headers.update(cxt.headers)
 
-                        if args.export:
-                            cxt.export(os.path.join(args.export, str(entry["filenum"]) if args.separate_context_dirs else ""))
+                        if args.export: cxt.export(os.path.join(args.export, str(entry["filenum"]) if args.separate_context_dirs else ""))
 
                     # Now process all major assets in this file.
                     if not args.first_chunk_only:
@@ -1399,8 +1402,13 @@ if __name__ == "__main__":
     )
 
     parser.add_argument(
-        "-f", "--first-chunk-only", default=None, action="store_true",
-        help="Only parse the first chunk, containing asset headers, functions, and minor assets."
+        "-c", "--first-chunk-only", default=None, action="store_true",
+        help="Only parse the first RIFF chunk, containing asset headers, functions, and minor assets."
+    )
+
+    parser.add_argument(
+        "-C", "--headers-only", default=None, action="store_true",
+        help="Parse the entire context, but only export asset metadata."
     )
 
     parser.add_argument(
