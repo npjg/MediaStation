@@ -1079,15 +1079,19 @@ class Context(Object):
             raise TypeError("Unhandled major asset type: {}".format(header.type.d))
 
     def export(self, directory):
+        metadata = {}
+
         for id, asset in self.assets.items():
-            self.export_structured_asset(directory, asset, id)
+            metadata.update(self.export_structured_asset(directory, asset, id))
 
         for id, func in self.functions.items():
-            self.export_function(directory, func, id)
+            metadata.update(self.export_function(directory, func, id))
 
         if self.junk and len(self.junk) > 0:
             with open(os.path.join(directory, "junk"), 'wb') as f:
                 f.write(self.junk)
+
+        return metadata
 
     def export_structured_asset(self, directory, asset, id):
         logging.info("CxtData.export_structured_asset(): Exporting asset {}\n\t >>> {}".format(id, asset["header"]))
@@ -1099,8 +1103,13 @@ class Context(Object):
         header = None
         if asset["asset"]: header = asset["asset"].export(path, str(id), palette=self.palette)
 
+        metadata = {"header": asset["header"], "asset": header}
+        if args.unified_json: return {id: metadata}
+
         with open(os.path.join(path, "{}.json".format(id)), 'w') as f:
-            json.dump({"header": asset["header"], "asset": header}, fp=f, **json_options)
+            json.dump(metadata, fp=f, **json_options)
+
+        return {}
 
     def export_function(self, directory, func, id):
         logging.info("CxtData.export_function(): Exporting function {}".format(id))
@@ -1108,8 +1117,11 @@ class Context(Object):
         path = os.path.join(directory, str(id))
         Path(path).mkdir(parents=True, exist_ok=True)
 
+        if args.unified_json: return {id: func.code}
         with open(os.path.join(path, "{}.json".format(id)), 'w') as f:
             json.dump(func.code, fp=f, **json_options)
+
+        return {}
 
     @staticmethod
     def make_structured_asset(header, asset):
@@ -1265,6 +1277,9 @@ class System(Object):
         riffs.reverse()
 
         logging.info("System.parse(): Parsing full title{}!".format(": {}".format(self.name.d) if self.name else ""))
+        if args.export: path = os.path.join(args.export, str(entry["filenum"]) if args.separate_context_dirs else "")
+        metadata = {}
+
         for id, entry in self.files.items():
             try:
                 cxtname = resolve_filename(args.input, entry["file"])
@@ -1286,7 +1301,7 @@ class System(Object):
                         cxt.parse(stream)
                         self.headers.update(cxt.headers)
 
-                        if args.export: cxt.export(os.path.join(args.export, str(entry["filenum"]) if args.separate_context_dirs else ""))
+                        if args.export: metadata.update(cxt.export(path))
 
                     # Now process all major assets in this file.
                     if not args.first_chunk_only:
@@ -1308,11 +1323,7 @@ class System(Object):
                             read_riff(stream)
 
                             asset = self.contexts[header.filenum.d].get_major_asset(stream)[riff["assetid"]]
-                            if args.export:
-                                self.contexts[header.filenum.d].export_structured_asset(
-                                    os.path.join(args.export, str(entry["filenum"]) if args.separate_context_dirs else ""),
-                                    asset, riff["assetid"]
-                                )
+                            if args.export: metadata.update(self.contexts[header.filenum.d].export_structured_asset(path, asset, riff["assetid"]))
             except Exception as e:
                 log_location(cxtname, stream.tell())
                 print("File context:")
@@ -1322,6 +1333,11 @@ class System(Object):
                 hexdump(stream, stream.tell(), stream.tell() + context)
                 traceback.print_exc()
                 input("Press return to continue...")
+
+        if args.unified_json and args.export:
+            logging.info("System.parse(): Writing unified JSON...")
+            with open(os.path.join(args.export, "assets.json"), 'w') as f:
+                json.dump(metadata, fp=f, **json_options)
 
         logging.info("System.parse(): Finished parsing system!")
 
@@ -1403,18 +1419,23 @@ if __name__ == "__main__":
     )
 
     parser.add_argument(
+        '-S', "--unified-json", default=None, action="store_true",
+        help="When exporting, create a single JSON file in the root export directory for all assets. By default, a JSON file is created in each asset directory for just that asset."
+    )
+
+    parser.add_argument(
         "-c", "--first-chunk-only", default=None, action="store_true",
         help="Only parse the first RIFF chunk, containing asset headers, functions, and minor assets."
     )
 
     parser.add_argument(
         "-C", "--headers-only", default=None, action="store_true",
-        help="Parse the entire context, but only export asset metadata."
+        help="When exporting, parse the entire context but only export asset metadata."
     )
 
     parser.add_argument(
         "-v", "--verbose", default=None, action="store_true",
-        help="Enable debug output"
+        help="Enable debug output."
     )
 
     parser.add_argument(
@@ -1423,7 +1444,7 @@ if __name__ == "__main__":
     )
 
     parser.add_argument(
-        '-e', "--export", default=None,
+        "export", nargs='?', default=None,
         help="Specify the location for exporting assets. Assets are not exported if not provided"
     )
 
