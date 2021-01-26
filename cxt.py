@@ -42,6 +42,8 @@ class AssetType(IntEnum):
     IMG  = 0x0007,
     HSP  = 0x000b,
     SPR  = 0x000e,
+    UNK1 = 0x000f,
+    UNK2 = 0x0010,
     MOV  = 0x0016,
     PAL  = 0x0017,
     TXT  = 0x001a,
@@ -129,6 +131,10 @@ def dumper(obj):
         return obj.d
     elif isinstance(obj, bytes):
         return list(obj)
+    elif isinstance(obj, AssetHeader):
+        d = obj.__dict__
+        d.update({"type": AssetType(d["type"].d).name})
+        return d
     else:
         return obj.__dict__
 
@@ -207,9 +213,8 @@ class Bytecode(Object):
     def __init__(self, stream, prologue):
         if not prologue: # for 0x0017 asset headers
             self.type = Datum(stream)
-            Datum(stream)
-            # if self.type.d == 0x0005:
-            Datum(stream)
+            self.unk1 = Datum(stream)
+            self.unk2 = Datum(stream)
 
         start = stream.tell()
         initial = Datum(stream)
@@ -217,13 +222,13 @@ class Bytecode(Object):
 
         self.code = self.chunk(initial, stream)
         self.length = stream.tell() - start
-        value_assert(self.length - 0x006, self.code[0].d, "length")
+        value_assert(self.length - 0x006, self.code["sz"].d, "length")
 
     def chunk(self, size, stream):
-        code = [size, []]
+        code = {"sz": size, "ch": []}
         start = stream.tell()
         while stream.tell() - start < size.d:
-            code[1].append(self.entity(Datum(stream), stream, end=start + size.d))
+            code["ch"].append(self.entity(Datum(stream), stream, end=start+size.d))
 
         return code
 
@@ -231,26 +236,24 @@ class Bytecode(Object):
         if token.t == 0x0004:
             return self.chunk(token, stream)
 
+        code = {"oc": token, "ox": []}
         if token.d == 0x0067:
-            code = [token, []]
             for _ in range(3):
-                code[1].append(self.entity(Datum(stream), stream, end))
+                code["ox"].append(self.entity(Datum(stream), stream, end))
                 if stream.tell() >= end:
                     break
         elif token.d == 0x0066:
-            code = [token, []]
             for i in range(2):
-                code[1].append(self.entity(Datum(stream), stream, end, string=not i))
+                code["ox"].append(self.entity(Datum(stream), stream, end, string=not i))
                 if stream.tell() >= end:
                     break
         elif token.d == 0x0065:
-            code = [token, []]
-            code[1].append(self.entity(Datum(stream), stream, end))
+            code["ox"].append(self.entity(Datum(stream), stream, end))
         elif token.d == 0x009a and string: # character string
             size = Datum(stream)
-            code = [stream.read(size.d)]
+            code = stream.read(size.d)
         else:
-            code = [token]
+            code = token
 
         return code
 
