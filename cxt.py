@@ -976,7 +976,7 @@ class Context(Object):
             stream.seek(stream.tell() - 8)
             return False
         if type.d == HeaderType.PALETTE:
-            logging.debug(
+            logging.info(
                 "(@0x{:012x}) CxtData.get_header(): Found context palette (0x{:04x} bytes)".format(stream.tell(), 0x300)
             )
 
@@ -984,7 +984,7 @@ class Context(Object):
             self.palette = stream.read(0x300)
             value_assert(Datum(stream).d, 0x00, "end-of-chunk flag")
         elif type.d == HeaderType.ROOT:
-            logging.debug("(@0x{:012x}) CxtData.get_header(): Found context root".format(stream.tell()))
+            logging.info("(@0x{:012x}) CxtData.get_header(): Found context root".format(stream.tell()))
             assert not self.root # We cannot have more than 1 root
             if not is_legacy():
                 self.root = Array(stream, bytes=chunk["size"] - 8) # We read 2 datums
@@ -1000,7 +1000,7 @@ class Context(Object):
                 contents += contents[0].children
 
             for header in contents:
-                logging.debug("(@0x{:012x}) CxtData.get_header(): Found asset header {}".format(stream.tell(), header))
+                logging.info("(@0x{:012x}) CxtData.get_header(): Found asset header\n\t >>> {}".format(stream.tell(), header))
                 self.headers.update({header.id.d: header})
 
                 # TODO: Deal with shared assets.
@@ -1033,7 +1033,7 @@ class Context(Object):
 
     def get_minor_asset(self, stream, chunk):
         header = self.refs[chunk_int(chunk)]
-        logging.debug("(@0x{:012x}) CxtData.get_minor_asset(): {}".format(stream.tell(), header))
+        logging.info("(@0x{:012x}) CxtData.get_minor_asset():\n\t >>> {}".format(stream.tell(), header))
 
         if header.type.d == AssetType.IMG or header.type.d == AssetType.CAM:
             self.assets.update(self.make_structured_asset(header, Image(stream, size=chunk["size"])))
@@ -1069,7 +1069,7 @@ class Context(Object):
     def get_major_asset(self, stream):
         chunk = read_chunk(stream)
         header = self.refs[chunk_int(chunk)]
-        logging.debug("(@0x{:012x}) CxtData.get_major_asset: {}".format(stream.tell(), header))
+        logging.info("(@0x{:012x}) CxtData.get_major_asset:\n\t >>> {}".format(stream.tell(), header))
 
         if header.type.d == AssetType.MOV:
             return self.make_structured_asset(header, Movie(stream, header, chunk, stills=self.stills.get(header.id.d)))
@@ -1090,8 +1090,7 @@ class Context(Object):
                 f.write(self.junk)
 
     def export_structured_asset(self, directory, asset, id):
-        logging.info("CxtData.export_structured_asset(): Exporting asset {}".format(id))
-        logging.info(" >>> {}".format(asset["header"]))
+        logging.info("CxtData.export_structured_asset(): Exporting asset {}\n\t >>> {}".format(id, asset["header"]))
 
         path = directory if args.headers_only else os.path.join(directory, str(id))
         Path(path).mkdir(parents=True, exist_ok=True)
@@ -1323,6 +1322,8 @@ class System(Object):
                 hexdump(stream, stream.tell(), stream.tell() + context)
                 traceback.print_exc()
                 input("Press return to continue...")
+
+        logging.info("System.parse(): Finished parsing system!")
 
 
 ############### INTERACTIVE LOGIC  #######################################
