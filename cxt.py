@@ -204,7 +204,6 @@ class Ref(Object):
 
 class Bytecode(Object):
     def __init__(self, stream, prologue):
-        self.id = None
         if not prologue: # for 0x0017 asset headers
             self.type = Datum(stream)
             Datum(stream)
@@ -213,7 +212,8 @@ class Bytecode(Object):
 
         start = stream.tell()
         initial = Datum(stream)
-        logging.debug("Bytecode(): Expecting {} bytes".format(initial.d))
+        logging.debug("*** Bytecode(): Expecting {} bytes ***".format(initial.d))
+
         self.code = self.chunk(initial, stream)
         self.length = stream.tell() - start
         value_assert(self.length - 0x006, self.code[0].d, "length")
@@ -318,7 +318,8 @@ class Array(Object):
             if datums and len(self.datums) == datums:
                 break
 
-        logging.debug("Read 0x{:04x} array bytes".format(stream.tell() - start))
+        self.bytes = stream.tell() - start
+        logging.debug("~~~ Array(): Read 0x{:04x} array bytes ~~~".format(stream.tell() - start))
 
     def log(self):
         logging.debug(self)
@@ -515,8 +516,7 @@ class Image(Object):
 
         self.header = None
         self.dims = dims
-        if not dims:
-            self.header = ImageHeader(stream)
+        if not dims: self.header = ImageHeader(stream)
 
         self.raw = io.BytesIO(stream.read(end-stream.tell()))
         if not dims:
@@ -741,8 +741,7 @@ class Movie(Object):
                 # Now handle the actual frames
                 if has_image: frame[1].image.export(directory, "{}-{}".format(i, j), fmt=fmt[0], **kwargs)
 
-            if chunk["audio"]:
-                sound.append(chunk["audio"])
+            if chunk["audio"]: sound.append(chunk["audio"])
 
         sound.export(directory, "sound", fmt=fmt[1], **kwargs)
         return {"headers": headers, "stills": self.stills}
@@ -760,7 +759,7 @@ class SpriteHeader(Object):
         self.bbox = Datum(stream)
 
     def __repr__(self):
-        return "<SpriteHeader: index: {}".format(self.index.d)
+        return "<SpriteHeader: index: {}>".format(self.index.d)
 
 class Sprite(Object):
     def __init__(self):
@@ -1104,7 +1103,7 @@ class Context(Object):
             json.dump({"header": asset["header"], "asset": header}, fp=f, **json_options)
 
     def export_function(self, directory, func, id):
-        logging.info("CxtData.export_function()(): Exporting function {}".format(id))
+        logging.info("CxtData.export_function(): Exporting function {}".format(id))
 
         path = os.path.join(directory, str(id))
         Path(path).mkdir(parents=True, exist_ok=True)
