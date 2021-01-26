@@ -662,7 +662,7 @@ class MovieFrame(Object):
         self.image = Image(stream, size=end-stream.tell(), dims=self.header.dims)
 
 class Movie(Object):
-    def __init__(self, stream, header, chunk, stills=None):
+    def __init__(self, stream, header, chunk, stills=[]):
         self.stills = stills
         self.chunks = []
 
