@@ -363,7 +363,7 @@ class AssetHeader(Object):
             elif type.d == 0x0019: # STG, IMG, SPR, MOV, TXT, CAM, CVS
                 d = Datum(stream)
             elif type.d == 0x001a: # SND, MOV
-                d = Datum(stream)
+                value_assert(Datum(stream).d, self.id.d, "asset ID")
             elif type.d == 0x001b: # SND, IMG, SPR, MOV, FON
                 if self.type.d == AssetType.MOV:
                     for _ in range(2):
