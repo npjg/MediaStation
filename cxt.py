@@ -726,20 +726,18 @@ class Movie(Object):
                 still[0].image.export(directory, "still-{}".format(i), fmt=fmt[0], **kwargs)
 
         sound = Sound(encoding=0x0010)
-        headers = {}
+        headers = []
 
         for i, chunk in enumerate(self.chunks):
+            headers.append([])
             for j, frame in enumerate(chunk["frames"]):
-                has_image = frame[1].image and frame[1].image.header
-                key = "{}-{}".format(i, j)
-
                 # Handle the frame headers first
-                headers.update({
-                    key: [frame[0], frame[1].header, frame[1].image.header if has_image else None]
+                headers[-1].append({
+                    "outer": frame[0], "inner": frame[1].header
                 })
 
                 # Now handle the actual frames
-                if has_image: frame[1].image.export(directory, "{}-{}".format(i, j), fmt=fmt[0], **kwargs)
+                if frame[1].image: frame[1].image.export(directory, "{}-{}".format(i, j), fmt=fmt[0], **kwargs)
 
             if chunk["audio"]: sound.append(chunk["audio"])
 
