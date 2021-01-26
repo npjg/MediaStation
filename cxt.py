@@ -16,6 +16,7 @@ import PIL.Image as PILImage
 from enum import IntEnum
 from pathlib import Path
 from mrcrowbar.utils import hexdump
+from copy import copy
 
 class ChunkType(IntEnum):
     HEADER         = 0x000d,
@@ -1273,10 +1274,9 @@ class System(Object):
             type = Datum(stream)
 
         self.footer = stream.read()
-        logging.debug(pprint.pformat(self.files))
 
     def parse(self):
-        riffs = self.riffs
+        riffs = copy(self.riffs)
         riffs.reverse()
 
         logging.info("System.parse(): Parsing full title{}!".format(": {}".format(self.name.d) if self.name else ""))
@@ -1344,6 +1344,17 @@ class System(Object):
 
         logging.info("System.parse(): Finished parsing system!")
 
+    def export(self, directory):
+        logging.info("System.parse(): Writing system JSON...")
+        system = {
+            "files": self.files,
+            "riffs": {elt["assetid"]: elt for elt in self.riffs}
+        }
+
+        Path(directory).mkdir(parents=True, exist_ok=True)
+        with open(os.path.join(directory, "system.json"), 'w') as f:
+            json.dump(system, fp=f, **json_options)
+
 
 ############### INTERACTIVE LOGIC  #######################################
 
@@ -1356,6 +1367,7 @@ def main():
             try:
                 stm = System(stream)
                 stm.parse()
+                if args.export: stm.export(args.export)
             except Exception as e:
                 log_location(os.path.join(args.input, "boot.stm"), stream.tell())
                 raise
@@ -1378,14 +1390,13 @@ def main():
 
                 if args.export: cxt.export(args.export)
             elif os.path.split(args.input)[1].lower() == "boot.stm":
-                if args.export:
-                    logging.warning("Only parsing system information; ignoring export flag")
-
                 try:
-                    System(None, stream)
+                    stm = System(stream)
                 except Exception as e:
                     log_location(args.input, stream.tell())
                     raise
+
+                if args.export: stm.export(args.export)
             else:
                 raise ValueError(
                     "Ambiguous input file extension. Ensure a numeric context (CXT) or system (STM) file has been passed."
