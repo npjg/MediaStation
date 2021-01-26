@@ -1374,8 +1374,8 @@ def main():
 
             try:
                 stm = System(stream)
-                stm.parse()
                 if args.export: stm.export(args.export)
+                stm.parse()
             except Exception as e:
                 log_location(os.path.join(args.input, "boot.stm"), stream.tell())
                 raise
