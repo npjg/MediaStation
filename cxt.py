@@ -140,7 +140,7 @@ class Object:
         return self.__repr__()
 
 class Datum(Object):
-    def __init__(self, stream, peek=False):
+    def __init__(self, stream):
         self.start = stream.tell()
         self.d = None
         self.t = struct.unpack("<H", stream.read(2))[0]
@@ -170,7 +170,7 @@ class Datum(Object):
                 "(@ 0x{:0>12x}) Unknown datum type 0x{:0>4x}".format(stream.tell(), self.t)
             )
 
-        if peek: stream.seek(self.start)
+        if args.all_datums: logging.debug(self)
 
     def __repr__(self):
         data = ""
@@ -1086,7 +1086,7 @@ class Context(Object):
 
     def export_structured_asset(self, directory, asset, id):
         logging.info("CxtData.export_structured_asset(): Exporting asset {}".format(id))
-        logging.debug(" >>> {}".format(asset["header"]))
+        logging.info(" >>> {}".format(asset["header"]))
 
         path = os.path.join(directory, str(id))
         Path(path).mkdir(parents=True, exist_ok=True)
@@ -1115,9 +1115,7 @@ class Context(Object):
 ############### SYSTEM PARSER (BOOT.STM)  ################################
 
 class System(Object):
-    def __init__(self, argv, stream):
-        self.argv = argv
-
+    def __init__(self, stream):
         global version
         version = {"number": (0, 0, 0), "string": None}
 
@@ -1265,7 +1263,7 @@ class System(Object):
         logging.info("System.parse(): Parsing full title{}!".format(": {}".format(self.name.d) if self.name else ""))
         for id, entry in self.files.items():
             try:
-                cxtname = resolve_filename(self.argv.input, entry["file"])
+                cxtname = resolve_filename(args.input, entry["file"])
                 if os.path.getsize(cxtname) == 0x10: # Some legacy titles have an empty root entry
                     logging.warning("System.parse(): Skipping empty context {} ({})".format(entry["file"], id))
                     continue
@@ -1284,11 +1282,11 @@ class System(Object):
                         cxt.parse(stream)
                         self.headers.update(cxt.headers)
 
-                        if self.argv.export:
-                            cxt.export(os.path.join(self.argv.export, str(entry["filenum"]) if self.argv.separate_context_dirs else ""))
+                        if args.export:
+                            cxt.export(os.path.join(args.export, str(entry["filenum"]) if args.separate_context_dirs else ""))
 
                     # Now process all major assets in this file.
-                    if not self.argv.first_chunk_only:
+                    if not args.first_chunk_only:
                         for i in range(cxt.riffs-1):
                             riff = riffs.pop()
                             header = self.headers[riff["assetid"]]
@@ -1307,9 +1305,9 @@ class System(Object):
                             read_riff(stream)
 
                             asset = self.contexts[header.filenum.d].get_major_asset(stream)[riff["assetid"]]
-                            if self.argv.export:
+                            if args.export:
                                 self.contexts[header.filenum.d].export_structured_asset(
-                                    os.path.join(self.argv.export, str(entry["filenum"]) if self.argv.separate_context_dirs else ""),
+                                    os.path.join(args.export, str(entry["filenum"]) if args.separate_context_dirs else ""),
                                     asset, riff["assetid"]
                                 )
             except Exception as e:
@@ -1320,14 +1318,14 @@ class System(Object):
 
 ############### INTERACTIVE LOGIC  #######################################
 
-def main(args):
+def main():
     stream = None
     if os.path.isdir(args.input):
         with open(resolve_filename(args.input, "boot.stm"), mode='rb') as f:
             stream = mmap.mmap(f.fileno(), length=0, access=mmap.ACCESS_READ)
 
             try:
-                stm = System(args, stream)
+                stm = System(stream)
                 stm.parse()
             except Exception as e:
                 log_location(os.path.join(args.input, "boot.stm"), stream.tell())
@@ -1398,12 +1396,26 @@ if __name__ == "__main__":
         "-f", "--first-chunk-only", default=None, action="store_true",
         help="Only parse the first chunk, containing asset headers, functions, and minor assets."
     )
+
+    parser.add_argument(
+        "-v", "--verbose", default=None, action="store_true",
+        help="Enable debug output"
+    )
+
+    parser.add_argument(
+        "-V", "--all-datums", default=None, action="store_true",
+        help="In addition to enabling --verbose debug output, print all datums read from files."
+    )
+
     parser.add_argument(
         '-e', "--export", default=None,
         help="Specify the location for exporting assets. Assets are not exported if not provided"
     )
 
-    logging.basicConfig(level=logging.DEBUG)
     args = parser.parse_args()
+    if args.all_datums:
+        args.verbose = True
 
-    main(args)
+    logging.basicConfig(level=logging.DEBUG if args.verbose else logging.INFO)
+
+    main()
