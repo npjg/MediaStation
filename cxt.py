@@ -23,7 +23,7 @@ class ChunkType(IntEnum):
     IMAGE          = 0x0018,
     MOVIE_ROOT     = 0x06a8,
     MOVIE_FRAME    = 0x06a9,
-    MOVIE_HEADER   = 0x06aa,
+    MOVIE_FOOTER   = 0x06aa,
 
 class HeaderType(IntEnum):
     LEGACY  = 0x000d,
@@ -132,9 +132,15 @@ def dumper(obj):
         return obj.d
     elif isinstance(obj, bytes):
         return list(obj)
+    elif isinstance(obj, Ref):
+        return obj.data
     elif isinstance(obj, AssetHeader):
         d = obj.__dict__
         d.update({"type": AssetType(d["type"].d).name})
+        return d
+    elif isinstance(obj, MovieFrame):
+        d = obj.__dict__
+        d.pop("image")
         return d
     else:
         return obj.__dict__
@@ -621,33 +627,7 @@ class Image(Object):
     def __repr__(self):
         return "<Image: size: {} x {}>".format(self.width, self.height)
 
-class MovieHeaderOuter(Object):
-    def __init__(self, stream):
-        self.unks = []
-
-        value_assert(Datum(stream).d, 0x0001)
-        self.unks.append(Datum(stream)) # value_assert(Datum(stream).d, 0x0000)
-        if is_legacy():
-            self.duration = (Datum(stream), Datum(stream)) # milliseconds
-            self.dims = Point(None, x=Datum(stream).d, y=Datum(stream).d) # inside bbox
-            for _ in range(2):
-                self.unks.append(Datum(stream))
-            self.index = Datum(stream)
-        else:
-            self.unks.append(Datum(stream))
-            self.duration = (Datum(stream), Datum(stream)) # milliseconds
-            self.dims = Point(None, x=Datum(stream).d, y=Datum(stream).d) # inside bbox
-
-            for _ in range(3):
-                self.unks.append(Datum(stream))
-            self.index = Datum(stream)
-            for _ in range(2):
-                self.unks.append(Datum(stream))
-
-    def __repr__(self):
-        return "<MovieHeaderOuter: index: {:03d}>".format(self.index.d)
-
-class MovieHeaderInner(Object):
+class MovieFrameHeader(Object):
     def __init__(self, stream):
         value_assert(Datum(stream).d, 0x0028)
         self.dims = Datum(stream)
@@ -657,13 +637,40 @@ class MovieHeaderInner(Object):
         self.end = Datum(stream)
 
     def __repr__(self):
-        return "<MovieHeaderInner: index: {:03d}>".format(self.index.d)
+        return "<MovieFrameHeader: index: {:03d}>".format(self.index.d)
+
+class MovieFrameFooter(Object):
+    def __init__(self, stream):
+        value_assert(Datum(stream).d, 0x0001)
+        self.unk1 = Datum(stream)
+        if is_legacy():
+            self.duration = {"s": Datum(stream), "e": Datum(stream)} # milliseconds
+            self.dims = Point(None, x=Datum(stream).d, y=Datum(stream).d) # inside bbox
+            self.unk2 = Datum(stream)
+            self.unk3 = Datum(stream)
+            self.index = Datum(stream)
+        else:
+            self.unk4 = Datum(stream)
+            self.duration = {"s": Datum(stream), "e": Datum(stream)} # milliseconds
+            self.dims = Point(None, x=Datum(stream).d, y=Datum(stream).d) # inside bbox
+
+            self.unk5 = Datum(stream)
+            self.unk6 = Datum(stream)
+            self.unk7 = Datum(stream)
+            self.index = Datum(stream)
+
+            self.unk8 = Datum(stream)
+            self.unk9 = Datum(stream)
+
+    def __repr__(self):
+        return "<MovieFrameFooter: index: {:03d}>".format(self.index.d)
 
 class MovieFrame(Object):
     def __init__(self, stream, size):
         end = stream.tell() + size
-        self.header = MovieHeaderInner(stream)
+        self.header = MovieFrameHeader(stream)
         self.image = Image(stream, size=end-stream.tell(), dims=self.header.dims)
+        self.footer = None
 
 class Movie(Object):
     def __init__(self, stream, header, chunk, stills=[]):
@@ -690,23 +697,25 @@ class Movie(Object):
         for i in range(self.chunk_count.d):
             chunk = read_chunk(stream)
             frames = []
-            headers = []
 
             # Video comes first
             while chunk_int(chunk) == codes["video"]:
                 type = Datum(stream)
 
+                # TODO: I wonder if one of the unks says whether the current image has a footer after it?
                 if type.d == ChunkType.MOVIE_FRAME:
                     logging.debug("Movie(): Reading movie frame of size 0x{:04x}".format(chunk['size']))
                     frames.append(MovieFrame(stream, size=chunk['size']-0x04))
-                elif type.d == ChunkType.MOVIE_HEADER:
-                    logging.debug("Movie(): Reading movie frame header of size 0x{:04x}".format(chunk['size']-0x04))
-                    headers.append(MovieHeaderOuter(stream))
+                elif type.d == ChunkType.MOVIE_FOOTER:
+                    logging.debug("Movie(): Reading movie frame footer of size 0x{:04x}".format(chunk['size']-0x04))
+                    frames[-1].footer = MovieFrameFooter(stream)
+                else:
+                    raise TypeError("Movie(): Unknown movie chunk tag: 0x{:0>4x}".format(type.d))
 
                 chunk = read_chunk(stream)
 
             self.chunks.append({
-                "frames": list(zip(headers, frames)),
+                "frames": frames,
                 "audio": stream.read(chunk['size']) if chunk_int(chunk) == codes["audio"] else None
             })
 
@@ -728,9 +737,8 @@ class Movie(Object):
         logging.debug("Movie(): Finished reading movie: 0x{:012x}".format(stream.tell()))
 
     def export(self, directory, filename, fmt=("png", "wav"), **kwargs):
-        if self.stills:
-            for i, still in enumerate(zip(self.stills[0], self.stills[1])):
-                still[0].image.export(directory, "still-{}".format(i), fmt=fmt[0], **kwargs)
+        for i, still in enumerate(self.stills):
+            still.image.export(directory, "still-{}".format(i), fmt=fmt[0], **kwargs)
 
         sound = Sound(encoding=0x0010)
         headers = []
@@ -739,16 +747,16 @@ class Movie(Object):
             headers.append([])
             for j, frame in enumerate(chunk["frames"]):
                 # Handle the frame headers first
-                headers[-1].append({"outer": frame[0], "inner": frame[1].header})
+                headers[-1].append(frame)
 
                 # Now handle the actual frames
-                if frame[1].image and not args.headers_only:
-                    frame[1].image.export(directory, "{}-{}".format(i, j), fmt=fmt[0], **kwargs)
+                if frame.image and not args.headers_only:
+                    frame.image.export(directory, "{}-{}".format(i, j), fmt=fmt[0], **kwargs)
 
             if chunk["audio"]: sound.append(chunk["audio"])
 
         sound.export(directory, "sound", fmt=fmt[1], **kwargs)
-        return {"headers": headers, "stills": self.stills}
+        return {"frames": headers, "stills": self.stills}
 
     def __repr__(self):
         return "<Movie: chunks: {}>".format(len(self.chunks))
@@ -1058,15 +1066,15 @@ class Context(Object):
             self.assets[header.id.d]["asset"].append(stream, size=chunk["size"])
         elif header.type.d == AssetType.MOV:
             if header.id.d not in self.stills:
-                self.stills.update({header.id.d: [[], []]})
+                self.stills.update({header.id.d: []})
 
             d = Datum(stream) # Read the movie frame header
             if d.d == ChunkType.MOVIE_FRAME:
-                self.stills[header.id.d][0].append(MovieFrame(stream, size=chunk["size"]-0x04))
-            elif d.d == ChunkType.MOVIE_HEADER:
-                self.stills[header.id.d][1].append(Array(stream, bytes=chunk["size"]-0x04))
+                self.stills[header.id.d].append(MovieFrame(stream, size=chunk["size"]-0x04))
+            elif d.d == ChunkType.MOVIE_FOOTER:
+                self.stills[header.id.d][-1].footer = MovieFrameFooter(stream)
             else:
-                raise ValueError("Unknown header type in movie still area: {}".format(d.d))
+                raise TypeError("Unknown header type in movie still area: {}".format(d.d))
         else:
             raise TypeError("Unhandled asset type found in first chunk: {}".format(header.type.d))
 
@@ -1076,7 +1084,7 @@ class Context(Object):
         logging.info("(@0x{:012x}) CxtData.get_major_asset:\n\t >>> {}".format(stream.tell(), header))
 
         if header.type.d == AssetType.MOV:
-            return self.make_structured_asset(header, Movie(stream, header, chunk, stills=self.stills.get(header.id.d)))
+            return self.make_structured_asset(header, Movie(stream, header, chunk, stills=self.stills.get(header.id.d, [])))
         elif header.type.d == AssetType.SND:
             return self.make_structured_asset(header, Sound(stream, chunk, chunks=header.chunks, encoding=header.encoding))
         else:
