@@ -5,6 +5,7 @@ import argparse
 import mmap
 import traceback
 
+from termcolor import colored
 import cxt
 
 def main(inp, start, end=None): 
@@ -29,7 +30,36 @@ def main(inp, start, end=None):
                 if pause and datum.d == cxt.HeaderType.ASSET and prev.d == 0:
                     input("Press any key to continue...")
 
-                print(datum)
+                color = ['white', None]
+                attrs = []
+                if datum.d == 0x0011:
+                    for _ in range(2):
+                        print()
+                    attrs.append('bold')
+                elif datum.d == 0x0017:
+                    print()
+                    attrs.append('underline')
+                elif datum.d == 0x0031:
+                    for _ in range(2):
+                        print()
+                    attrs.append('reverse')
+                elif datum.d == 0x0067:
+                    color[0] = "green"
+                elif datum.d == 0x0066:
+                    color[0] = "magenta"
+                elif datum.d == 0x0065:
+                    color[0] = "cyan"
+                elif datum.d == 0x0000:
+                    color[0] = "yellow"
+
+                if datum.t == 0x0004:
+                    color[1] = 'on_blue'
+                elif datum.t == 0x0007:
+                    color[1] = 'on_green'
+                elif datum.t == 0x0002:
+                    color[1] = 'on_magenta'
+
+                print(colored(datum, *color, attrs=attrs))
             except Exception as e:
                 traceback.print_exc()
                 stream.read(int(input("Bytes to skip? "), 0))
