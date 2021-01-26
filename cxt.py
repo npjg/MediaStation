@@ -247,10 +247,6 @@ class Bytecode(Object):
 
         return code
 
-    def export(self, directory, filename, **kwargs):
-        with open(os.path.join(directory, filename + ".json"), 'w') as f:
-            json.dump(self.code, fp=f, **json_options)
-
     def __repr__(self):
         return "<Bytecode: bytes: {}; chunks: {}>".format(self.length, len(self.code))
 
@@ -322,15 +318,6 @@ class Array(Object):
         logging.debug(self)
         for datum in self.datums:
             logging.debug(" -> {}".format(datum))
-
-    def export(self, directory, filename, fmt="json", **kwargs):
-        filename = os.path.join(directory, filename)
-
-        if filename[-4:] != ".{}".format(fmt):
-            filename += (".{}".format(fmt))
-
-        with open(filename, 'w') as f:
-            json.dump(self.datums, fp=f, **json_options)
 
     def __repr__(self):
         return "<Array: size: {:0>4d}; bytes: {:0>4d}>".format(len(self.datums), self.bytes)
@@ -599,9 +586,6 @@ class Image(Object):
             return
 
         filename = os.path.join(directory, filename)
-        if kwargs.get("with_header") and self.header:
-            with open(os.path.join(directory, filename + ".json"), 'w') as f:
-                json.dump(self.header, fp=f, **json_options)
 
         if filename[-4:] != ".{}".format(fmt):
             filename += (".{}".format(fmt))
@@ -612,6 +596,8 @@ class Image(Object):
             image.putpalette(kwargs['palette'])
 
         image.save(filename, fmt)
+
+        return self.header
 
     @property
     def compressed(self):
@@ -738,8 +724,6 @@ class Movie(Object):
         if self.stills:
             for i, still in enumerate(zip(self.stills[0], self.stills[1])):
                 still[0].image.export(directory, "still-{}".format(i), fmt=fmt[0], **kwargs)
-                with open(os.path.join(directory, "still-{}.json".format(i)), 'w') as f:
-                    json.dump(still[1], fp=f, **json_options)
 
         sound = Sound(encoding=0x0010)
         headers = {}
@@ -761,8 +745,7 @@ class Movie(Object):
                 sound.append(chunk["audio"])
 
         sound.export(directory, "sound", fmt=fmt[1], **kwargs)
-        with open(os.path.join(directory, filename + ".json"), 'w') as f:
-            json.dump(headers, fp=f, **json_options)
+        return {"headers": headers, "stills": self.stills}
 
     def __repr__(self):
         return "<Movie: chunks: {}>".format(len(self.chunks))
@@ -796,11 +779,11 @@ class Sprite(Object):
         headers = {}
 
         for i, frame in enumerate(self.frames):
-            headers.update({i: [frame["header"], frame["image"].header]})
-            frame["image"].export(directory, str(i), fmt=fmt, **kwargs)
-
-        with open(os.path.join(directory, filename + ".json"), 'w') as f:
-            json.dump(headers, fp=f, **json_options)
+            headers.update({
+                i: {"frame": frame["header"]}, {"image": frame["image"].export(directory, str(i), fmt=fmt, **kwargs)}
+            })
+            
+        return headers
 
 class FontHeader(Object):
     def __init__(self, stream):
@@ -832,11 +815,11 @@ class Font(Object):
         headers = {}
 
         for i, frame in enumerate(self.glyphs):
-            headers.update({i: [frame["header"], frame["glyph"].header]})
-            frame["glyph"].export(directory, str(i), fmt=fmt, **kwargs)
+            headers.update({
+                i: {"frame": frame["header"]}, {"glyph": frame["glyph"].export(directory, str(i), fmt=fmt, **kwargs)}
+            })
 
-        with open(os.path.join(directory, filename + ".json"), 'w') as f:
-            json.dump(headers, fp=f, **json_options)
+        return headers
 
 class Sound(Object):
     def __init__(self, stream=None, chunk=None, **kwargs):
@@ -1113,11 +1096,12 @@ class Context(Object):
         path = os.path.join(directory, str(id))
         Path(path).mkdir(parents=True, exist_ok=True)
 
-        with open(os.path.join(path, "{}.json".format(id)), 'w') as f:
-            json.dump(asset["header"], fp=f, **json_options)
-
         # TODO: Get palette handling generalized.
-        if asset["asset"]: asset["asset"].export(path, str(id), palette=self.palette, with_header=True)
+        header = None
+        if asset["asset"]: header = asset["asset"].export(path, str(id), palette=self.palette)
+
+        with open(os.path.join(path, "{}.json".format(id)), 'w') as f:
+            json.dump({"header": asset["header"], "asset": header}, fp=f, **json_options)
 
     def export_function(self, directory, func, id):
         logging.info("CxtData.export_function()(): Exporting function {}".format(id))
@@ -1125,7 +1109,8 @@ class Context(Object):
         path = os.path.join(directory, str(id))
         Path(path).mkdir(parents=True, exist_ok=True)
 
-        func.export(path, str(id))
+        with open(os.path.join(path, "{}.json".format(id)), 'w') as f:
+            json.dump(func.code, fp=f, **json_options)
 
     @staticmethod
     def make_structured_asset(header, asset):
