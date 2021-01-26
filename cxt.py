@@ -15,6 +15,7 @@ import json
 import PIL.Image as PILImage
 from enum import IntEnum
 from pathlib import Path
+from mrcrowbar.utils import hexdump
 
 class ChunkType(IntEnum):
     HEADER         = 0x000d,
@@ -1312,6 +1313,11 @@ class System(Object):
                                 )
             except Exception as e:
                 log_location(cxtname, stream.tell())
+                print("File context:")
+                context = 0x40
+                hexdump(stream, stream.tell() - context, stream.tell())
+                print()
+                hexdump(stream, stream.tell(), stream.tell() + context)
                 traceback.print_exc()
                 input("Press return to continue...")
 
