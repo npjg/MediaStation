@@ -994,13 +994,15 @@ class Context(Object):
         elif type.d == HeaderType.ROOT:
             logging.info("(@0x{:012x}) CxtData.get_header(): Found context root".format(stream.tell()))
             assert not self.root # We cannot have more than 1 root
-            if not is_legacy():
-                self.root = Array(stream, bytes=chunk["size"] - 8) # We read 2 datums
+            if is_legacy():
+                self.unks = Array(stream, stop=(DatumType.UINT16, 0x0017))
+                for _ in range(2):
+                    Datum(stream)
+
+                self.root = Bytecode(stream, prologue=True)
             else:
-                self.root = Array(stream, stop=(DatumType.UINT16, 0x0011))
-                self.root.datums += Array(stream, stop=(DatumType.UINT16, 0x0011)).datums
-                self.root.datums += Array(stream, stop=(DatumType.UINT16, 0x0011)).datums
-                stream.seek(stream.tell() - 4)
+                self.root = Array(stream, bytes=chunk["size"] - 8) # We read 2 datums
+
         elif type.d == HeaderType.ASSET or (type.d == HeaderType.ROOT and is_legacy()):
             contents = [AssetHeader(stream)]
 
