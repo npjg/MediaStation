@@ -419,13 +419,9 @@ class AssetHeader(Object):
             elif type.d == 0x03ec:
                 d = Datum(stream)
             elif type.d == 0x03ed:
-                try:
-                    Array(stream, stop=(DatumType.UINT16, 0x0011))
-                    stream.seek(stream.tell() - 8)
-                except:
-                    stream.seek(stream.tell() - 4)
-                    return
-                # d = Datum(stream)
+                # TODO: Figure out what this does actually!
+                Array(stream, stop=(DatumType.UINT8, 0x0000)).log()
+                Bytecode(stream, prologue=True)
             elif type.d == 0x03f4:
                 d = Datum(stream)
             elif type.d == 0x0517:
