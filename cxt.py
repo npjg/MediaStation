@@ -117,6 +117,12 @@ def value_assert(stream, target, type="value", warn=False):
     else:
         assert ax == target, msg
 
+def encode_filename(filename, fmt):
+    if filename[-4:] != ".{}".format(fmt.lower()):
+        filename += (".{}".format(fmt.lower()))
+
+    return filename
+
 def dumper(obj):
     if isinstance(obj, Datum):
         return obj.d
@@ -585,18 +591,12 @@ class Image(Object):
             logging.warning("Found image with length and width 0, skipping export")
             return
 
-        filename = os.path.join(directory, filename)
-
-        if filename[-4:] != ".{}".format(fmt):
-            filename += (".{}".format(fmt))
-
         # TODO: Find out where the palette information is stored.
         image = PILImage.frombytes("P", (self.width, self.height), self.image)
         if 'palette' in kwargs and kwargs['palette']:
             image.putpalette(kwargs['palette'])
 
-        image.save(filename, fmt)
-
+        image.save(encode_filename(os.path.join(directory, filename), fmt), fmt)
         return self.header
 
     @property
@@ -852,7 +852,7 @@ class Sound(Object):
             self.chunks.append(stream.read(size))
 
     def export(self, directory, filename, fmt="wav", **kwargs):
-        filename = "{}.{}".format(os.path.join(directory, filename), fmt.lower())
+        filename = encode_filename(os.path.join(directory, filename), fmt)
 
         if fmt.lower() == "raw":
             with open(filename, 'wb') as raw:
