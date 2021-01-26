@@ -775,12 +775,11 @@ class Sprite(Object):
         })
 
     def export(self, directory, filename, fmt="png", **kwargs):
-        headers = {}
+        headers = []
 
         for i, frame in enumerate(self.frames):
-            headers.update({
-                i: {"frame": frame["header"]}, {"image": frame["image"].export(directory, str(i), fmt=fmt, **kwargs)}
-            })
+            headers.append(frame["header"])
+            frame["image"].export(directory, str(i), fmt=fmt, **kwargs)
             
         return headers
 
@@ -811,12 +810,11 @@ class Font(Object):
         })
 
     def export(self, directory, filename, fmt="png", **kwargs):
-        headers = {}
+        headers = []
 
         for i, frame in enumerate(self.glyphs):
-            headers.update({
-                i: {"frame": frame["header"]}, {"glyph": frame["glyph"].export(directory, str(i), fmt=fmt, **kwargs)}
-            })
+            headers.append(frame["header"])
+            frame["glyph"].export(directory, str(i), fmt=fmt, **kwargs)
 
         return headers
 
