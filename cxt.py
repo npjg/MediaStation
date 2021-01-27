@@ -29,7 +29,7 @@ class HeaderType(IntEnum):
     LEGACY  = 0x000d,
     ROOT    = 0x000e,
     PALETTE = 0x05aa,
-    UNK_D   = 0x0010,
+    END     = 0x0010,
     ASSET   = 0x0011,
     POOH    = 0x057a,
     LINK    = 0x0013,
@@ -1091,6 +1091,11 @@ class Context(Object):
             list(map(lambda x: value_assert(Datum(stream).d, x),
                 [0x04, 0x04, 0x012c, 0x03, 0.50, 0x01, 1.00, 0x01, 254.00, 0x00]
             ))
+        elif type.d == HeaderType.END:
+            for _ in range(2):
+                Datum(stream)
+            logging.warning("(@0x{:012x}) CxtData.get_header(): Read terminating context chunk; exiting")
+            return False
         elif type.d == 0x0000:
             raise ValueError("Leftover end-of-chunk flags should not be present")
             # return True
@@ -1361,7 +1366,7 @@ class System(Object):
                     cxt = Context(stream)
                     # Process the root first (if it exists).
                     if entry.get("filenum"):
-                        logging.debug("System.parse(): ({}) Parsing root entry...".format(entry["file"]))
+                        logging.info("System.parse(): ({}) Parsing root entry...".format(entry["file"]))
                         riff = riffs.pop()
 
                         self.contexts.update({entry["filenum"]: cxt})
@@ -1376,7 +1381,7 @@ class System(Object):
                             riff = riffs.pop()
                             header = self.headers[riff["assetid"]]
 
-                            logging.debug(
+                            logging.info(
                                 "System.parse(): ({}) Parsing major asset {}@0x{:012x} ({} of {})...".format(
                                     entry["file"], riff["assetid"], riff["offset"], i+1, cxt.riffs-1
                                 )
