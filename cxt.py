@@ -31,6 +31,7 @@ class HeaderType(IntEnum):
     PALETTE = 0x05aa,
     UNK_D   = 0x0010,
     ASSET   = 0x0011,
+    POOH    = 0x057a,
     LINK    = 0x0013,
     FUNC    = 0x0031,
 
@@ -1085,6 +1086,10 @@ class Context(Object):
             self.functions.update({Datum(stream).d + 0x4dbc: Bytecode(stream, prologue=True)})
             if not is_legacy():
                 value_assert(Datum(stream).d, 0x00, "end-of-chunk flag")
+        elif type.d == HeaderType.POOH:
+            list(map(lambda x: value_assert(Datum(stream).d, x),
+                [0x04, 0x04, 0x012c, 0x03, 0.50, 0x01, 1.00, 0x01, 254.00, 0x00]
+            ))
         elif type.d == 0x0000:
             raise ValueError("Leftover end-of-chunk flags should not be present")
             # return True
