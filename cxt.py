@@ -219,19 +219,25 @@ class Ref(Object):
         return "<Ref: {} ({:0>4d})>".format(self.id(), self.id(string=True))
 
 class Bytecode(Object):
-    def __init__(self, stream, prologue):
-        if not prologue: # for 0x0017 asset headers
+    def __init__(self, stream, standalone):
+        self.id = None
+        self.type = None
+        if standalone: # for 0x0031 chunks
+            Datum(stream) # file ID
+            self.id = Datum(stream)
+        else: # for 0x0017 asset header entities
             self.type = Datum(stream)
             self.unk1 = Datum(stream)
-            self.unk2 = Datum(stream)
+            self.size = Datum(stream)
 
         start = stream.tell()
         initial = Datum(stream)
         logging.debug("*** Bytecode(): Expecting {} bytes ***".format(initial.d))
 
         self.code = self.chunk(initial, stream)
-        self.length = stream.tell() - start
-        value_assert(self.length - 0x006, self.code["sz"].d, "length")
+        value_assert(stream.tell() - start - 0x006, self.code["sz"].d, "length")
+        if standalone and not is_legacy():
+            value_assert(Datum(stream).d, 0x00, "end-of-chunk flag")
 
     def chunk(self, size, stream):
         code = {"sz": size, "ch": []}
@@ -260,14 +266,14 @@ class Bytecode(Object):
             code["ox"].append(self.entity(Datum(stream), stream, end))
         elif token.d == 0x009a and string: # character string
             size = Datum(stream)
-            code = stream.read(size.d)
+            code = stream.read(size.d).decode("utf-8")
         else:
             code = token
 
         return code
 
     def __repr__(self):
-        return "<Bytecode: bytes: {}; chunks: {}>".format(self.length, len(self.code))
+        return "<Bytecode: chunks: {}>".format(len(self.code))
 
 class Point(Object):
     def __init__(self, m, **kwargs):
@@ -415,7 +421,7 @@ class AssetHeader(Object):
             logging.debug("(@0x{:012x}) AssetHeader(): Read type 0x{:04x}".format(stream.tell(), type.d))
 
             if type.d == 0x0017: # TMR, MOV
-                self.triggers.append(Bytecode(stream, prologue=False))
+                self.triggers.append(Bytecode(stream, standalone=False))
             elif type.d == 0x0019: # STG, IMG, SPR, MOV, TXT, CAM, CVS
                 d = Datum(stream)
             elif type.d == 0x001a: # SND, MOV
@@ -476,8 +482,9 @@ class AssetHeader(Object):
                 d = Datum(stream)
             elif type.d == 0x03ed:
                 # TODO: Figure out what this does actually!
-                Array(stream, stop=(DatumType.UINT8, 0x0000)).log()
-                Bytecode(stream, prologue=True)
+                Array(stream, stop=(DatumType.UINT16, 0x0017)).log()
+                Bytecode(stream, standalone=True)
+                input("I still need to figure out what this chunk does...")
             elif type.d == 0x03f4:
                 d = Datum(stream)
             elif type.d == 0x0517:
@@ -543,9 +550,7 @@ class AssetHeader(Object):
                 if type.d == HeaderType.ASSET:
                     self.children.append(AssetHeader(stream, stage=True))
                 elif type.d == HeaderType.FUNC:
-                    Datum(stream) # file ID
-                    self.children.append(Bytecode(stream, prologue="id"))
-                    if not is_legacy(): value_assert(Datum(stream).d, 0x00, "end-of-chunk flag")
+                    self.children.append(Bytecode(stream, standalone=True))
 
                 type = Datum(stream)
 
@@ -1052,7 +1057,6 @@ class Context(Object):
 
     def get_header(self, stream, chunk):
         type = Datum(stream)
-        self.code = []
 
         logging.debug("(@0x{:012x}) CxtData.get_header(): Read header type 0x{:04x}".format(stream.tell(), type.d))
         if type.d == HeaderType.LINK:
@@ -1069,11 +1073,11 @@ class Context(Object):
         elif type.d == HeaderType.ROOT:
             logging.info("(@0x{:012x}) CxtData.get_header(): Found {}context root".format(stream.tell(), "LEGACY " if is_legacy() else ""))
             assert not self.root # We cannot have more than 1 root
-            self.root = Root(stream)
+            self.root = {"root": Root(stream), "init": []}
             if is_legacy():
                 token = Datum(stream)
                 while token.d == 0x0017:
-                    self.code.append(Bytecode(stream, prologue=False))
+                    self.root["init"].append(Bytecode(stream, standalone=False))
                     token = Datum(stream)
         elif type.d == HeaderType.ASSET or (type.d == HeaderType.ROOT and is_legacy()):
             contents = [AssetHeader(stream)]
@@ -1105,12 +1109,10 @@ class Context(Object):
                 if stream.tell() % 2 == 1:
                     stream.read(1)
         elif type.d == HeaderType.FUNC:
-            Datum(stream) # file ID
-            func = Bytecode(stream, prologue="id")
+            func = Bytecode(stream, standalone=True)
             logging.info("(@0x{:012x}) CxtData.get_header(): Found function {}\n\t >>> {}".format(stream.tell(), func.id.d + 0x4dbc, func))
 
             self.functions.update({func.id.d + 0x4dbc: func})
-            if not is_legacy(): value_assert(Datum(stream).d, 0x00, "end-of-chunk flag")
         elif type.d == HeaderType.POOH:
             list(map(lambda x: value_assert(Datum(stream).d, x),
                 [0x04, 0x04, 0x012c, 0x03, 0.50, 0x01, 1.00, 0x01, 254.00, 0x00]
