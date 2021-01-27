@@ -398,7 +398,7 @@ class Root(Object):
 
 class AssetHeader(Object):
     def __init__(self, stream, stage=False):
-        logging.debug("AssetHeader(): Beginning header read")
+        logging.debug("AssetHeader(): Beginning {}header read".format("STAGE " if stage else ""))
 
         self.filenum = Datum(stream)
         self.type = Datum(stream)
@@ -530,6 +530,7 @@ class AssetHeader(Object):
         logging.debug("(@0x{:012x}) AssetHeader(): Finished reading asset header".format(stream.tell()))
 
         if self.type.d == AssetType.STG:
+            logging.info("(@0x{:012x}) ### AssetHeader(): Begin stage ###".format(stream.tell()))
             self.children = []
 
             value_assert(Datum(stream).d, HeaderType.LINK, "link signature")
@@ -538,8 +539,14 @@ class AssetHeader(Object):
             if stage: return # Tonka Raceway has embedded stages!
 
             type = Datum(stream)
-            while type.d == HeaderType.ASSET:
-                self.children.append(AssetHeader(stream, stage=True))
+            while type.d == HeaderType.ASSET or type.d == HeaderType.FUNC: # there can also be functions embedded inside stages!
+                if type.d == HeaderType.ASSET:
+                    self.children.append(AssetHeader(stream, stage=True))
+                elif type.d == HeaderType.FUNC:
+                    Datum(stream) # file ID
+                    self.children.append(Bytecode(stream, prologue="id"))
+                    if not is_legacy(): value_assert(Datum(stream).d, 0x00, "end-of-chunk flag")
+
                 type = Datum(stream)
 
     def __repr__(self):
@@ -1075,18 +1082,22 @@ class Context(Object):
                 contents += contents[0].children
 
             for header in contents:
-                logging.info("(@0x{:012x}) CxtData.get_header(): Found asset header\n\t >>> {}".format(stream.tell(), header))
-                self.headers.update({header.id.d: header})
+                if isinstance(header, AssetHeader):
+                    logging.info("(@0x{:012x}) CxtData.get_header(): Found asset header\n\t >>> {}".format(stream.tell(), header))
+                    self.headers.update({header.id.d: header})
 
-                # TODO: Deal with shared assets.
-                if header.ref and not isinstance(header.ref[0].d, int):
-                    # Actual data is in another chunk
-                    for ref in header.ref:
-                        self.refs.update({ref.d.id(string=True): header})
-                else: # All needed data is here in the header
-                    self.assets.update(self.make_structured_asset(
-                        header, header.targets if type.d == HeaderType.FUNC else None)
-                    )
+                    # TODO: Deal with shared assets.
+                    if header.ref and not isinstance(header.ref[0].d, int):
+                        # Actual data is in another chunk
+                        for ref in header.ref:
+                            self.refs.update({ref.d.id(string=True): header})
+                    else: # All needed data is here in the header
+                        self.assets.update(self.make_structured_asset(
+                            header, header.targets if type.d == HeaderType.FUNC else None)
+                        )
+                elif isinstance(header, Bytecode):
+                    logging.info("(@0x{:012x}) CxtData.get_header(): Found function\n\t >>> {}".format(stream.tell(), header))
+                    self.functions.update({header.id.d + 0x4dbc: header})
 
             if contents[0].type.d != AssetType.STG and not is_legacy():
                 value_assert(Datum(stream).d, 0x00, "end-of-chunk flag")
@@ -1095,9 +1106,11 @@ class Context(Object):
                     stream.read(1)
         elif type.d == HeaderType.FUNC:
             Datum(stream) # file ID
-            self.functions.update({Datum(stream).d + 0x4dbc: Bytecode(stream, prologue=True)})
-            if not is_legacy():
-                value_assert(Datum(stream).d, 0x00, "end-of-chunk flag")
+            func = Bytecode(stream, prologue="id")
+            logging.info("(@0x{:012x}) CxtData.get_header(): Found function {}\n\t >>> {}".format(stream.tell(), func.id.d + 0x4dbc, func))
+
+            self.functions.update({func.id.d + 0x4dbc: func})
+            if not is_legacy(): value_assert(Datum(stream).d, 0x00, "end-of-chunk flag")
         elif type.d == HeaderType.POOH:
             list(map(lambda x: value_assert(Datum(stream).d, x),
                 [0x04, 0x04, 0x012c, 0x03, 0.50, 0x01, 1.00, 0x01, 254.00, 0x00]
@@ -1198,7 +1211,7 @@ class Context(Object):
         return {}
 
     def export_function(self, directory, func, id):
-        logging.info("CxtData.export_function(): Exporting function {}".format(id))
+        logging.info("CxtData.export_function(): Exporting function {}\n\t >>> {}".format(id, func))
 
         path = directory if args.headers_only else os.path.join(directory, str(id))
         Path(path).mkdir(parents=True, exist_ok=True)
