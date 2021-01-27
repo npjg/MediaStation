@@ -186,7 +186,9 @@ class Datum(Object):
                 "(@ 0x{:0>12x}) Unknown datum type 0x{:0>4x}".format(stream.tell(), self.t)
             )
 
-        if args and args.all_datums: logging.debug(self)
+        if args and args.all_datums:
+            traceback.print_stack(limit=5)
+            logging.debug(self)
 
     def __repr__(self):
         data = ""
