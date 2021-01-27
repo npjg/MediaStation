@@ -74,6 +74,7 @@ class DatumType(IntEnum):
     POLY    = 0x001d,
 
 version = None
+args = None
 
 def chunk_int(chunk):
     try: return int(chunk['code'][1:], 16)
@@ -185,7 +186,7 @@ class Datum(Object):
                 "(@ 0x{:0>12x}) Unknown datum type 0x{:0>4x}".format(stream.tell(), self.t)
             )
 
-        if args.all_datums: logging.debug(self)
+        if args and args.all_datums: logging.debug(self)
 
     def __repr__(self):
         data = ""
