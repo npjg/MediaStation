@@ -340,6 +340,58 @@ class Array(Object):
     def __repr__(self):
         return "<Array: size: {:0>4d}; bytes: {:0>4d}>".format(len(self.datums), self.bytes)
 
+class Root(Object):
+    def __init__(self, stream):
+        self.name = None
+        self.entries = {}
+        self.filenum = Datum(stream)
+
+        check = Datum(stream)
+        if check.d != 0x0014: # empty root
+            if check.d == 0x0bb9:
+                value_assert(Datum(stream).d, self.filenum.d)
+                self.name = Datum(stream)
+                value_assert(Datum(stream).d, 0x0000)
+            elif check.d == 0x0011:
+                self.legacy_check(stream)
+            return
+
+        type = Datum(stream)
+        while type.d != 0x0000:
+            value_assert(type.d, self.filenum.d, "file ID")
+            entries = []
+
+            id = Datum(stream)
+            self.entries.update({id.d: self.entity(Datum(stream), stream)})
+
+            check = Datum(stream)
+            if check.d != 0x0014:
+                break
+
+            type = Datum(stream)
+
+        if check.d == 0x0011: self.legacy_check(stream)
+
+    def entity(self, token, stream):
+        entries = []
+
+        if token.d == 0x0007: # array
+            size = Datum(stream)
+            for _ in range(size.d):
+                entries.append(self.entity(Datum(stream), stream))
+        else:
+            entries.append(Datum(stream))
+
+        return {"token": token, "entries": entries}
+
+    def legacy_check(self, stream):
+        list(map(lambda x: value_assert(Datum(stream).d, x),
+                 [self.filenum.d, 0x0001, self.filenum.d, 0x0022]))
+        Datum(stream)
+
+    def __repr__(self):
+        return "<Root: size: {:0>4d}>".format(len(self.entries))
+
 class AssetHeader(Object):
     def __init__(self, stream, stage=False):
         logging.debug("AssetHeader(): Beginning header read")
@@ -980,6 +1032,7 @@ class Context(Object):
     def get_header(self, stream, chunk):
         type = Datum(stream)
 
+        logging.debug("(@0x{:012x}) CxtData.get_header(): Read header type 0x{:04x}".format(stream.tell(), type.d))
         if type.d == HeaderType.LINK:
             stream.seek(stream.tell() - 8)
             return False
@@ -992,17 +1045,16 @@ class Context(Object):
             self.palette = stream.read(0x300)
             value_assert(Datum(stream).d, 0x00, "end-of-chunk flag")
         elif type.d == HeaderType.ROOT:
-            logging.info("(@0x{:012x}) CxtData.get_header(): Found context root".format(stream.tell()))
+            logging.info("(@0x{:012x}) CxtData.get_header(): Found {}context root".format(stream.tell(), "LEGACY " if is_legacy() else ""))
             assert not self.root # We cannot have more than 1 root
             if is_legacy():
-                self.unks = Array(stream, stop=(DatumType.UINT16, 0x0017))
-                for _ in range(2):
-                    Datum(stream)
+                self.root = Root(stream)
+                value_assert(Datum(stream).d, 0x0017)
 
-                self.root = Bytecode(stream, prologue=True)
+                self.code = Bytecode(stream, prologue=False)
             else:
-                self.root = Array(stream, bytes=chunk["size"] - 8) # We read 2 datums
-
+                self.root = Root(stream)
+                self.code = None
         elif type.d == HeaderType.ASSET or (type.d == HeaderType.ROOT and is_legacy()):
             contents = [AssetHeader(stream)]
 
