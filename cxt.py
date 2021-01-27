@@ -971,13 +971,23 @@ class Context(Object):
         else: # Headers stored in one chunk.
             logging.warning("CxtData(): Detected early compiler version; using legacy header lookup")
             value_assert(Datum(stream).d, HeaderType.LEGACY)
-            self.get_header(stream, chunk)
+
+            self.get_header(stream, chunk) # palette
+
             chunk = read_chunk(stream)
             start = stream.tell()
-
             value_assert(Datum(stream).d, HeaderType.LEGACY)
+
             while stream.tell() < chunk["size"] + start:
-                if not self.get_header(stream, chunk): break
+                res = self.get_header(stream, chunk)
+                if res == HeaderType.POOH:
+                    logging.warning("(@0x{:012x}) CxtData(): Found POOH chunk".format(stream.tell()))
+                    chunk = read_chunk(stream)
+                    start = stream.tell()
+
+                    value_assert(Datum(stream).d, HeaderType.LEGACY)
+                elif not res:
+                    break
 
             chunk = read_chunk(stream)
 
@@ -1035,6 +1045,7 @@ class Context(Object):
 
     def get_header(self, stream, chunk):
         type = Datum(stream)
+        self.code = []
 
         logging.debug("(@0x{:012x}) CxtData.get_header(): Read header type 0x{:04x}".format(stream.tell(), type.d))
         if type.d == HeaderType.LINK:
@@ -1051,14 +1062,12 @@ class Context(Object):
         elif type.d == HeaderType.ROOT:
             logging.info("(@0x{:012x}) CxtData.get_header(): Found {}context root".format(stream.tell(), "LEGACY " if is_legacy() else ""))
             assert not self.root # We cannot have more than 1 root
+            self.root = Root(stream)
             if is_legacy():
-                self.root = Root(stream)
-                value_assert(Datum(stream).d, 0x0017)
-
-                self.code = Bytecode(stream, prologue=False)
-            else:
-                self.root = Root(stream)
-                self.code = None
+                token = Datum(stream)
+                while token.d == 0x0017:
+                    self.code.append(Bytecode(stream, prologue=False))
+                    token = Datum(stream)
         elif type.d == HeaderType.ASSET or (type.d == HeaderType.ROOT and is_legacy()):
             contents = [AssetHeader(stream)]
 
@@ -1093,6 +1102,8 @@ class Context(Object):
             list(map(lambda x: value_assert(Datum(stream).d, x),
                 [0x04, 0x04, 0x012c, 0x03, 0.50, 0x01, 1.00, 0x01, 254.00, 0x00]
             ))
+
+            return HeaderType.POOH
         elif type.d == HeaderType.END:
             for _ in range(2):
                 Datum(stream)
@@ -1345,6 +1356,7 @@ class System(Object):
             type = Datum(stream)
 
         self.footer = stream.read()
+        if is_legacy(): logging.info("System(): Detected title with no metadata; assuming legacy")
 
     def parse(self):
         riffs = copy(self.riffs)
