@@ -381,8 +381,10 @@ class Root(Object):
             size = Datum(stream)
             for _ in range(size.d):
                 entries.append(self.entity(Datum(stream), stream))
-        else:
-            entries.append(Datum(stream))
+        elif token.d == 0x0006: # string
+            size = Datum(stream)
+            entries.append(stream.read(size.d).decode("utf-8"))
+        else: entries.append(Datum(stream))
 
         return {"token": token, "entries": entries}
 
