@@ -44,8 +44,10 @@ class AssetType(IntEnum):
     IMG  = 0x0007,
     HSP  = 0x000b,
     SPR  = 0x000e,
-    UNK1 = 0x000f,
-    UNK2 = 0x0010,
+    LKS  = 0x000f, # Lion King Zazu minigame
+    LKC  = 0x0010, # Lion King constellations minigame
+    CUR  = 0x000c,
+    PRT  = 0x0019,
     MOV  = 0x0016,
     PAL  = 0x0017,
     TXT  = 0x001a,
@@ -166,7 +168,7 @@ class Datum(Object):
         elif self.t == DatumType.UINT16 or self.t == DatumType.UINT16_2 or self.t == DatumType.UINT16_3:
             self.d = struct.unpack("<H", stream.read(2))[0]
         elif self.t == DatumType.SINT16:
-            self.d = struct.unpack("<H", stream.read(2))[0]
+            self.d = struct.unpack("<h", stream.read(2))[0]
         elif self.t == DatumType.UINT32_1 or self.t == DatumType.UINT32_2:
             self.d = struct.unpack("<L", stream.read(4))[0]
         elif self.t == DatumType.FLOAT64_1 or self.t == DatumType.FLOAT64_2:
@@ -406,7 +408,7 @@ class Root(Object):
 
 class AssetHeader(Object):
     def __init__(self, stream, stage=False):
-        logging.debug("AssetHeader(): Beginning {}header read".format("STAGE " if stage else ""))
+        logging.debug("%%%% AssetHeader(): Beginning {}header read %%%%".format("STAGE " if stage else ""))
 
         self.filenum = Datum(stream)
         self.type = Datum(stream)
@@ -414,8 +416,10 @@ class AssetHeader(Object):
         self.name = None
         self.ref = []
         self.triggers = []
-        self.mouse = []
+        self.mouse = None
+        self.text = None
 
+        logging.debug("AssetHeader(): Header ID: 0x{:0>4x} ({:0>4d})".format(self.id.d, self.id.d))
         self.raw = {}
         type = Datum(stream)
         while type.d != 0x0000:
@@ -424,9 +428,9 @@ class AssetHeader(Object):
 
             if type.d == 0x0017: # TMR, MOV
                 self.triggers.append(Bytecode(stream, standalone=False))
-            elif type.d == 0x0019: # STG, IMG, SPR, MOV, TXT, CAM, CVS
-                d = Datum(stream)
-            elif type.d == 0x001a: # SND, MOV
+            elif type.d == 0x0019:
+                self.stage = Datum(stream)
+            elif type.d == 0x001a:
                 value_assert(Datum(stream).d, self.id.d, "asset ID")
             elif type.d == 0x001b: # SND, IMG, SPR, MOV, FON
                 if self.type.d == AssetType.MOV:
@@ -440,14 +444,14 @@ class AssetHeader(Object):
                 self.bbox = Datum(stream)
             elif type.d == 0x001d:
                 self.poly = Polygon(stream)
-            elif type.d == 0x001e: # STG, IMG, HSP, SPR, MOV, TXT, CAM, CVS
-                d = Datum(stream)
+            elif type.d == 0x001e:
+                self.z_index = Datum(stream)
             elif type.d == 0x001f: # IMG, HSP, SPR, MOV, TXT, CVS
                 d = Datum(stream)
             elif type.d == 0x0020: # IMG, SPR, CVS
                 d = Datum(stream)
             elif type.d == 0x0021: # SND
-                d = Datum(stream)
+                self.chunked = Datum(stream)
             elif type.d == 0x0022: # SCR, TXT, CVS
                 d = Datum(stream)
             elif type.d == 0x0024: # SPR
@@ -460,11 +464,14 @@ class AssetHeader(Object):
             elif type.d == 0x0037:
                 d = Datum(stream)
             elif type.d == 0x0258: # TXT
-                d = Datum(stream)
+                if not self.text:
+                    self.text = {}
+
+                self.text.update({"font": Datum(stream)} )
             elif type.d == 0x0259: # TXT
-                d = Datum(stream)
+                self.text.update({"init": Datum(stream)})
             elif type.d == 0x025a: # TXT
-                d = Datum(stream)
+                self.text.update({"maxwidth": Datum(stream)})
             elif type.d == 0x025b: # TXT
                 d = Datum(stream)
             elif type.d == 0x025f: # TXT
@@ -475,32 +482,56 @@ class AssetHeader(Object):
             elif type.d == 0x03e8: # SPR
                 self.chunks = Datum(stream)
             elif type.d == 0x03e9: # SPR
-                self.mouse.append(Array(stream, datums=3))
-            elif type.d == 0x03ea:
-                d = Datum(stream)
+                if not self.mouse:
+                    self.mouse = {"frames": [], "first": None}
+
+                self.mouse["frames"].append(
+                    {"id": Datum(stream), "x": Datum(stream), "y": Datum(stream)}
+                )
+            elif type.d == 0x03ea: # SPR
+                self.mouse["first"] = Datum(stream)
             elif type.d == 0x03eb: # IMG, SPR, TXT, CVS
-                d = Datum(stream)
+                self.editable = Datum(stream)
             elif type.d == 0x03ec:
-                d = Datum(stream)
+                assert is_legacy()
+                self.cursor = Datum(stream)
             elif type.d == 0x03ed:
-                # TODO: Figure out what this does actually!
-                Array(stream, stop=(DatumType.UINT16, 0x0017)).log()
-                Bytecode(stream, standalone=True)
-                input("I still need to figure out what this chunk does...")
-            elif type.d == 0x03f4:
+                assert is_legacy()
+                # This type should be only used for LKASB Zazu minigame,
+                # so it's okay to hardcode the constant 5.
+
+                self.mouse = {
+                    "timers": {
+                        Datum(stream).d: [Datum(stream), Datum(stream)] for _ in range(5)
+                    }
+                }
+            elif type.d == 0x03ee:
+                self.mouse.update({"unk": [Datum(stream), Datum(stream)]})
+            elif type.d == 0x03ef:
+                assert is_legacy()
+                if not self.mouse.get("barriers"):
+                    self.mouse.update({"barriers": []})
+
+                self.mouse["barriers"].append(Datum(stream))
+            elif type.d >= 0x03f0 and type.d <= 0x3f5:
                 d = Datum(stream)
-            elif type.d == 0x0517:
-                try:
-                    Array(stream, stop=(DatumType.UINT16, 0x0011))
-                    stream.seek(stream.tell() - 8)
-                except:
-                    stream.seek(stream.tell() - 4)
+            elif type.d >= 0x0514 and type.d < 0x0519:
+                # These data are constant acros the LKASB constellation
+                # minigame. I will ignore them.
+                Datum(stream)
+            elif type.d == 0x0519:
+                # Same comment as above
+                for _ in range(3):
+                    Datum(stream)
             elif type.d == 0x05aa: # PAL
                 self.palette = stream.read(0x300)
-            elif type.d == 0x05dc: # IMG, SPR, MOV, CVS
-                d = Datum(stream)
+            elif type.d == 0x05dc:
+                # It's only not 0.0 in the 'Read to me' and 'Read and play'
+                # images of Dalmatians. So I will ignore it.
+                Datum(stream)
             elif type.d == 0x05dd:
-                d = Datum(stream)
+                # I can't find an instance where this isn't 1. So I will ignore it.
+                Datum(stream)
             elif type.d == 0x05de: # IMG
                 self.x = Datum(stream)
             elif type.d == 0x05df: # IMG
@@ -531,7 +562,9 @@ class AssetHeader(Object):
             else:
                 raise TypeError("AssetHeader(): Unknown field delimiter in header: 0x{:0>4x}".format(type.d))
 
-            if d: self.raw.update({repr(type): d.d})
+            if d:
+                logging.debug(" --> {}".format(d)) # unknown types
+                self.raw.update({repr(type): d})
             if type.d == 0x0000: break
 
             type = Datum(stream)
