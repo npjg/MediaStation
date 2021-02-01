@@ -46,6 +46,7 @@ class AssetType(IntEnum):
     SPR  = 0x000e,
     LKS  = 0x000f, # Lion King Zazu minigame
     LKC  = 0x0010, # Lion King constellations minigame
+    UNK2 = 0x001d,
     CUR  = 0x000c,
     PRT  = 0x0019,
     MOV  = 0x0016,
@@ -74,6 +75,11 @@ class DatumType(IntEnum):
     REF     = 0x001b,
     BBOX    = 0x000d,
     POLY    = 0x001d,
+
+class TextJustification(IntEnum):
+    LEFT   = 0x025c,
+    RIGHT  = 0x025d,
+    CENTER = 0x025e,
 
 version = None
 args = None
@@ -473,12 +479,20 @@ class AssetHeader(Object):
             elif type.d == 0x025a: # TXT
                 self.text.update({"maxwidth": Datum(stream)})
             elif type.d == 0x025b: # TXT
-                d = Datum(stream)
+                self.text.update({"justification": Datum(stream)})
+
+                # Make sure we don't have any other types.
+                TextJustification(self.text["justification"].d)
             elif type.d == 0x025f: # TXT
                 d = Datum(stream)
-            elif type.d == 0x0263: # TXT
-                Array(stream, stop=(DatumType.UINT16, 0x0000))
-                stream.seek(stream.tell() - 4)
+            elif type.d == 0x0262: #TXT:
+                d = Datum(stream)
+            elif type.d == 0x0263:
+                pass
+            elif type.d == 0x0265: # TXT
+                d = [Datum(stream) for _ in range(3)]
+            elif type.d == 0x0266:
+                d = [Datum(stream) for _ in range(2)]
             elif type.d == 0x03e8: # SPR
                 self.chunks = Datum(stream)
             elif type.d == 0x03e9: # SPR
