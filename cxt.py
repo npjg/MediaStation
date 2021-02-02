@@ -261,19 +261,19 @@ class Bytecode(Object):
         if token.t == 0x0004:
             return self.chunk(token, stream)
 
-        code = {"oc": token, "ox": []}
+        code = []
         if token.d == 0x0067:
             for _ in range(3):
-                code["ox"].append(self.entity(Datum(stream), stream, end))
+                code.append(self.entity(Datum(stream), stream, end))
                 if stream.tell() >= end:
                     break
         elif token.d == 0x0066:
             for i in range(2):
-                code["ox"].append(self.entity(Datum(stream), stream, end, string=not i))
+                code.append(self.entity(Datum(stream), stream, end, string=(i==0)))
                 if stream.tell() >= end:
                     break
         elif token.d == 0x0065:
-            code["ox"].append(self.entity(Datum(stream), stream, end))
+            code.append(self.entity(Datum(stream), stream, end))
         elif token.d == 0x009a and string: # character string
             size = Datum(stream)
             code = stream.read(size.d).decode("utf-8")
