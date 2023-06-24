@@ -1,6 +1,6 @@
 
-from assets.File import File
-from assets.Asserts import assert_equal
+from asset_extraction_framework.File import File
+from asset_extraction_framework.Asserts import assert_equal
 
 import self_documenting_struct as struct
 

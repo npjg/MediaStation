@@ -3,7 +3,7 @@ from dataclasses import dataclass
 from enum import IntEnum
 import os
 
-from assets.Asserts import assert_equal
+from asset_extraction_framework.Asserts import assert_equal
 
 from ..Primitives.Datum import Datum
 from ..Primitives.Polygon import Polygon

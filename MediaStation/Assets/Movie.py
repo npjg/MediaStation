@@ -4,8 +4,8 @@ import os
 
 import numpy as np
 
-from assets.Asserts import assert_equal
-from assets.Asset.Animation import Animation
+from asset_extraction_framework.Asserts import assert_equal
+from asset_extraction_framework.Asset.Animation import Animation
 from PIL import Image
 
 from .. import global_variables

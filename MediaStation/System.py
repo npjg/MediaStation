@@ -3,8 +3,8 @@ from enum import IntEnum
 from typing import List, Optional
 import logging
 
-from assets.Asserts import assert_equal
-from assets.File import File
+from asset_extraction_framework.Asserts import assert_equal
+from asset_extraction_framework.File import File
 
 from dataclasses import dataclass
 

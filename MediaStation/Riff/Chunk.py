@@ -2,7 +2,7 @@
 
 import self_documenting_struct as struct
 
-from assets.Asserts import assert_equal
+from asset_extraction_framework.Asserts import assert_equal
 
 ## Media Station data files are *almost* RIFF files, but not quite. 
 ## Here are the major differences:

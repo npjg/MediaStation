@@ -1,8 +1,8 @@
 
 from typing import List
 
-from assets.Asserts import assert_equal
-from assets.File import File
+from asset_extraction_framework.Asserts import assert_equal
+from asset_extraction_framework.File import File
 
 TEXT_ENCODING = 'latin-1'
 SECTION_SEPARATOR = '!'

@@ -2,9 +2,9 @@
 from enum import IntEnum
 from typing import Dict, List, Optional
 
-from assets.Asserts import assert_equal
-from assets.File import File
-from assets.Asset.Palette import RgbPalette
+from asset_extraction_framework.Asserts import assert_equal
+from asset_extraction_framework.File import File
+from asset_extraction_framework.Asset.Palette import RgbPalette
 
 from .Primitives.Datum import Datum
 from .Riff.DataFile import DataFile

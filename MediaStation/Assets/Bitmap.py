@@ -3,8 +3,8 @@ import io
 
 import self_documenting_struct as struct
 
-from assets.Asserts import assert_equal
-from assets.Asset.Image import RectangularBitmap
+from asset_extraction_framework.Asserts import assert_equal
+from asset_extraction_framework.Asset.Image import RectangularBitmap
 from ..Primitives.Datum import Datum
 #import bitmap_decompressor
 

@@ -14,8 +14,8 @@
 ##  - Each of the classes populated from the data is generally exported to JSON.
 ##  - Multimedia files are exported to BMP or WAV.
 
-from assets.CommandLine import CommandLineArguments
-from assets.Application import Application, FileDetectionEntry
+from asset_extraction_framework.CommandLine import CommandLineArguments
+from asset_extraction_framework.Application import Application, FileDetectionEntry
 
 from MediaStation import global_variables 
 from MediaStation.System import System
@@ -50,7 +50,7 @@ file_detection_entries = [
     FileDetectionEntry(filename_regex = '.*\.stm$', case_sensitive = False, file_processor = System),
     FileDetectionEntry(filename_regex = '\d+\.cxt$', case_sensitive = False, file_processor = Context),
     FileDetectionEntry(filename_regex = 'install.cxt$', case_sensitive = False, file_processor = Context),
-    #FileDetectionEntry(filename_regex = 'profile._st$', case_sensitive = False, file_processor = Profile),
+    FileDetectionEntry(filename_regex = 'profile._st$', case_sensitive = False, file_processor = Profile),
 ]
 
 # PARSE THE COMMAND-LINE ARGUMENTS.

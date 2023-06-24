@@ -1,8 +1,8 @@
 
 from enum import IntEnum
 
-from assets.Asset.Sound import Sound as BaseSound
-from assets.Asserts import assert_equal
+from asset_extraction_framework.Asset.Sound import Sound as BaseSound
+from asset_extraction_framework.Asserts import assert_equal
 
 from .. import global_variables
 

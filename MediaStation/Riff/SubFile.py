@@ -3,7 +3,7 @@
 from typing import Optional
 
 import self_documenting_struct as struct
-from assets.Asserts import assert_equal
+from asset_extraction_framework.Asserts import assert_equal
 
 from .Chunk import ChunkMetadata
 
