@@ -1,84 +1,81 @@
-# Media Station
-
 A Python-based asset extractor and very incomplete bytecode decompiler for
-[Media Station](https://www.mobygames.com/company/media-station-inc) titles.
-I played many of these when I was growing up, and this was the first format
-I attempted to reverse engineer while I was bored one semester.
-
-The previous version of this script had a very poor design and was not maintainable,
-so I rewrote it pretty much from scratch in 2022 based on some renewed interest 
-from the community.
+[Media Station, Inc.](https://www.mobygames.com/company/media-station-inc) CD-ROM children's titles. 
+I loved many of these when I was growing up.
 
 Please join me in preserving these top-quality children's titles for future generations!
 
+## Motivation
+I re-discovered these titles when I was finding Director titles for the ScummVM Director
+engine at GSoC 2020. Coincidentally, the main data file extension (`*.CXT`) used in Media 
+Station titles is the same as that used for protected Director cast archives. I quickly
+discovered these weren't Director titles but something completely different - and so this
+project was born to preserve them.
+
 ## Known Titles
-| Title       | Release Year | Engine Version | Tested?     | Extractable? |
-| ----------- | -----------  | -----------    | ----------- | -----------  |
-| Disney's Animated Storybook: The Lion King | 1994 | OG | No | No |
-| Disney's Animated Storybook: Winnie the Pooh and the Honey Tree | 1996 | T3.3 | No | No |
-| Disney's Animated Storybook: Pocahontas | 1995 | OG | No | No |
-| Disney's Animated Storybook: The Hunchback of Notre Dame | 1996 | OG | No | No |
-| Disney's Toy Story Activity Center | 1996 | OG | No | No |
-| Disney's Animated Storybook: Toy Story | 1996 | OG | No | No |
-| Puzzle Castle | 1996 | OG | No | No |
-| Jan Pienkowski Haunted House | 1997 | OG | No | No |
-| Extreme Tactics | 1997 | OG | No | No |
-| Disney's Animated Storybook: Hercules | 1997 | OG | No | No |
-| Disney's Animated Storybook: 101 Dalmatians | 1997 | T3.5r5 | No | No |
-| Magic Fairy Tales: Barbie as Rapunzel | 1997 | OG | No | No |
-| Tonka Search & Rescue | 1997 | T3.5r5 | No | No |
-| Tonka Garage | 1998 | T4.0r8 | No | No |
-| D.W. the Picky Eater | 1998 | OG | No | No |
-| Disney presents Ariel's Story Studio | 1999 | OG | No | No |
-| Tonka Raceway | 1999 | OG | No | No |
-| Magic Fairy Tales: Barbie As Rapunzel + Hot Wheels: Custom Car Designer | 2000 | OG | No | No |
-| Stuart Little: Big City Adventures | 2002 | OG | No | No |
+If you know of any other titles, please submit a PR to add them here!
 
-## Usage
-
-
-## Engine History
-Coming soon!
+| Title                                                                   | Release Year | Engine Version | Supported?        |
+|-------------------------------------------------------------------------|--------------|----------------|-------------------|
+| Disney's Animated Storybook: The Lion King                              | 1994         | ?              | Yes               |
+| Disney's Animated Storybook: Pocahontas                                 | 1995         | ?              | Untested          |
+| Disney's Animated Storybook: Winnie the Pooh and the Honey Tree         | 1996         | T3.3           | Untested          |
+| Disney's Animated Storybook: The Hunchback of Notre Dame                | 1996         | ?              | Untested          |
+| Disney's Toy Story Activity Center                                      | 1996         | ?              | Untested          |
+| Disney's Animated Storybook: Toy Story                                  | 1996         | ?              | Untested          |
+| Puzzle Castle                                                           | 1996         | ?              | Untested          |
+| Jan Pienkowski Haunted House                                            | 1997         | ?              | Untested          |
+| Extreme Tactics                                                         | 1997         | ?              | Untested          |
+| Disney's Animated Storybook: Hercules                                   | 1997         | ?              | Untested          |
+| Disney's Animated Storybook: 101 Dalmatians                             | 1997         | T3.5r5         | Untested          |
+| Magic Fairy Tales: Barbie as Rapunzel                                   | 1997         | ?              | Untested          |
+| Tonka Search & Rescue                                                   | 1997         | T3.5r5         | Untested          |
+| Tonka Garage                                                            | 1998         | T4.0r8         | Yes (no Direct3D) |
+| D.W. the Picky Eater                                                    | 1998         | ?              | Untested          |
+| Disney presents Ariel's Story Studio                                    | 1999         | ?              | Untested          |
+| Tonka Raceway                                                           | 1999         | ?              | Untested          |
+| Magic Fairy Tales: Barbie As Rapunzel + Hot Wheels: Custom Car Designer | 2000         | ?              | Untested          |
+| Stuart Little: Big City Adventures                                      | 2002         | ?              | Untested          |
 
 ## File Formats
+All the data files for known titles are stored in the `data/` subdirectory on the CD-ROM. These seem to be the same across the Windows and Mac versions. Some titles have additional files than these (like Tonka Garage, which has some Direct3D models for the car design activity), but these are the known files and formats unique to the Media Station engine.
 
-This file format has a nice organization.
- - A data file contains one or more subfiles, which are each complete and (almost) standard RIFF.
- - Each subfile contains one or more chunks.
- - `igod`: Indicates a chunk that contains metadata
- - `a<i>000</i>`, where `<i>000</i>` is a string that represents a 3-digit hexademical number: Indicates a chunk that contains actual asset data (sounds/images).
- - Each chunk contains one of the following:
-   - Raw asset data (PCM audio or RLE-compressed bitmaps)
-   - One or more sections.
- - Each section contains one or more datums.
- - Each datum contains a single value (integer, string, etc.)
+Media Station titles have these types of files:
+ - Context files (`*.CXT`)
+ - Title definition file (`BOOT.STM`)
+ - Profile (`PROFILE._ST`) - ONLY non-OG titles.
 
-## TODO: Tighten up my terminology. 
-## 
-##  - "Chunk" refers to an actual RIFF chunk (designated by FourCC and size).
-##  - A series of related datums in a chunk is a "section".
+Each context file generally contains all the assets (and, depending on the version, the scripts) necessary to render one screen of the game. Since the format seems to have been originally designed for Disney's Interactive Storybook, this makes sense.
 
-All the data files for known titles are stored in the `data/` subdirectory on the CD-ROM. Each file consists
-of one or more subfiles, which each are complete and (almost) standard RIFF. 
+### Context Files
+- A _context file_ contains one or more subfiles, which are each complete and (almost) standard `RIFF`s.
+- Each _subfile_ inside a context file contains one or more (almost) standard `RIFF` _chunk_s.
+  - `igod`: Indicates a chunk that contains metadata about asset(s) in metadata sections.
+  - `a000`, where `000` is a string that represents a 3-digit hexadecimal number: Indicates a chunk that contains actual asset data (mainly sounds and bitmaps) with lower-level metadata in metadata sections.
+- Each chunk can contain the following:
+  - One or more _metadata sections_.
+  - Raw asset data (PCM audio or RLE-compressed bitmaps).
+- Each metadata section contains one or more _datum_s.
+- Each _datum_ contains a "primitive" data type (integer, string, etc.)
 
-### Context
-Coincidentally, this extension is the same as that for protected Director cast archives.
-I rediscovered these games while I was finding Director titles for the ScummVM Director
-engine. Of course, these weren't Director - but I was reminded how much I loved these titles
-when I was a kid. 
+### Title Definition (System) File
+Also known as the "system" file. Contains metadata sections with global title information like the following:
+- Title compiler version.
+- Declarations of each context file.
+- File offsets of all subfiles in all context files.
+- Declarations of cursors stored as resources in the executable.
 
-### System
-The "system" file (usually `BOOT.STM`) 
+### Profile
+When present, contains a human-readable enumeration of metadata like the following:
+ - All the assets in the title, along with the IDs and chunk FourCC(s) for that asset. 
+ - Declarations of the variables, constants, cursors, and so forth used in the game.
 
-Languages
+This doesn't seem to be opened/read by the executables at all while the titles are running.
+But there is a ton of useful cross-checking info in here.
 
-Data file: Consists of one or more "subfiles". Each subfile is a complete RIFF file.
+## Engine History
+Coming soon! For now, the [Disney's Animated Storybook](https://en.wikipedia.org/wiki/Disney%27s_Animated_Storybook) article has great background on the early titles, sourced largely from Newton Lee's books.
 
-RIFF
-| - IMTSrate
-| - LIST
-| - data
-| - igod
-| -- Section type
-| -- Value 
-
+## Future Enhancements
+- The bytecode decompiler needs a ton of work.
+- Some script data seems to be stored in the executables. That should be extracted.
+- Write a wikipedia article about the defunct Michigan-based company Media Station, Inc.
