@@ -270,7 +270,7 @@ class Context(DataFile):
     ## This makes parsing much easier than with the old-style format.
     def read_new_style_header_sections(self):
         # READ ALL THE HEADER SECTIONS.
-        more_sections_to_read = (self.current_subfile.current_chunk.fourcc == b'igod')
+        more_sections_to_read = (self.current_subfile.current_chunk.fourcc == 'igod')
         while more_sections_to_read:
             # VERIFY THIS IGOD CHUNK IS A HEADER.
             chunk_is_header = (Datum(self.stream).d == ChunkType.HEADER)
@@ -284,7 +284,7 @@ class Context(DataFile):
 
             # QUEUE UP THE NEXT DATA CHUNK.
             self.current_subfile.read_chunk_metadata()
-            more_sections_to_read = (self.current_subfile.current_chunk.fourcc == b'igod')
+            more_sections_to_read = (self.current_subfile.current_chunk.fourcc == 'igod')
 
     ## Reads a header section from this file's binary stream from the current position.
     ## \return True if there are more chunks to read after this one; False otherwise.
@@ -367,7 +367,7 @@ class Context(DataFile):
     def read_asset_in_first_subfile(self):
         # MAKE SURE THIS IS NOT AN ASSET LINK.
         # TODO: Properly understand what these data structures are.
-        if self.current_subfile.current_chunk.fourcc == b'igod':
+        if self.current_subfile.current_chunk.fourcc == 'igod':
             self.stream.read(self.current_subfile.current_chunk.length)
             return
 

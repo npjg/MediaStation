@@ -32,7 +32,7 @@ class SubFile:
         # VERIFY THE FILE SIGNATURE.
         self.stream = stream
         self.root_chunk: ChunkMetadata = self.read_chunk_metadata()
-        assert_equal(self.root_chunk.fourcc, b'RIFF', 'subfile signature')
+        assert_equal(self.root_chunk.fourcc, 'RIFF', 'subfile signature')
 
         # READ THE EXTRA-LONG FOURCC.
         # The FourCC for the next chunk is actually an "EightCC".

@@ -14,7 +14,7 @@ from asset_extraction_framework.Asserts import assert_equal
 class ChunkMetadata:
     def __init__(self, stream, fourcc_length = 4):
         self.start_pointer = stream.tell()
-        self.fourcc = stream.read(fourcc_length)
+        self.fourcc = stream.read(fourcc_length).decode('ascii')
         self.length = struct.unpack.uint32_le(stream)
 
     @property

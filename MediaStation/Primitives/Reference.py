@@ -10,7 +10,7 @@ class Reference:
         ## The FourCC of the referenced chunk.
         ## This is usually something like "a123".
         ## This chunk ID is unique in the game.
-        self.chunk_id = stream.read(4)#.decode('ascii')
+        self.chunk_id = stream.read(4).decode('ascii')
  
     ## \return The integral part of the chunk reference
     ## as a hexadecimal integer. 
