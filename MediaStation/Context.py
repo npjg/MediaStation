@@ -171,9 +171,8 @@ class Context(DataFile):
         super().__init__(filepath = filepath, stream = stream, has_header = True)
 
         # DECLARE THE CLASS MEMBERS ALWAYS PRESENT.
-        self.asset_headers: Dict[int, Asset] = {}
-        self.assets = []
-        self.referenced_chunks: Dict[str, Asset] = {}
+        self.assets: Dict[str, Asset] = {}
+        self._referenced_chunks: Dict[str, Asset] = {}
         self.functions = []
         # Since this is a separate header section, it is parsed by its own class
         # rather than being read through a method in this class. That adds some 
@@ -220,9 +219,6 @@ class Context(DataFile):
             # UPDATE THE CURRENT SUBFILE.
             self.read_subfile_metadata()
             self.read_asset_from_later_subfile()
-
-        # TODO: Figure out how we can override a base class member with a derived class property.
-        self.assets = self.referenced_chunks.values()
 
     ## Reads old-style header chunks from the current position of this file's binary stream.
     ##
@@ -317,8 +313,7 @@ class Context(DataFile):
         elif (Context.SectionType.ASSET_HEADER == section_type):
             # READ AN ASSET HEADER.
             asset_header = Asset(self.stream)
-            self.asset_headers.update({asset_header.id: asset_header})
-            self.assets.append(asset_header)
+            self.assets.update({asset_header.id: asset_header})
             if (Asset.AssetType.STAGE == asset_header.type):
                 Datum(self.stream)
                 Datum(self.stream)
@@ -332,11 +327,8 @@ class Context(DataFile):
                 # For movies, the first chunk is sufficient to identify
                 # the movie since the IDs of the three chunks are always 
                 # sequential.
-                #chunk_reference = asset_header.chunk_references[0]
                 for chunk_reference in asset_header.chunk_references:
-                    if chunk_reference == b'a043':
-                        print()
-                    self.referenced_chunks.update({chunk_reference: asset_header})
+                    self._referenced_chunks.update({chunk_reference: asset_header})
 
             if (not global_variables.old_generation) and (not reading_stage) and not asset_header.type == Asset.AssetType.STAGE:
                 Datum(self.stream)
@@ -445,7 +437,7 @@ class Context(DataFile):
 
     ## This is included as a separate step becuase it is not connected to reading the data.
     def apply_palette(self):
-        for asset in self.assets:
+        for asset in self._referenced_chunks.values():
             if (asset.type == Asset.AssetType.IMAGE) or \
                     (asset.type == Asset.AssetType.CAMERA) or \
                     (asset.type == Asset.AssetType.UNK2):
@@ -467,7 +459,7 @@ class Context(DataFile):
     ##         (For movie assets, the chunk ID used for lookup is the first chunk.)
     ##         If an asset does not match, None is returned.
     def get_asset_by_chunk_id(self, chunk_id: str) -> Optional[Asset]:
-        return self.referenced_chunks.get(chunk_id, None)
+        return self._referenced_chunks.get(chunk_id, None)
 
     ## Exports all the assets in this file.
     ## \param[in] root_directory_path - The root directory where the assets should be exported.
