@@ -28,7 +28,7 @@ class Profile(File):
         self.sections = []
         self.version = Version(self.stream)
         self.contexts = ProfileSection(self.stream, ContextDeclaration)
-        self.assets = ProfileSection(self.stream, AssetDeclaration)
+        self.asset_declarations = ProfileSection(self.stream, AssetDeclaration)
         self.file = ProfileSection(self.stream, FileDeclaration)
         self.variables = ProfileSection(self.stream, VariableDeclaration)
         self.resources = ProfileSection(self.stream, ResourceDeclaration)
