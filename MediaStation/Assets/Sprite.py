@@ -39,7 +39,6 @@ class Sprite(Animation):
         self._height = header.bounding_box.dimensions.y
         self._left = header.bounding_box.left_top_point.x
         self._top = header.bounding_box.left_top_point.y
-        self.bitmaps = []
 
     ## Reads a sprite frame from a binary stream at its current position
     ## and adds it to the collection of frames in this sprite.
@@ -48,4 +47,5 @@ class Sprite(Animation):
     ##            This number of bytes will be read from the stream.
     def append(self, stream, size):
         sprite_frame = SpriteFrame(stream, size)
-        self.bitmaps.append(sprite_frame)
+        self.frames.append(sprite_frame)
+        self.frames.sort(key = lambda x: x.index)

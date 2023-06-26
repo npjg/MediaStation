@@ -444,7 +444,7 @@ class Context(DataFile):
                 asset.image._palette = self.palette
 
             elif (asset.type == Asset.AssetType.SPRITE):
-                for frame in asset.sprite.bitmaps:
+                for frame in asset.sprite.frames:
                     frame._palette = self.palette
 
             elif (asset.type == Asset.AssetType.FONT):
