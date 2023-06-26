@@ -88,15 +88,6 @@ class MovieFrame(Bitmap):
         self._left = 1
         self._top = 0
 
-    @property
-    def is_keyframe(self):
-        # The only known instance where a frame does not have a footer assigned 
-        # is when the frame is a keyframe and occurs in one subfile but the
-        # keyframe is also displayed in a later subfile.
-        if self.footer is None:
-            return False
-        return (self.keyframe_end_in_milliseconds > self.footer.end_in_milliseconds) 
-    
     @property 
     def _duration(self):
         return self.footer.end_in_milliseconds - self.footer.start_in_milliseconds
