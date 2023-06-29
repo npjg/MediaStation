@@ -109,6 +109,7 @@ class Asset:
         # For instance, an asset in file "100.CXT" would have file number 100.
         self.file_number: int = Datum(stream).d
         self.name = None
+        self.unks = []
 
         # READ THE ASSET TYPE.
         self.type = Asset.AssetType(Datum(stream).d)
@@ -187,13 +188,13 @@ class Asset:
                 header_reference = Datum(stream).d.chunk_id
                 self.chunk_references.append(header_reference)
                 # TODO: Find out what this is and why we have to skip it.
-                Datum(stream)
+                self.unks.append({hex(section_type): Datum(stream).d})
 
                 # READ THE AUDIO REFERENCE.
                 audio_reference = Datum(stream).d.chunk_id
                 self.chunk_references.append(audio_reference)
                 # TODO: Find out what this is and why we have to skip it.
-                Datum(stream)
+                self.unks.append({hex(section_type): Datum(stream).d})
 
                 # READ THE VIDEO REFERENCE.
                 video_reference = Datum(stream).d.chunk_id
@@ -228,22 +229,22 @@ class Asset:
 
         elif section_type == 0x0020: # IMG, SPR, CVS
             # TODO: Determine what this is.
-            Datum(stream)
+            self.unks.append({hex(section_type): Datum(stream).d})
 
         elif section_type == 0x0021: # SND, MOV
             self._has_own_subfile = bool(Datum(stream).d)
 
         elif section_type == 0x0022: # SCR, TXT, CVS
             # TODO: Determine what this is.
-            Datum(stream)
+            self.unks.append({hex(section_type): Datum(stream).d})
 
         elif section_type == 0x0024: # SPR
             # TODO: Determine what this is.
-            Datum(stream)
+            self.unks.append({hex(section_type): Datum(stream).d})
 
         elif section_type == 0x0032: # IMG, SPR
             # TODO: Determine what this is.
-            Datum(stream)
+            self.unks.append({hex(section_type): Datum(stream).d})
 
         elif section_type == 0x0033: # SND, MOV
             # READ THE 
@@ -253,7 +254,7 @@ class Asset:
 
         elif section_type == 0x0037:
             # TODO: Determine what this is.
-            Datum(stream)
+            self.unks.append({hex(section_type): Datum(stream).d})
 
         elif section_type == 0x0258: # TXT
             # This should always be the first entry
@@ -271,10 +272,10 @@ class Asset:
             self.text.justification = Text.Justification(Datum(stream).d)
 
         elif section_type == 0x025f: # TXT
-            Datum(stream)
+            self.unks.append({hex(section_type): Datum(stream).d})
 
         elif section_type == 0x0262: # TXT
-            Datum(stream)
+            self.unks.append({hex(section_type): Datum(stream).d})
 
         elif section_type == 0x0263:
             pass
@@ -287,7 +288,7 @@ class Asset:
 
         elif section_type >= 0x3a98 and section_type <= 0x3afb:
             self.id = section_type
-            Datum(stream)
+            self.unks.append({hex(section_type): Datum(stream).d})
 
         elif section_type == 0x03e8: # SPR
             self.chunks = Datum(stream)
@@ -330,17 +331,17 @@ class Asset:
             self.mouse["barriers"].append(Datum(stream).d)
 
         elif section_type >= 0x03f0 and section_type <= 0x3f5:
-            Datum(stream)
+            self.unks.append({hex(section_type): Datum(stream).d})
 
         elif section_type >= 0x0514 and section_type < 0x0519:
             # These data are constant across the LKASB constellation
             # minigame. I will ignore them.
-            Datum(stream)
+            self.unks.append({hex(section_type): Datum(stream).d})
 
         elif section_type == 0x0519:
             # Same comment as above.
             for _ in range(3):
-                Datum(stream)
+                self.unks.append({hex(section_type): Datum(stream).d})
 
         elif section_type == 0x05aa: # PAL
             self.palette = stream.read(0x300)
@@ -348,11 +349,11 @@ class Asset:
         elif section_type == 0x05dc:
             # It's only not 0.0 in the 'Read to me' and 'Read and play'
             # images of Dalmatians. So I will ignore it.
-            Datum(stream)
+            self.unks.append({hex(section_type): Datum(stream).d})
 
         elif section_type == 0x05dd:
             # I can't find an instance where this isn't 1. So I will ignore it.
-            Datum(stream)
+            self.unks.append({hex(section_type): Datum(stream).d})
 
         elif section_type == 0x05de: # IMG
             self.x = Datum(stream).d
@@ -367,7 +368,7 @@ class Asset:
             self.end = [Datum(stream).d]
 
         elif section_type == 0x0610: # PTH
-            Datum(stream)
+            self.unks.append({hex(section_type): Datum(stream).d})
 
         elif section_type == 0x0611: # PTH
             self.end.append(Datum(stream).d)
@@ -376,22 +377,22 @@ class Asset:
             self.start.append(Datum(stream).d)
 
         elif section_type == 0x06ac:
-            Datum(stream)
-
-        elif section_type >= 0x0773 and section_type <= 0x0780:
-            Datum(stream)
-
-        elif section_type == 0x2734:
-            Datum(stream)
+            self.unks.append({hex(section_type): Datum(stream).d})
 
         elif section_type == 0x076f: # CAM
-            Datum(stream)
+            self.unks.append({hex(section_type): Datum(stream).d})
 
         elif section_type == 0x0770: # CAM
-            Datum(stream)
+            self.unks.append({hex(section_type): Datum(stream).d})
 
         elif section_type == 0x0772: # STG
-            Datum(stream)
+            self.unks.append({hex(section_type): Datum(stream).d})
+
+        elif section_type >= 0x0773 and section_type <= 0x0780:
+            self.unks.append({hex(section_type): Datum(stream).d})
+
+        elif section_type == 0x2734:
+            self.unks.append({hex(section_type): Datum(stream).d})
 
         elif section_type == 0x0bb8:
             # READ THE ASSET NAME.
