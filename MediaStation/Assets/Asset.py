@@ -54,13 +54,20 @@ class Asset:
         STAGE = 0x0019
         ASSET_ID = 0x001a
         CHUNK_REFERENCE = 0x001b
+        ASSET_REFERENCE = 0x077b
         BOUNDING_BOX = 0x001c
         POLYGON = 0x001d
         Z_INDEX = 0x001e
 
     def export(self, directory_path, command_line_arguments):
-        # EXPORT ANY ASSETS.
-        # These are the only asstes that are 
+        asset_references_data_from_other_asset = hasattr(self, 'asset_reference')
+        if asset_references_data_from_other_asset:
+            # TODO: Copy the referenced asset's data to this asset rather than just skipping export.
+            return
+
+        # These are the only asset types known to be "exportable"
+        # (to have data that can't be represented well in JSON like images or sound).
+        # If any more are discovered, they should be added here.
         if (Asset.AssetType.IMAGE == self.type):
             self.image.name = self.name
             self.image.export(directory_path, command_line_arguments)
@@ -114,7 +121,6 @@ class Asset:
         # The asset ID of the stage on which this asset is shown.
         # None if the asset does not belong to a stage.
         self.stage_id = None
-        
         self.chunk_references = []
         self.functions = []
 
@@ -206,6 +212,16 @@ class Asset:
 
         elif Asset.SectionType.Z_INDEX == section_type:
             self.z_index = Datum(stream).d
+
+        elif section_type == Asset.SectionType.ASSET_REFERENCE: # IMG
+            # This is the asset ID of the asset that has the same 
+            # image/sound data as this asset. For example, in Tonka Garage
+            # the asset img_7x51gg009all_GearFourHigh has this field
+            # becuase the image in this asset is the same as the image
+            # in the asset img_7x51gg009all_GearThreeHigh. 
+            # I don't know why they did it this way, as just the chunk
+            # reference could have been the same rather than an entire asset reference.
+            self.asset_reference = Datum(stream).d
 
         elif section_type == 0x001f: # IMG, HSP, SPR, MOV, TXT, CVS
             self.automatically_play = bool(Datum(stream).d)
@@ -376,9 +392,6 @@ class Asset:
 
         elif section_type == 0x0772: # STG
             Datum(stream)
-
-        elif section_type == 0x077b: # IMG
-            self.ref = [Datum(stream).d] # an integer holding refd asset ID
 
         elif section_type == 0x0bb8:
             # READ THE ASSET NAME.
