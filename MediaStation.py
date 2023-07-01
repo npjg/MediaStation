@@ -48,7 +48,12 @@ class MediaStationEngine(Application):
 # DEFINE THE FILE TYPES IN THIS APPLICATION.
 file_detection_entries = [
     FileDetectionEntry(filename_regex = '.*\.stm$', case_sensitive = False, file_processor = System),
+    # All regular context files have only digits in their main file names. 
     FileDetectionEntry(filename_regex = '\d+\.cxt$', case_sensitive = False, file_processor = Context),
+    # The INSTALL.CXT, if present, MUST be read after all the other contexts are read. This is because 
+    # INSTALL.CXT contains no asset headers; it jumps directly into the asset subfiles. So if the asset
+    # headers have not all been read, an error will be thrown. It is much simpler to just force INSTALL.CXT
+    # to be read afterward than let asset subfiles be read before the headers.
     FileDetectionEntry(filename_regex = 'install.cxt$', case_sensitive = False, file_processor = Context),
     FileDetectionEntry(filename_regex = 'profile._st$', case_sensitive = False, file_processor = Profile),
 ]
