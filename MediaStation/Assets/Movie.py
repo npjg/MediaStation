@@ -70,8 +70,7 @@ class MovieFrameFooter:
 
 ## A single bitmap frame in a movie.
 class MovieFrame(Bitmap):
-    def __init__(self, stream, size, in_first_subfile = False):
-        self.in_first_subfile = in_first_subfile
+    def __init__(self, stream, size):
         end_pointer = stream.tell() + size
         # TODO: Is this a size?
         assert_equal(Datum(stream).d, 0x0028)
@@ -80,7 +79,9 @@ class MovieFrame(Bitmap):
         self.unk2 = Datum(stream).d
         self.index = Datum(stream).d
         self.keyframe_end_in_milliseconds = Datum(stream).d
-        # The footer must be added separately because it is not always present.
+        # The footer must be added separately because it is not always present,
+        # and the footer right after this frame might not actually correspond to
+        # this frame.
         self.footer = None
 
         # READ THE IMAGE.
