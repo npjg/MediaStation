@@ -45,29 +45,33 @@ class MediaStationEngine(Application):
                 if found_asset is not None:
                     return (file, found_asset)
 
-# DEFINE THE FILE TYPES IN THIS APPLICATION.
-file_detection_entries = [
-    FileDetectionEntry(filename_regex = '.*\.stm$', case_sensitive = False, file_processor = System),
-    # All regular context files have only digits in their main file names. 
-    FileDetectionEntry(filename_regex = '\d+\.cxt$', case_sensitive = False, file_processor = Context),
-    # The INSTALL.CXT, if present, MUST be read after all the other contexts are read. This is because 
-    # INSTALL.CXT contains no asset headers; it jumps directly into the asset subfiles. So if the asset
-    # headers have not all been read, an error will be thrown. It is much simpler to just force INSTALL.CXT
-    # to be read afterward than let asset subfiles be read before the headers.
-    FileDetectionEntry(filename_regex = 'install.cxt$', case_sensitive = False, file_processor = Context),
-    FileDetectionEntry(filename_regex = 'profile._st$', case_sensitive = False, file_processor = Profile),
-]
+def main():
+    # DEFINE THE FILE TYPES IN THIS APPLICATION.
+    file_detection_entries = [
+        FileDetectionEntry(filename_regex = '.*\.stm$', case_sensitive = False, file_processor = System),
+        # All regular context files have only digits in their main file names. 
+        FileDetectionEntry(filename_regex = '\d+\.cxt$', case_sensitive = False, file_processor = Context),
+        # The INSTALL.CXT, if present, MUST be read after all the other contexts are read. This is because 
+        # INSTALL.CXT contains no asset headers; it jumps directly into the asset subfiles. So if the asset
+        # headers have not all been read, an error will be thrown. It is much simpler to just force INSTALL.CXT
+        # to be read afterward than let asset subfiles be read before the headers.
+        FileDetectionEntry(filename_regex = 'install.cxt$', case_sensitive = False, file_processor = Context),
+        FileDetectionEntry(filename_regex = 'profile._st$', case_sensitive = False, file_processor = Profile),
+    ]
 
-# PARSE THE COMMAND-LINE ARGUMENTS.
-APPLICATION_NAME = 'Media Station'
-APPLICATION_DESCRIPTION = ''
-command_line_arguments = CommandLineArguments(APPLICATION_NAME, APPLICATION_DESCRIPTION).parse()
+    # PARSE THE COMMAND-LINE ARGUMENTS.
+    APPLICATION_NAME = 'Media Station'
+    APPLICATION_DESCRIPTION = ''
+    command_line_arguments = CommandLineArguments(APPLICATION_NAME, APPLICATION_DESCRIPTION).parse()
 
-# PARSE THE ASSETS.
-media_station_engine = MediaStationEngine(APPLICATION_NAME)
-global_variables.application = media_station_engine
-media_station_engine.process(command_line_arguments.input, file_detection_entries)
+    # PARSE THE ASSETS.
+    media_station_engine = MediaStationEngine(APPLICATION_NAME)
+    global_variables.application = media_station_engine
+    media_station_engine.process(command_line_arguments.input, file_detection_entries)
 
-# EXPORT THE ASSETS, IF REQUESTED.
-if command_line_arguments.export:
-    media_station_engine.export(command_line_arguments)
+    # EXPORT THE ASSETS, IF REQUESTED.
+    if command_line_arguments.export:
+        media_station_engine.export(command_line_arguments)
+
+if __name__ == '__main__':
+    main()
