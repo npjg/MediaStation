@@ -312,6 +312,10 @@ class System(DataFile):
         # Systems do not have a Media Station header, probably
         # because the only ever have one subfile.
         super().__init__(filepath = filepath, stream = stream, has_header = False)
+        # TODO: This should be integrated into the file itself.
+        igod_chunk = self.current_subfile.read_chunk_metadata()
+        # TODO: Figure out what this is.
+        assert_equal(Datum(self.stream).d, 0x0001)
 
         # DECLARE METADATA FOR THE WHOLE GAME.
         # These fields will not be present in early games.
@@ -321,7 +325,6 @@ class System(DataFile):
         self.game_title: str = None
         self.version: Optional[EngineVersionInformation] = None
         global_variables.old_generation = True
-
         # A single string that contains several different pieces
         # of data about the source of this game.
         # Example: "Title Source ..\imt_src\TonkaGarage.imt; built Thu Mar 19 14:57:41 1998"
@@ -329,27 +332,17 @@ class System(DataFile):
         #                        | The IMT filepath; this was probably a metafile that defined each title.
         #                          Not useful unless we have the original source file (and PLEASE write if you do!)
         self.source_string: Optional[str] = None
-
-        # DECLARE THE ENGINE RESOURCES.
-        # These are not "resources" in the executable (like cursors) 
-        # but are defined by the engine. Usually these names begin
-        # with a dollar sign ($).
-        self.engine_resource_names = []
-        self.engine_resource_ids = []
-
-        # DECLARE THE FILE LINKS.
         self.unknown_declarations = []
         self.file_declarations = []
         self.context_declarations = []
         self.riff_declarations = []
         self.cursor_declarations = []
         self.unks = []
-
-        # OPEN THE FILE FOR READING.
-        # TODO: This should be integrated into the file itself.
-        igod_chunk = self.current_subfile.read_chunk_metadata()
-        # TODO: Figure out what this is.
-        assert_equal(Datum(self.stream).d, 0x0001)
+        # These are not "resources" in the executable (like cursors) 
+        # but are defined by the engine. Usually these names begin
+        # with a dollar sign ($).
+        self.engine_resource_names = []
+        self.engine_resource_ids = []
 
         # READ THE ITEMS IN THIS FILE.
         section_type = Datum(self.stream).d
