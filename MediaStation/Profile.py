@@ -109,11 +109,11 @@ class ProfileSection:
         for line in lines_in_file:
             # READ THIS ENTRY.
             entry = profile_entry_class(line)
-            if entry.end_of_section:
+            if entry._end_of_section:
                 break
 
             # STORE THIS ENTRY.
-            if not entry.is_summary:
+            if not entry._is_summary:
                 # This is a regular record (far more common, so
                 # it's listed first).
                 self.entries.append(entry)
@@ -130,14 +130,14 @@ class ProfileEntry:
         self._raw_entry: List[str] = line.strip().decode(TEXT_ENCODING).split(' ')
         # Check if this is a summary entry (see above).
         if self._raw_entry[0] == SUMMARY_INDICATOR:
-            self.is_summary = True
+            self._is_summary = True
         else:
-            self.is_summary = False
+            self._is_summary = False
         # Check if this is the end of the section.
         if self._raw_entry == [SECTION_SEPARATOR]:
-            self.end_of_section = True
+            self._end_of_section = True
         else:
-            self.end_of_section = False
+            self._end_of_section = False
 
 ## Examples:
 ##  _Version3.4_ _PC_
@@ -146,7 +146,7 @@ class Version(ProfileEntry):
     def __init__(self, lines_in_file):
         line = next(lines_in_file)
         super().__init__(line)
-        if self.end_of_section:
+        if self._end_of_section:
             return
 
         self.version_number: str = self._raw_entry[0]
@@ -164,7 +164,7 @@ class Version(ProfileEntry):
 class ContextDeclaration(ProfileEntry):
     def __init__(self, lines_in_file):
         super().__init__(lines_in_file)
-        if (self.is_summary) or (self.end_of_section):
+        if (self._is_summary) or (self._end_of_section):
             return
         # Known type strings are "Document", "Context", and "Screen".
         self.type: str = self._raw_entry[0]
@@ -189,8 +189,8 @@ class ContextDeclaration(ProfileEntry):
 class AssetDeclaration(ProfileEntry):
     def __init__(self, lines_in_file):
         super().__init__(lines_in_file)
-        self.chunk_ids = []
-        if (self.is_summary) or (self.end_of_section):
+        self._chunk_ids = []
+        if (self._is_summary) or (self._end_of_section):
             return
 
         self.asset_name: str = self._raw_entry[0]
@@ -198,12 +198,12 @@ class AssetDeclaration(ProfileEntry):
         # Movies have more than one chunk, so we will just get the rest of the line.
         # TODO: Verify exactly three are actually listed.
         raw_chunk_ids = self._raw_entry[2:]
-        self.chunk_ids = [int(raw_chunk_id) for raw_chunk_id in raw_chunk_ids]
+        self._chunk_ids = [int(raw_chunk_id) for raw_chunk_id in raw_chunk_ids]
 
     @property
-    def has_associated_chunks(self):
+    def _has_associated_chunks(self):
         # The presence of no chunks is indicated by a chunk ID of 0.
-        if len(self.chunk_ids) == 0 or (self.chunk_ids[0] == 0):
+        if len(self._chunk_ids) == 0 or (self._chunk_ids[0] == 0):
             return False
         else:
             return True
@@ -217,15 +217,15 @@ class AssetDeclaration(ProfileEntry):
     ##  img_7x00gg011all_RadioLines 162 8  -> ['a008']
     ##  mov_7xb2_MSIBumper 265 104 105 106 -> ['a068', 'a069', 'a6a']
     @property
-    def fourccs(self):
-        if not self.has_associated_chunks:
+    def four_ccs(self):
+        if not self._has_associated_chunks:
             return None
         
         def create_fourcc(chunk_id: int) -> str:
             if chunk_id > 0xfff:
                 raise ValueError(f'Chunk ID {chunk_id} too large to fit in 4-character FourCC.')
             return f'a{chunk_id:03x}'
-        return [create_fourcc(chunk_id) for chunk_id in self.chunk_ids]
+        return [create_fourcc(chunk_id) for chunk_id in self._chunk_ids]
 
 ## Examples:
 ##  "3664.cxt" 100
@@ -242,7 +242,7 @@ class AssetDeclaration(ProfileEntry):
 class FileDeclaration(ProfileEntry):
     def __init__(self, lines_in_file):
         super().__init__(lines_in_file)
-        if (self.is_summary) or (self.end_of_section):
+        if (self._is_summary) or (self._end_of_section):
             return
 
         self.filename: str = self._raw_entry[0]
@@ -263,7 +263,7 @@ class FileDeclaration(ProfileEntry):
 class VariableDeclaration(ProfileEntry):
     def __init__(self, lines_in_file):
         super().__init__(lines_in_file)
-        if (self.is_summary) or (self.end_of_section):
+        if (self._is_summary) or (self._end_of_section):
             return
 
         self.variable_name: str = self._raw_entry[0]
@@ -276,7 +276,7 @@ class VariableDeclaration(ProfileEntry):
 class ResourceDeclaration(ProfileEntry):
     def __init__(self, lines_in_file):
         super().__init__(lines_in_file)
-        if (self.is_summary) or (self.end_of_section):
+        if (self._is_summary) or (self._end_of_section):
             return
 
         self.resource_name: str = self._raw_entry[0]
@@ -289,7 +289,7 @@ class ResourceDeclaration(ProfileEntry):
 class ConstantDeclaration(ProfileEntry):
     def __init__(self, lines_in_file):
         super().__init__(lines_in_file)
-        if (self.is_summary) or (self.end_of_section):
+        if (self._is_summary) or (self._end_of_section):
             return
 
         self.constant_name: str = self._raw_entry[0]
