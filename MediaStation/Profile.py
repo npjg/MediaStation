@@ -6,6 +6,37 @@ from asset_extraction_framework.File import File
 
 TEXT_ENCODING = 'latin-1'
 SECTION_SEPARATOR = '!'
+# At the end of several sections, we see "summary" notation like the following:
+#  * 3987 20432 3881 15000
+# This has been observed for the following sections:
+#  - Asset declarations
+#    Example (101 Dalmatians):
+#      sound_6cp2_GoodByeForNow 3663 3877
+#      image_6cp2_background 3653 3878
+#      * 3987 20432 3881 15000
+#
+#  - Context declarations 
+#    Example (101 Dalmatians):
+#      "1527.cxt" 127
+#      "126.cxt" 128
+#      * 130
+#
+#  - Variable declarations
+#    Example (101 Dalmatians):
+#       v_6cX6_comingFromLibrary 1207
+#       var_6c09_bool_OpeningPlayed 1576
+#       * 1687
+#
+#  - Resource declarations
+#    Example (101 Dalmatians):
+#       $upArrow 10037
+#       $downArrow 10038
+#       * 10039
+#
+# I am not sure what these numbers mean yet. Sometimes it looks like they're the
+# maximum ID for whatever type we're looking at in the title, but sometimes this
+# also doesn't seem to be the case. So further investigation is necessary!
+SUMMARY_INDICATOR = '*'
 
 class Profile(File):
     ## Reads a profile from the given location. Profiles contain the names and IDs of all
@@ -21,34 +52,88 @@ class Profile(File):
     ##       is then ambiguous.
     def __init__(self, filepath: str = None, stream = None):
         # OPEN THE FILE FOR READING.
-        # Systems do not have a Media Station header, probably
-        # because the only ever have one subfile.
+        # We need to open the file in text-reading mode so the newlines are automatically handled.
         super().__init__(filepath = filepath, stream = stream)
+        lines_in_file = self.readline_with_universal_newline(self.stream)
+        # In all title versions tested thus far, all these sections are present
+        # in this order.
+        self.version = Version(lines_in_file)
+        self.contexts = ProfileSection(lines_in_file, ContextDeclaration)
+        self.asset_declarations = ProfileSection(lines_in_file, AssetDeclaration)
+        self.file = ProfileSection(lines_in_file, FileDeclaration)
+        self.variables = ProfileSection(lines_in_file, VariableDeclaration)
+        self.resources = ProfileSection(lines_in_file, ResourceDeclaration)
+        self.constants = ProfileSection(lines_in_file, ConstantDeclaration)
 
-        self.sections = []
-        self.version = Version(self.stream)
-        self.contexts = ProfileSection(self.stream, ContextDeclaration)
-        self.asset_declarations = ProfileSection(self.stream, AssetDeclaration)
-        self.file = ProfileSection(self.stream, FileDeclaration)
-        self.variables = ProfileSection(self.stream, VariableDeclaration)
-        self.resources = ProfileSection(self.stream, ResourceDeclaration)
-        self.constants = ProfileSection(self.stream, ConstantDeclaration)
+    # The File class was designed for binary files, not text files.
+    # Some implementation details of the File class thus sadly bypass the 
+    # default universal readline support with stream.readline(). 
+    #
+    # Specifically, the mmap.mmap stream that the binary data is wrapped in
+    # only seems to recognize \n as a line separator, but not \r by itself.
+    # That means Profiles from Mac versions will not be read correctly;
+    # the file appears as one huge line. 
+    #
+    # So this function restores "universal" newline functionality to mmap.mmap
+    # streams.
+    def readline_with_universal_newline(self, stream, chunk_size = 4096):
+        newline_characters = b'\r\n'  # Universal newline characters
+        file_content_waiting_to_be_processed = b''
+        while True:
+            chunk = stream.read(chunk_size)
+            if not chunk:
+                # WE ARE OUT OF DATA.
+                break
+
+            file_content_waiting_to_be_processed += chunk
+            while True:
+                line_end_index = max(file_content_waiting_to_be_processed.find(newline_char) for newline_char in newline_characters)
+                line_end_index_not_found = (line_end_index < 0)
+                if line_end_index_not_found:
+                    break
+                line = file_content_waiting_to_be_processed[:line_end_index + 1]
+                yield line
+                file_content_waiting_to_be_processed = file_content_waiting_to_be_processed[line_end_index + 1:]
+
+        if file_content_waiting_to_be_processed is not None:
+            yield file_content_waiting_to_be_processed
 
 class ProfileSection:
-    def __init__(self, stream, profile_entry_class):
-        self.records = []
-        entry = profile_entry_class(stream)
-        end_of_file = (stream.tell() == stream.size())
-        stop_reading = entry.end_of_section or end_of_file
-        while not stop_reading:
-            self.records.append(entry)
-            entry = profile_entry_class(stream)
-            end_of_file = (stream.tell() == stream.size())
-            stop_reading = entry.end_of_section or end_of_file
+    ## Creates a profile section that contains entries (parsed forms of individual
+    ## lines of text from the Profile file). 
+    ## \param[in] lines_in_file - The generator to get the lines from the Profile file.
+    ## \param[in] profile_entry_class - The class that should be used to create profile
+    ##            entries from each line of text.
+    def __init__(self, lines_in_file, profile_entry_class):
+        self.entries = []
+        for line in lines_in_file:
+            # READ THIS ENTRY.
+            entry = profile_entry_class(line)
+            if entry.end_of_section:
+                break
+
+            # STORE THIS ENTRY.
+            if not entry.is_summary:
+                # This is a regular record (far more common, so
+                # it's listed first).
+                self.entries.append(entry)
+            else:
+                # The "summary" section must be stored separately.
+                # I don't yet know how to interpret it.
+                self.summary = entry
 
 class ProfileEntry:
-    def __init__(self, stream):
-        self._raw_entry: List[str] = stream.readline().strip().decode(TEXT_ENCODING).split(' ')
+    ## Creates a profile entry from the given line of text from the Profile file.
+    ## \param[in] line - A binary string containing the lined from the Profile
+    ##            file that should be put into the Profile entry.
+    def __init__(self, line: bytes):
+        self._raw_entry: List[str] = line.strip().decode(TEXT_ENCODING).split(' ')
+        # Check if this is a summary entry (see above).
+        if self._raw_entry[0] == SUMMARY_INDICATOR:
+            self.is_summary = True
+        else:
+            self.is_summary = False
+        # Check if this is the end of the section.
         if self._raw_entry == [SECTION_SEPARATOR]:
             self.end_of_section = True
         else:
@@ -58,8 +143,9 @@ class ProfileEntry:
 ##  _Version3.4_ _PC_
 ##  _Version3.3_ _MAC_
 class Version(ProfileEntry):
-    def __init__(self, stream):
-        super().__init__(stream)
+    def __init__(self, lines_in_file):
+        line = next(lines_in_file)
+        super().__init__(line)
         if self.end_of_section:
             return
 
@@ -69,38 +155,55 @@ class Version(ProfileEntry):
 
 ## Examples:
 ##  Context cxt_7x70_Sounds 888886792
+##  ^       ^               ^
+##  type    name            unk1
+##
 ##  Screen scr_7x81 889300178
+##  ^      ^        ^
+##  type   name    unk1
 class ContextDeclaration(ProfileEntry):
-    def __init__(self, stream):
-        super().__init__(stream)
-        if self.end_of_section:
+    def __init__(self, lines_in_file):
+        super().__init__(lines_in_file)
+        if (self.is_summary) or (self.end_of_section):
             return
-
-        # Known strings are "Document", "Context", and "Screen".
+        # Known type strings are "Document", "Context", and "Screen".
         self.type: str = self._raw_entry[0]
         self.name: str = self._raw_entry[1]
         self.unk1: int = int(self._raw_entry[2])
 
 ## Examples:
 ##  Root_7x00 109 0
+##  ^         ^   ^ -----
+##  name      asset_id  |
+##                      chunk_id (none)
+##
 ##  img_7x00gg011all_RadioLines 162 8
+##  ^                           ^   ^ -----
+##  name                        asset_id  |
+##                                        chunk_id (a008)
+##
 ##  mov_7xb2_MSIBumper 265 104 105 106
+##  ^                  ^   ^---^---^--
+##  name               asset_id  |
+##                               chunk_ids (a068, a069, a06a)
 class AssetDeclaration(ProfileEntry):
-    def __init__(self, stream):
-        super().__init__(stream)
-        if self.end_of_section:
+    def __init__(self, lines_in_file):
+        super().__init__(lines_in_file)
+        self.chunk_ids = []
+        if (self.is_summary) or (self.end_of_section):
             return
 
         self.asset_name: str = self._raw_entry[0]
         self.asset_id: int = int(self._raw_entry[1])
-        # Movies have more than one chunk, so we will just get the 
+        # Movies have more than one chunk, so we will just get the rest of the line.
+        # TODO: Verify exactly three are actually listed.
         raw_chunk_ids = self._raw_entry[2:]
         self.chunk_ids = [int(raw_chunk_id) for raw_chunk_id in raw_chunk_ids]
 
     @property
     def has_associated_chunks(self):
         # The presence of no chunks is indicated by a chunk ID of 0.
-        if self.chunk_ids[0] == 0:
+        if len(self.chunk_ids) == 0 or (self.chunk_ids[0] == 0):
             return False
         else:
             return True
@@ -116,7 +219,7 @@ class AssetDeclaration(ProfileEntry):
     @property
     def fourccs(self):
         if not self.has_associated_chunks:
-            return None 
+            return None
         
         def create_fourcc(chunk_id: int) -> str:
             if chunk_id > 0xfff:
@@ -126,12 +229,20 @@ class AssetDeclaration(ProfileEntry):
 
 ## Examples:
 ##  "3664.cxt" 100
+##  ^          ^
+##  filename   file_id
+##
 ##  "113.cxt" 101
+##  ^         ^
+##  filename  file_id
+##
 ##  "436.cxt" 102
+##  ^         ^
+##  filename  file_id
 class FileDeclaration(ProfileEntry):
-    def __init__(self, stream):
-        super().__init__(stream)
-        if self.end_of_section:
+    def __init__(self, lines_in_file):
+        super().__init__(lines_in_file)
+        if (self.is_summary) or (self.end_of_section):
             return
 
         self.filename: str = self._raw_entry[0]
@@ -139,12 +250,20 @@ class FileDeclaration(ProfileEntry):
 
 ## Examples:
 ##  var_6c00_01_CurrentThesaurusImage 100
+##  ^                                 ^
+##  variable_name                     variable_id
+##
 ##  var_6c00_01_CurrentThesaurusSound 101
+##  ^                                 ^
+##  variable_name                     variable_id
+##
 ##  var_6c00_01_CurrentThesaurusMovie 102
+##  ^                                 ^
+##  variable_name                     variable_id
 class VariableDeclaration(ProfileEntry):
-    def __init__(self, stream):
-        super().__init__(stream)
-        if self.end_of_section:
+    def __init__(self, lines_in_file):
+        super().__init__(lines_in_file)
+        if (self.is_summary) or (self.end_of_section):
             return
 
         self.variable_name: str = self._raw_entry[0]
@@ -155,9 +274,9 @@ class VariableDeclaration(ProfileEntry):
 ##  $resource 10001
 ##  $Deactivate 10002
 class ResourceDeclaration(ProfileEntry):
-    def __init__(self, stream):
-        super().__init__(stream)
-        if self.end_of_section:
+    def __init__(self, lines_in_file):
+        super().__init__(lines_in_file)
+        if (self.is_summary) or (self.end_of_section):
             return
 
         self.resource_name: str = self._raw_entry[0]
@@ -168,9 +287,9 @@ class ResourceDeclaration(ProfileEntry):
 ##  KNS_COVER_Z -100
 ##  PLAY_BACKGROUND_PATCH 00:29.00
 class ConstantDeclaration(ProfileEntry):
-    def __init__(self, stream):
-        super().__init__(stream)
-        if self.end_of_section:
+    def __init__(self, lines_in_file):
+        super().__init__(lines_in_file)
+        if (self.is_summary) or (self.end_of_section):
             return
 
         self.constant_name: str = self._raw_entry[0]
