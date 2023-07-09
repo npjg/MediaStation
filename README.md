@@ -12,29 +12,7 @@ discovered these weren't Director titles but something completely different - an
 project was born to preserve them.
 
 ## Known Titles
-If you know of any other titles, please submit a PR to add them here!
-
-| Title                                                                   | Release Year | Engine Version | Supported?        |
-|-------------------------------------------------------------------------|--------------|----------------|-------------------|
-| Disney's Animated Storybook: The Lion King                              | 1994         | ?              | Yes               |
-| Disney's Animated Storybook: Pocahontas                                 | 1995         | ?              | Untested          |
-| Disney's Animated Storybook: Winnie the Pooh and the Honey Tree         | 1996         | T3.3           | Untested          |
-| Disney's Animated Storybook: The Hunchback of Notre Dame                | 1996         | ?              | Untested          |
-| Disney's Toy Story Activity Center                                      | 1996         | ?              | Untested          |
-| Disney's Animated Storybook: Toy Story                                  | 1996         | ?              | Untested          |
-| Puzzle Castle                                                           | 1996         | ?              | Untested          |
-| Jan Pienkowski Haunted House                                            | 1997         | ?              | Untested          |
-| Extreme Tactics                                                         | 1997         | ?              | Untested          |
-| Disney's Animated Storybook: Hercules                                   | 1997         | ?              | Untested          |
-| Disney's Animated Storybook: 101 Dalmatians                             | 1997         | T3.5r5         | Untested          |
-| Magic Fairy Tales: Barbie as Rapunzel                                   | 1997         | ?              | Untested          |
-| Tonka Search & Rescue                                                   | 1997         | T3.5r5         | Untested          |
-| Tonka Garage                                                            | 1998         | T4.0r8         | Yes (no Direct3D) |
-| D.W. the Picky Eater                                                    | 1998         | ?              | Untested          |
-| Disney presents Ariel's Story Studio                                    | 1999         | ?              | Untested          |
-| Tonka Raceway                                                           | 1999         | ?              | Untested          |
-| Magic Fairy Tales: Barbie As Rapunzel + Hot Wheels: Custom Car Designer | 2000         | ?              | Untested          |
-| Stuart Little: Big City Adventures                                      | 2002         | ?              | Untested          |
+See and contribute to the updated list on this projects's [wiki](https://github.com/npjg/cxt/wiki/All-Known-Media-Station-Titles)!
 
 ## File Formats
 All the data files for known titles are stored in the `data/` subdirectory on the CD-ROM. These seem to be the same across the Windows and Mac versions. Some titles have additional files than these (like Tonka Garage, which has some Direct3D models for the car design activity), but these are the known files and formats unique to the Media Station engine.
