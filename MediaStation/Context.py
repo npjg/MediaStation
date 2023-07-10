@@ -379,7 +379,7 @@ class Context(DataFile):
             if header is None:
                 # This should never actually be an error condition in valid contexts, because the asset headers are also in the first subfile.
                 raise ValueError(
-                    f'Asset FourCC {self.current_subfile.current_chunk.fourcc} was encountered in the first subfile, but no asset header read thus far declared this FourCC.\n\n'
+                    f'Asset FourCC {self.current_subfile.current_chunk.fourcc} was encountered in the first subfile, but no asset header read thus far has declared this FourCC.\n\n'
                     'This is expected if you are trying to extract assets from an INSTALL.CXT without any other contexts, as INSTALL.CXT does not contain any asset headers.\n'
                     'Try running the extraction again on the entire game directory.')
 
@@ -422,7 +422,7 @@ class Context(DataFile):
             header = global_variables.application.get_asset_by_chunk_id(self.current_subfile.current_chunk.fourcc)
             if header is None:
                 raise ValueError(
-                    f'Asset FourCC {self.current_subfile.current_chunk.fourcc} was encountered in a subfile, but no asset header declared this FourCC.\n\n'
+                    f'Asset FourCC {self.current_subfile.current_chunk.fourcc} was encountered in a subfile, but no asset header read thus far has declared this FourCC.\n\n'
                     'This is expected if you are trying to extract assets from an INSTALL.CXT without any other contexts, as INSTALL.CXT does not contain any asset headers.\n'
                     'Try running the extraction again on the entire game directory.')
 
