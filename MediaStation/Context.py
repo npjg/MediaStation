@@ -317,7 +317,6 @@ class Context(DataFile):
             if (Asset.AssetType.STAGE == asset_header.type):
                 Datum(self.stream)
                 Datum(self.stream)
-
                 another_asset_header = self.read_header_section(reading_stage = True)
                 while another_asset_header:
                     another_asset_header = self.read_header_section(reading_stage = True)
@@ -376,9 +375,13 @@ class Context(DataFile):
         if header is None:
             # Look in the whole application before throwing an error, as this could be the 
             # INSTALL.CXT case.
-            file, header = global_variables.application.get_asset_by_chunk_id(self.current_subfile.current_chunk.fourcc)
+            header = global_variables.application.get_asset_by_chunk_id(self.current_subfile.current_chunk.fourcc)
             if header is None:
-                raise ValueError(f'Unknown asset FourCC {self.current_subfile.current_chunk.fourcc}')
+                # This should never actually be an error condition in valid contexts, because the asset headers are also in the first subfile.
+                raise ValueError(
+                    f'Asset FourCC {self.current_subfile.current_chunk.fourcc} was encountered in the first subfile, but no asset header read thus far declared this FourCC.\n\n'
+                    'This is expected if you are trying to extract assets from an INSTALL.CXT without any other contexts, as INSTALL.CXT does not contain any asset headers.\n'
+                    'Try running the extraction again on the entire game directory.')
 
         # READ THE ASSET ACCORDING TO ITS TYPE.
         chunk_length = self.current_subfile.current_chunk.length
@@ -416,9 +419,12 @@ class Context(DataFile):
         if header is None:
             # Look in the whole application before throwing an error, as this could be the 
             # INSTALL.CXT case.
-            file, header = global_variables.application.get_asset_by_chunk_id(self.current_subfile.current_chunk.fourcc)
+            header = global_variables.application.get_asset_by_chunk_id(self.current_subfile.current_chunk.fourcc)
             if header is None:
-                raise ValueError(f'Unknown asset FourCC {self.current_subfile.current_chunk.fourcc}')
+                raise ValueError(
+                    f'Asset FourCC {self.current_subfile.current_chunk.fourcc} was encountered in a subfile, but no asset header declared this FourCC.\n\n'
+                    'This is expected if you are trying to extract assets from an INSTALL.CXT without any other contexts, as INSTALL.CXT does not contain any asset headers.\n'
+                    'Try running the extraction again on the entire game directory.')
 
         # READ THE ASSET ACCORDING TO ITS TYPE.
         chunk_length = self.current_subfile.current_chunk.length

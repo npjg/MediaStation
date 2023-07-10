@@ -43,7 +43,7 @@ class MediaStationEngine(Application):
             if file.extension.lower() == 'cxt':
                 found_asset = file.get_asset_by_chunk_id(chunk_id)
                 if found_asset is not None:
-                    return (file, found_asset)
+                    return found_asset
 
 def main():
     # DEFINE THE FILE TYPES IN THIS APPLICATION.
@@ -73,5 +73,6 @@ def main():
     if command_line_arguments.export:
         media_station_engine.export(command_line_arguments)
 
+# TODO: Get good documentation here.
 if __name__ == '__main__':
     main()
