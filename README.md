@@ -15,13 +15,6 @@ Installing the PyPI package also installs a `MediaStation` script that can be in
 MediaStation ~/DALMATIANS/DATA ~/DalmatiansExtract
 ```
 
-## Motivation
-I re-discovered these titles when I was finding Director titles for the ScummVM Director
-engine at GSoC 2020. Coincidentally, the main data file extension (`*.CXT`) used in Media 
-Station titles is the same as that used for protected Director cast archives. I quickly
-discovered these weren't Director titles but something completely different - and so this
-project was born to preserve them.
-
 ## Known Titles
 See and contribute to the updated list on this projects's [wiki](https://github.com/npjg/cxt/wiki/All-Known-Media-Station-Titles)!
 
@@ -60,6 +53,13 @@ When present, contains a human-readable enumeration of metadata like the followi
 
 This doesn't seem to be opened/read by the executables at all while the titles are running.
 But there is a ton of useful cross-checking info in here.
+
+## Motivation
+I re-discovered these titles when I was finding Director titles for the ScummVM Director
+engine at GSoC 2020. Coincidentally, the main data file extension (`*.CXT`) used in Media 
+Station titles is the same as that used for protected Director cast archives. I quickly
+discovered these weren't Director titles but something completely different - and so this
+project was born to preserve them.
 
 ## Engine History
 Coming soon! For now, the [Disney's Animated Storybook](https://en.wikipedia.org/wiki/Disney%27s_Animated_Storybook) article has great background on the early titles, sourced largely from Newton Lee's books.
