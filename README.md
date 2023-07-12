@@ -4,6 +4,17 @@ I loved many of these when I was growing up.
 
 Please join me in preserving these top-quality children's titles for future generations!
 
+## Installation
+Get it [on PyPI](https://pypi.org/project/MediaStation/): ```pip3 install MediaStation```
+
+## Usage
+Installing the PyPI package also installs a `MediaStation` script that can be invoked from the command line as follows:
+```
+#             Input directory   Export directory
+#            ................. ...................
+MediaStation ~/DALMATIANS/DATA ~/DalmatiansExtract
+```
+
 ## Motivation
 I re-discovered these titles when I was finding Director titles for the ScummVM Director
 engine at GSoC 2020. Coincidentally, the main data file extension (`*.CXT`) used in Media 
