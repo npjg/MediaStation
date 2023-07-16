@@ -4,7 +4,18 @@ from asset_extraction_framework.Asserts import assert_equal
 
 from ..Primitives.Datum import Datum
 from ..Primitives.Point import Point
-from .Bitmap import Bitmap
+from .Bitmap import Bitmap, BitmapHeader
+
+## An extended bitmap header for a single sprite frame. 
+class SpriteFrameHeader(BitmapHeader):
+    ## Reads a sprite header from the binary stream at its current position.
+    ## \param[in] stream - A binary stream that supports the read method.
+    def __init__(self, stream):
+        super().__init__(stream)
+        # The sprite header has two extra fields not in the basic bitmap header.
+        # The index of this frame in the sprite animation (zero-based).
+        self.index = Datum(stream).d
+        self.bounding_box = Datum(stream).d
 
 ## A single frame in a sprite.
 class SpriteFrame(Bitmap):
@@ -13,18 +24,7 @@ class SpriteFrame(Bitmap):
     ## \param[in] size - The total size, in bytes, of this sprite frame.
     ##            This number of bytes will be read from the stream.
     def __init__(self, stream, size):
-        end_pointer = stream.tell() + size
-        assert_equal(Datum(stream).d, 0x0024) # Is this a size?
-        dimensions = Datum(stream).d
-        assert_equal(Datum(stream).d, 0x0001)
-        self.unk1 = Datum(stream).d
-        ## The index of this frame in the sprite animation (zero-based).
-        self.index = Datum(stream).d
-        self.bounding_box = Datum(stream).d
-
-        # READ THE BITMAP FOR THIS FRAME.
-        total_bitmap_bytes = end_pointer - stream.tell()
-        super().__init__(stream, dimensions = dimensions, length = total_bitmap_bytes)
+        super().__init__(stream, length = size, header_class = SpriteFrameHeader)
         self._left = 0
         self._top = 0
 
@@ -48,4 +48,4 @@ class Sprite(Animation):
     def append(self, stream, size):
         sprite_frame = SpriteFrame(stream, size)
         self.frames.append(sprite_frame)
-        self.frames.sort(key = lambda x: x.index)
+        self.frames.sort(key = lambda x: x.header.index)

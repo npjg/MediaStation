@@ -11,7 +11,7 @@ from PIL import Image
 from .. import global_variables
 from ..Primitives.Datum import Datum
 from ..Primitives.Point import Point
-from .Bitmap import Bitmap
+from .Bitmap import Bitmap, BitmapHeader
 from .Sound import Sound
 
 ## Metadata that occurs after each movie frame and most keyframes.
@@ -68,25 +68,26 @@ class MovieFrameFooter:
             self.unk8 = Datum(stream).d
             self.unk9 = Datum(stream).d
 
+## An extended bitmap header for a single movie frame. 
+class MovieFrameHeader(BitmapHeader):
+    ## Reads a movie frame header from the binary stream at its current position.
+    ## \param[in] stream - A binary stream that supports the read method.
+    def __init__(self, stream):
+        # The movie frame header has two extra fields not in the basic bitmap header.
+        super().__init__(stream)
+        self.index = Datum(stream).d
+        self.keyframe_end_in_milliseconds = Datum(stream).d
+
 ## A single bitmap frame in a movie.
 class MovieFrame(Bitmap):
     def __init__(self, stream, size):
-        end_pointer = stream.tell() + size
-        # TODO: Is this a size?
-        assert_equal(Datum(stream).d, 0x0028)
-        dimensions = Datum(stream).d
-        self.unk1 = Datum(stream).d # Tonka Raceway: 0x0006
-        self.unk2 = Datum(stream).d
-        self.index = Datum(stream).d
-        self.keyframe_end_in_milliseconds = Datum(stream).d
+        # READ THE IMAGE.
+        super().__init__(stream, length = size, header_class = MovieFrameHeader)
         # The footer must be added separately because it is not always present,
         # and the footer right after this frame might not actually correspond to
         # this frame.
         self.footer = None
-
-        # READ THE IMAGE.
-        super().__init__(stream, length = end_pointer - stream.tell(), dimensions = dimensions)
-        self._left = 1
+        self._left = 0
         self._top = 0
 
     @property 
@@ -129,14 +130,14 @@ class Movie(Animation):
         if section_type.d == Movie.SectionType.FRAME:
             frame = MovieFrame(stream, size = length - 0x04)
             self.frames.append(frame)
-            self.frames.sort(key = lambda x: x.index)
+            self.frames.sort(key = lambda x: x.header.index)
 
         elif section_type.d == Movie.SectionType.FOOTER:
             footer = MovieFrameFooter(stream)
             for frame in self.frames:
-                if frame.index == footer.index:
+                if frame.header.index == footer.index:
                     frame.set_footer(footer)
-            self.frames.sort(key = lambda x: x.index)
+            self.frames.sort(key = lambda x: x.header.index)
 
         else:
             raise ValueError(f'Unknown header type in movie still area: {section_type.d}')
@@ -217,10 +218,10 @@ class Movie(Animation):
             # Notably, they have footers just like normal frames.
             for footer in footers:
                 for frame in frames:
-                    if (frame.index == footer.index) and (frame.footer is None):
+                    if (frame.header.index == footer.index) and (frame.footer is None):
                         frame.set_footer(footer)
 
-            self.frames.sort(key = lambda x: x.index)
+            self.frames.sort(key = lambda x: x.header.index)
             self.frames.extend(frames)
             self.sounds.append(audio)
 
@@ -228,7 +229,7 @@ class Movie(Animation):
         for frame in self.frames:
             if frame.footer is None:
                 for frame_with_dimensions in self.frames:
-                    if (frame.index == frame_with_dimensions.index):
+                    if (frame.header.index == frame_with_dimensions.header.index):
                         frame._left = frame_with_dimensions._left
                         frame._top = frame_with_dimensions._top
 
@@ -277,5 +278,5 @@ class Movie(Animation):
         #self._reframe_to_animation_size(command_line_arguments)
         # TODO: Provide an option to check for a request to not apply keyframes. 
         #self._apply_keyframes()
-        self.frames.sort(key = lambda x: x.footer.end_in_milliseconds if x.footer else x.keyframe_end_in_milliseconds)
+        self.frames.sort(key = lambda x: x.footer.end_in_milliseconds if x.footer else x.header.keyframe_end_in_milliseconds)
         super().export(root_directory_path, command_line_arguments)

@@ -7,22 +7,20 @@ from asset_extraction_framework.Asserts import assert_equal
 
 from ..Primitives.Datum import Datum
 from ..Primitives.Point import Point
-from .Bitmap import Bitmap
+from .Bitmap import Bitmap, BitmapHeader
 
 ## A single glyph (bitmap) in a font.
 class FontGlyph(Bitmap):
-    def __init__(self, stream, end):
+    def __init__(self, stream, size):
+        start_pointer = stream.tell()
+        # A special bitmap header is not needed because the extra 
+        # fields come "before" the header, not after it. I'm not entirely sure why.
         self.ascii_code = Datum(stream).d
         self.unk1 = Datum(stream).d
         self.unk2 = Datum(stream).d
-        assert_equal(Datum(stream).d, 0x0024)
-        dimensions = Datum(stream).d
-        assert_equal(Datum(stream).d, 0x0001)
-        self.unk3 = Datum(stream).d
-
-        # READ THE FONT GLYPH BITMAP.
-        image_length = end - stream.tell()
-        super().__init__(stream, dimensions = dimensions, length = image_length)
+        bytes_consumed = stream.tell() - start_pointer
+        bytes_remaining = size - bytes_consumed
+        super().__init__(stream, length = bytes_remaining)
 
 ## A font is a collection of glyphs.
 ## Fonts have a very similar structure as sprites, but fonts are of course
@@ -33,9 +31,8 @@ class Font:
         self.glyphs = []
 
     ## Adds a glyph to the font collection.
-    def append(self, stream, length):
-        end = stream.tell() + length
-        font_glyph = FontGlyph(stream, end)
+    def append(self, stream, size):
+        font_glyph = FontGlyph(stream, size)
         self.glyphs.append(font_glyph)
 
     ## Since the font is not an animation, each character in the font should

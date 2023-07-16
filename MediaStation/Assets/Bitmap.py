@@ -8,6 +8,26 @@ from asset_extraction_framework.Asset.Image import RectangularBitmap
 from ..Primitives.Datum import Datum
 #import bitmap_decompressor
 
+## A base header for a bitmap.
+class BitmapHeader:
+    ## Reads a bitmap header from the binary stream at its current position.
+    ## \param[in] stream - A binary stream that supports the read method.
+    def __init__(self, stream):
+        start_pointer = stream.tell()
+        self._header_size_in_bytes = Datum(stream).d
+        end_pointer = start_pointer + self._header_size_in_bytes
+        self.dimensions = Datum(stream).d
+        self.compression_type = Datum(stream).d
+        self.unk2 = Datum(stream).d
+
+    # TODO: Figure out what all these compression types are.
+    # A compression type of 1 seems to indicate there IS RLE
+    # compression, and these types seem to indicate there is NOT
+    # RLE compression.
+    @property
+    def _is_compressed(self) -> bool:
+        return (self.compression_type != 0) and (self.compression_type != 7)
+
 ## A single, still bitmap.
 class Bitmap(RectangularBitmap):
     ## Reads a bitmap from the binary stream at its current position.
@@ -16,27 +36,20 @@ class Bitmap(RectangularBitmap):
     ## \param[in] dimensions - The dimensions of the image, if they are known beforehand
     ##            (like in an asset header). Otherwise, the dimensions will be read
     ##            from the image.
-    def __init__(self, stream, length, dimensions = None):
+    def __init__(self, stream, length, header_class = BitmapHeader):
         super().__init__()
-        end_pointer = stream.tell() + length
-        self._is_compressed: bool = True
-        if dimensions is None:
-            # READ THE BITMAP HEADER.
-            # TODO: Is this first one actually a byte count?
-            self.unk1 = Datum(stream).d 
-            dimensions = Datum(stream).d
-            self._is_compressed = bool(Datum(stream).d)
-            self.unk2 = Datum(stream).d
-        self._width = dimensions.x
-        self._height = dimensions.y
+        self._end_pointer = stream.tell() + length
+        self.header = header_class(stream)
+        self._width = self.header.dimensions.x
+        self._height = self.header.dimensions.y
 
         # Only nonempty for images that have keyframes that need to 
         # intersect 
         self.transparency_region = []
 
         # READ THE RAW IMAGE DATA.
-        image_data_size = end_pointer - stream.tell()
-        if self._is_compressed:
+        image_data_size = self._end_pointer - stream.tell()
+        if self.header._is_compressed:
             # READ THE COMPRESSED IMAGE DATA.
             # That will be decompressed later on request.
             self._compressed_image_data_size = image_data_size
@@ -60,8 +73,8 @@ class Bitmap(RectangularBitmap):
         # to prototype for now. Anyway, I am creating a bytearray 
         self._pixels = b''
         compressed_image_data = io.BytesIO(self._raw)
+        compressed_image_data_size = compressed_image_data.getbuffer().nbytes
         pixels = bytearray((self.width * self.height) * b'\x00')
-
 
         #compressed_data = b'\x01\x02\x03...'  # Provide the compressed data
         #pixels = bytearray(width * height)  # Prepare the buffer for decompressed pixels
@@ -83,7 +96,7 @@ class Bitmap(RectangularBitmap):
         while row_index < self.height:
             horizontal_pixel_offset = 0
             reading_transparency_run = False
-            while True:
+            while compressed_image_data.tell() < compressed_image_data_size:
                 operation = struct.unpack.uint8(compressed_image_data)
                 if operation == 0x00:
                     # ENTER CONTROL MODE.

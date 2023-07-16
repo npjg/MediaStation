@@ -395,7 +395,7 @@ class Context(DataFile):
             header.sprite.append(self.stream, size = chunk_length)
 
         elif (header.type == Asset.AssetType.FONT):
-            header.font.append(self.stream, length = chunk_length)
+            header.font.append(self.stream, size = chunk_length)
 
         elif (header.type == Asset.AssetType.MOVIE):
             # READ A MOVIE STILL IMAGE.
