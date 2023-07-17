@@ -37,7 +37,8 @@ class MovieFrameFooter:
     def __init__(self, stream):
         assert_equal(Datum(stream).d, 0x0001)
         self.unk1 = Datum(stream).d
-        if global_variables.old_generation:
+        if global_variables.version.is_first_generation_engine or \
+              ((global_variables.version.major_version <= 3) and (global_variables.version.minor_version <= 2)):
             # It is theoretically possible for movies to have a variable
             # framerate, but in reality all these are the same.
             self.start_in_milliseconds =  Datum(stream).d

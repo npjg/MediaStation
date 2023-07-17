@@ -6,8 +6,6 @@ import logging
 from asset_extraction_framework.Asserts import assert_equal
 from asset_extraction_framework.File import File
 
-from dataclasses import dataclass
-
 from . import global_variables
 from .Riff.DataFile import DataFile
 from .Primitives.Datum import Datum
@@ -15,19 +13,33 @@ from .Primitives.Point import Point
 
 ## Contains information about the engine (also called
 ##  "title compiler") used in this particular game.
-## Engine version information is not present in version 1 games.
+## Engine version information is not present in version 1 games,
+## so all the fields are initialized to be None.
 class EngineVersionInformation:
-    def __init__(self, stream):
-        # The version number of this engine.
-        self.major_version = Datum(stream).d
-        self.minor_version = Datum(stream).d
-        self.revision_number = Datum(stream).d
+    def __init__(self, stream = None):
+        self.major_version = None
+        self.minor_version = None
+        self.revision_number = None
+        self.string = None
+        if stream is not None:
+            # The version number of this engine, in the form 4.0r8 (major . minor r revision).
+            self.major_version = Datum(stream).d
+            self.minor_version = Datum(stream).d
+            self.revision_number = Datum(stream).d
+            # A textual description of this engine.
+            # Example: "Title Compiler T4.0r8 built Feb 13 1998 10:16:52"
+            #           ^^^^^^^^^^^^^^  ^^^^^
+            #           | Engine name   | Version number
+            self.string = Datum(stream).d
 
-        # A textual description of this engine.
-        # Example: "Title Compiler T4.0r8 built Feb 13 1998 10:16:52"
-        #           ^^^^^^^^^^^^^^  ^^^^^
-        #           | Engine name   | Version number
-        self.string = Datum(stream).d
+    ## Engine version information is not present in version 1 games,
+    ## so all the fields are initialized to be None.
+    @property
+    def is_first_generation_engine(self) -> bool:
+        return (self.major_version is None) and \
+            (self.minor_version is None) and \
+            (self.revision_number is None) and \
+            (self.string is None)
 
     @property
     def version_number(self) -> str:
@@ -323,8 +335,9 @@ class System(DataFile):
         # The name of this title. Usually slightly abbreviated,
         # like "tonka_gr" for Tonka Garage.
         self.game_title: str = None
-        self.version: Optional[EngineVersionInformation] = None
-        global_variables.old_generation = True
+        # This will not be present in early titles, using what I call 
+        # "version 1" of the engine (Lion King era).
+        self.version = EngineVersionInformation()
         # A single string that contains several different pieces
         # of data about the source of this game.
         # Example: "Title Source ..\imt_src\TonkaGarage.imt; built Thu Mar 19 14:57:41 1998"
@@ -354,7 +367,6 @@ class System(DataFile):
                 self.unk1 = self.stream.read(2)
                 self.version = EngineVersionInformation(self.stream)
                 self.source_string = Datum(self.stream).d
-                global_variables.old_generation = False
 
             elif section_type == System.SectionType.ENGINE_RESOURCE_NAME:
                 # READ THE NAME OF AN ENGINE RESOURCE.
@@ -413,3 +425,4 @@ class System(DataFile):
 
         # READ THE ENDING DATA.
         self.footer = self.stream.read()
+        global_variables.version = self.version

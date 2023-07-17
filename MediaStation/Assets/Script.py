@@ -49,7 +49,7 @@ class Script:
         
         self._code = self.chunk(initial, stream)
         assert_equal(stream.tell() - start - 0x006, self._code["sz"].d, "length")
-        if in_independent_asset_chunk and not global_variables.old_generation:
+        if in_independent_asset_chunk and not global_variables.version.is_first_generation_engine:
             assert_equal(Datum(stream).d, 0x00, "end-of-chunk flag")
 
     def chunk(self, size, stream):

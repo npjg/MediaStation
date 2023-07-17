@@ -84,7 +84,7 @@ class GlobalParameters:
 
         # READ THE CONTEXT-GLOBAL BYTECODE.
         # TODO: Does this run when the context is first loaded?
-        if global_variables.old_generation:
+        if global_variables.version.is_first_generation_engine:
             token = Datum(stream)
             self.init = []
             while token.d == 0x0017:
@@ -193,7 +193,7 @@ class Context(DataFile):
         # READ THE HEADER SECTIONS.
         # TODO: Implement a better version checking system here.
         self.current_subfile.read_chunk_metadata()
-        if global_variables.old_generation:
+        if global_variables.version.is_first_generation_engine:
             self.read_old_style_header_sections()
             Datum(self.stream)
             self.current_subfile.read_chunk_metadata()
@@ -329,7 +329,9 @@ class Context(DataFile):
                 for chunk_reference in asset_header.chunk_references:
                     self._referenced_chunks.update({chunk_reference: asset_header})
 
-            if (not global_variables.old_generation) and (not reading_stage) and not asset_header.type == Asset.AssetType.STAGE:
+            if (not global_variables.version.is_first_generation_engine) and \
+                    (not reading_stage) and \
+                    (not asset_header.type == Asset.AssetType.STAGE):
                 Datum(self.stream)
 
         elif (Context.SectionType.FUNCTION == section_type):
