@@ -130,14 +130,12 @@ class Movie(Animation):
         if section_type.d == Movie.SectionType.FRAME:
             frame = MovieFrame(stream, size = length - 0x04)
             self.frames.append(frame)
-            self.frames.sort(key = lambda x: x.header.index)
 
         elif section_type.d == Movie.SectionType.FOOTER:
             footer = MovieFrameFooter(stream)
             for frame in self.frames:
                 if frame.header.index == footer.index:
                     frame.set_footer(footer)
-            self.frames.sort(key = lambda x: x.header.index)
 
         else:
             raise ValueError(f'Unknown header type in movie still area: {section_type.d}')
@@ -156,11 +154,10 @@ class Movie(Animation):
         assert_equal(section_type, Movie.SectionType.ROOT, "movie root signature")
         chunk_count = Datum(subfile.stream).d
         start_pointer = Datum(subfile.stream).d
-
-        # READ THE CHUNK SIZES.
-        sizes = []
+        chunk_sizes = []
         for _ in range(chunk_count):
-            sizes.append(Datum(subfile.stream))
+            chunk_size = Datum(subfile.stream).d
+            chunk_sizes.append(chunk_size)
 
         # READ THE MOVIE CHUNKS.
         for index in range(chunk_count):
@@ -169,22 +166,21 @@ class Movie(Animation):
             frames = []
             footers = []
 
-            # READ ALL THE VIDEO CHUNKS.
+            # READ ALL THE IMAGES (FRAMES).
             # Video always comes first.
             is_video_chunk = (subfile.current_chunk.chunk_integer == video_chunk_integer)
             movie_frame: MovieFrame = None
             while is_video_chunk:
-                section_type = Datum(subfile.stream)
-                if (Movie.SectionType.FRAME == section_type.d):
+                section_type = Datum(subfile.stream).d
+                if (Movie.SectionType.FRAME == section_type):
                     # READ THE MOVIE FRAME.
                     chunk_length = subfile.current_chunk.length - 0x04
                     movie_frame = MovieFrame(subfile.stream, size = chunk_length)
                     frames.append(movie_frame)
 
-                elif (Movie.SectionType.FOOTER == section_type.d):
+                elif (Movie.SectionType.FOOTER == section_type):
                     # READ THE MOVIE FRAME FOOTER.
                     footer = MovieFrameFooter(subfile.stream)
-                    # movie_frame.set_footer(footer)
                     footers.append(footer)
 
                 else:
@@ -195,13 +191,12 @@ class Movie(Animation):
                 is_video_chunk = (subfile.current_chunk.chunk_integer == video_chunk_integer)
 
             # READ THE AUDIO.
+            audio = None
             is_audio_chunk = (subfile.current_chunk.chunk_integer == audio_chunk_integer)
             if is_audio_chunk:
                 audio = Sound(self._audio_encoding)
                 audio.read_chunk(subfile.stream, subfile.current_chunk.length)
                 subfile.read_chunk_metadata()
-            else:
-                audio = None
 
             # READ THE FOOTER FOR THIS SUBFILE.
             # Every frameset must end in a 4-byte header.
@@ -221,7 +216,6 @@ class Movie(Animation):
                     if (frame.header.index == footer.index) and (frame.footer is None):
                         frame.set_footer(footer)
 
-            self.frames.sort(key = lambda x: x.header.index)
             self.frames.extend(frames)
             self.sounds.append(audio)
 
