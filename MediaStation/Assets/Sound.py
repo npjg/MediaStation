@@ -39,20 +39,19 @@ class Sound(BaseSound):
     ## Reads a sound in a subfile.
     ## \param[in] subfile - The subfile to read. The binary stream must generally
     ## be at the start of the subfile.
-    def read_subfile(self, subfile, total_chunks):
+    def read_subfile(self, subfile, chunk, total_chunks):
         self._chunk_count = total_chunks
-        asset_id = subfile.current_chunk.fourcc
+        asset_id = chunk.fourcc
 
-        self.read_chunk(subfile.stream, subfile.current_chunk.length)
+        self.read_chunk(chunk)
         for index in range(self._chunk_count - 1):
-            subfile.read_chunk_metadata()
-            assert_equal(subfile.current_chunk.fourcc, asset_id, "sound chunk label")
-            self.read_chunk(subfile.stream, subfile.current_chunk.length)
+            chunk = subfile.get_next_chunk()
+            assert_equal(chunk.fourcc, asset_id, "sound chunk label")
+            self.read_chunk(chunk)
 
     ##  Reads one chunk of a sound from a binary stream at its current position.
     ## \param[in] stream - A binary stream that supports the read method.
     ## \param[in] length - 
-    def read_chunk(self, stream, length):
+    def read_chunk(self, chunk):
         # TODO: Update to use the memview interface to avoid copying.
-        # self.chunks.append(stream.read(length))
-        self._pcm.extend(stream.read(length))
+        self._pcm.extend(chunk.read(chunk.length))

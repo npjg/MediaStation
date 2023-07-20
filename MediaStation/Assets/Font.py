@@ -11,16 +11,13 @@ from .Bitmap import Bitmap, BitmapHeader
 
 ## A single glyph (bitmap) in a font.
 class FontGlyph(Bitmap):
-    def __init__(self, stream, size):
-        start_pointer = stream.tell()
+    def __init__(self, chunk):
         # A special bitmap header is not needed because the extra 
         # fields come "before" the header, not after it. I'm not entirely sure why.
-        self.ascii_code = Datum(stream).d
-        self.unk1 = Datum(stream).d
-        self.unk2 = Datum(stream).d
-        bytes_consumed = stream.tell() - start_pointer
-        bytes_remaining = size - bytes_consumed
-        super().__init__(stream, length = bytes_remaining)
+        self.ascii_code = Datum(chunk).d
+        self.unk1 = Datum(chunk).d
+        self.unk2 = Datum(chunk).d
+        super().__init__(chunk)
 
 ## A font is a collection of glyphs.
 ## Fonts have a very similar structure as sprites, but fonts are of course
@@ -31,8 +28,8 @@ class Font:
         self.glyphs = []
 
     ## Adds a glyph to the font collection.
-    def append(self, stream, size):
-        font_glyph = FontGlyph(stream, size)
+    def append(self, chunk):
+        font_glyph = FontGlyph(chunk)
         self.glyphs.append(font_glyph)
 
     ## Since the font is not an animation, each character in the font should

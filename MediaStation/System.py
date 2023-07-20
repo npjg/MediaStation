@@ -125,7 +125,7 @@ class ContextDeclaration:
             if ContextDeclaration.SectionType.CONTEXT_NAME == section_type:
                 self.context_name = Datum(stream).d
             else:
-                stream.seek(stream.tell() - 4)
+                stream.stream.seek(stream.stream.tell() - 4)
         elif ContextDeclaration.SectionType.EMPTY == section_type:
             # INDICATE THIS IS THE LAST CONTEXT DECLARATION.
             # This signals to the holder of this declaration that there
@@ -325,9 +325,10 @@ class System(DataFile):
         # because the only ever have one subfile.
         super().__init__(filepath = filepath, stream = stream, has_header = False)
         # TODO: This should be integrated into the file itself.
-        igod_chunk = self.current_subfile.read_chunk_metadata()
+        subfile = self.get_next_subfile()
+        chunk = subfile.get_next_chunk()
         # TODO: Figure out what this is.
-        assert_equal(Datum(self.stream).d, 0x0001)
+        assert_equal(Datum(chunk).d, 0x0001)
 
         # DECLARE METADATA FOR THE WHOLE GAME.
         # These fields will not be present in early games.
@@ -358,71 +359,71 @@ class System(DataFile):
         self.engine_resource_ids = []
 
         # READ THE ITEMS IN THIS FILE.
-        section_type = Datum(self.stream).d
+        section_type = Datum(chunk).d
         section_is_not_empty = (System.SectionType.EMPTY != section_type)
         while section_is_not_empty:
             if section_type == System.SectionType.VERSION_INFORMATION: 
                 # READ THE METADATA FOR THE WHOLE GAME.
-                self.game_title = Datum(self.stream).d
-                self.unk1 = self.stream.read(2)
-                self.version = EngineVersionInformation(self.stream)
-                self.source_string = Datum(self.stream).d
+                self.game_title = Datum(chunk).d
+                self.unk1 = chunk.read(2)
+                self.version = EngineVersionInformation(chunk)
+                self.source_string = Datum(chunk).d
 
             elif section_type == System.SectionType.ENGINE_RESOURCE_NAME:
                 # READ THE NAME OF AN ENGINE RESOURCE.
-                resource_name = Datum(self.stream).d
+                resource_name = Datum(chunk).d
                 self.engine_resource_names.append(resource_name)
 
             elif section_type == System.SectionType.ENGINE_RESOURCE_ID:
                 # READ THE ID OF AN ENGINE RESOURCE.
                 # This should correspond to the most previously read engine resource name.
-                resource_id = Datum(self.stream).d
+                resource_id = Datum(chunk).d
                 self.engine_resource_ids.append(resource_id)
 
             elif section_type == System.SectionType.CONTEXT_DECLARATION:
                 # READ THE CONTEXT DECLARATIONS.
-                context_declaration = ContextDeclaration(self.stream)
+                context_declaration = ContextDeclaration(chunk)
                 while not context_declaration._is_empty:
                     self.context_declarations.append(context_declaration)
-                    context_declaration = ContextDeclaration(self.stream)
+                    context_declaration = ContextDeclaration(chunk)
 
             elif section_type == System.SectionType.UNKNOWN_DECLARATION:
                 # READ THE UNKNOWN DECLARATIONS.
-                file_declaration = UnknownDeclaration(self.stream)
+                file_declaration = UnknownDeclaration(chunk)
                 while not file_declaration._is_empty:
                     self.unknown_declarations.append(file_declaration)
-                    file_declaration = UnknownDeclaration(self.stream)
+                    file_declaration = UnknownDeclaration(chunk)
 
             elif section_type == System.SectionType.FILE_DECLARATION:
                 # READ THE FILE DECLARATIONS.
-                file_declaration = FileDeclaration(self.stream)
+                file_declaration = FileDeclaration(chunk)
                 while not file_declaration._is_empty:
                     self.file_declarations.append(file_declaration)
-                    file_declaration = FileDeclaration(self.stream)
+                    file_declaration = FileDeclaration(chunk)
 
             elif section_type == System.SectionType.RIFF_DECLARATION:
                 # READ THE RIFF DECLARATIONS.
-                riff_declaration = SubfileDeclaration(self.stream)
+                riff_declaration = SubfileDeclaration(chunk)
                 while not riff_declaration._is_empty:
                     self.riff_declarations.append(riff_declaration)
-                    riff_declaration = SubfileDeclaration(self.stream)
+                    riff_declaration = SubfileDeclaration(chunk)
 
             elif section_type == System.SectionType.CURSOR_DECLARATION:
                 # READ THE CURSOR DECLARATIONS.
-                cursor_declaration = CursorDeclaration(self.stream)
+                cursor_declaration = CursorDeclaration(chunk)
                 self.cursor_declarations.append(cursor_declaration)
 
             elif (section_type == 0x191) or (section_type == 0x192) or (section_type == 0x193):
-                self.unks.append(Datum(self.stream).d)
+                self.unks.append(Datum(chunk).d)
 
             else:
                 # SIGNAL AN UNKNOWN SECTION.
                 logging.warning(f'Detected unknown section 0x{section_type:04x}')
 
             # READ THE NEXT SECTION TYPE.
-            section_type = Datum(self.stream).d
+            section_type = Datum(chunk).d
             section_is_not_empty = (0x2e != section_type)
 
         # READ THE ENDING DATA.
-        self.footer = self.stream.read()
+        self.footer = chunk.read(chunk.bytes_remaining_count)
         global_variables.version = self.version

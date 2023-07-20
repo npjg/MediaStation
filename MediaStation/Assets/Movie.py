@@ -81,9 +81,9 @@ class MovieFrameHeader(BitmapHeader):
 
 ## A single bitmap frame in a movie.
 class MovieFrame(Bitmap):
-    def __init__(self, stream, size):
+    def __init__(self, chunk):
         # READ THE IMAGE.
-        super().__init__(stream, length = size, header_class = MovieFrameHeader)
+        super().__init__(chunk, header_class = MovieFrameHeader)
         # The footer must be added separately because it is not always present,
         # and the footer right after this frame might not actually correspond to
         # this frame.
@@ -126,14 +126,14 @@ class Movie(Animation):
 
     ## Read a still from a binary stream at its current position.
     ## TODO: Are all the frames followed by a footer chunk?
-    def add_still(self, stream, length):
-        section_type = Datum(stream)
+    def add_still(self, chunk):
+        section_type = Datum(chunk)
         if section_type.d == Movie.SectionType.FRAME:
-            frame = MovieFrame(stream, size = length - 0x04)
+            frame = MovieFrame(chunk)
             self.frames.append(frame)
 
         elif section_type.d == Movie.SectionType.FOOTER:
-            footer = MovieFrameFooter(stream)
+            footer = MovieFrameFooter(chunk)
             for frame in self.frames:
                 if frame.header.index == footer.index:
                     frame.set_footer(footer)
@@ -145,67 +145,66 @@ class Movie(Animation):
     ## The subfile's metadata must have already been read.
     ## \param[in] subfile - The subfile to read. The binary stream must generally
     ## be at the start of the subfile.
-    def add_subfile(self, subfile):
-        header_chunk_integer = subfile.current_chunk.chunk_integer + 0
-        video_chunk_integer = subfile.current_chunk.chunk_integer + 1
-        audio_chunk_integer = subfile.current_chunk.chunk_integer + 2
+    def add_subfile(self, subfile, chunk):
+        header_chunk_integer = chunk.chunk_integer + 0
+        video_chunk_integer = chunk.chunk_integer + 1
+        audio_chunk_integer = chunk.chunk_integer + 2
 
         # READ THE METADATA FOR THIS MOVIE.
-        section_type = Datum(subfile.stream).d
+        section_type = Datum(chunk).d
         assert_equal(section_type, Movie.SectionType.ROOT, "movie root signature")
-        chunk_count = Datum(subfile.stream).d
-        start_pointer = Datum(subfile.stream).d
+        chunk_count = Datum(chunk).d
+        start_pointer = Datum(chunk).d
         chunk_sizes = []
         for _ in range(chunk_count):
-            chunk_size = Datum(subfile.stream).d
+            chunk_size = Datum(chunk).d
             chunk_sizes.append(chunk_size)
 
         # READ THE MOVIE CHUNKS.
         for index in range(chunk_count):
             # READ THE NEXT CHUNK.
-            subfile.read_chunk_metadata()
+            chunk = subfile.get_next_chunk()
             frames = []
             footers = []
 
             # READ ALL THE IMAGES (FRAMES).
             # Video always comes first.
-            is_video_chunk = (subfile.current_chunk.chunk_integer == video_chunk_integer)
+            is_video_chunk = (chunk.chunk_integer == video_chunk_integer)
             movie_frame: MovieFrame = None
             while is_video_chunk:
-                section_type = Datum(subfile.stream).d
+                section_type = Datum(chunk).d
                 if (Movie.SectionType.FRAME == section_type):
                     # READ THE MOVIE FRAME.
-                    chunk_length = subfile.current_chunk.length - 0x04
-                    movie_frame = MovieFrame(subfile.stream, size = chunk_length)
+                    movie_frame = MovieFrame(chunk)
                     frames.append(movie_frame)
 
                 elif (Movie.SectionType.FOOTER == section_type):
                     # READ THE MOVIE FRAME FOOTER.
-                    footer = MovieFrameFooter(subfile.stream)
+                    footer = MovieFrameFooter(chunk)
                     footers.append(footer)
 
                 else:
                     raise TypeError(f'Unknown movie chunk tag: 0x{section_type:04x}')
 
                 # READ THE NEXT CHUNK.
-                subfile.read_chunk_metadata()
-                is_video_chunk = (subfile.current_chunk.chunk_integer == video_chunk_integer)
+                chunk = subfile.get_next_chunk()
+                is_video_chunk = (chunk.chunk_integer == video_chunk_integer)
 
             # READ THE AUDIO.
             audio = None
             is_audio_chunk = (subfile.current_chunk.chunk_integer == audio_chunk_integer)
             if is_audio_chunk:
                 audio = Sound(self._audio_encoding)
-                audio.read_chunk(subfile.stream, subfile.current_chunk.length)
-                subfile.read_chunk_metadata()
+                audio.read_chunk(chunk)
+                chunk = subfile.get_next_chunk()
 
             # READ THE FOOTER FOR THIS SUBFILE.
             # Every frameset must end in a 4-byte header.
             # TODO: Figure out what this is.
-            is_header_chunk = (subfile.current_chunk.chunk_integer == header_chunk_integer)
+            is_header_chunk = (chunk.chunk_integer == header_chunk_integer)
             if is_header_chunk:
-                assert_equal(subfile.current_chunk.length, 0x04, "frameset delimiter size")
-                subfile.stream.read(subfile.current_chunk.length)
+                assert_equal(chunk.length, 0x04, "frameset delimiter size")
+                chunk.read(chunk.length)
             else:
                 raise ValueError(f'Unknown delimiter at end of movie frameset: {subfile.current_chunk.fourcc}')
             

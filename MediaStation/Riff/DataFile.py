@@ -5,7 +5,6 @@ from asset_extraction_framework.Asserts import assert_equal
 import self_documenting_struct as struct
 
 from .SubFile import SubFile
-from .Chunk import ChunkMetadata
 
 ## A Media Station data file, which consists of one or more subfiles.
 class DataFile(File):
@@ -43,19 +42,17 @@ class DataFile(File):
             else:
                 self.header_only = False
 
-        # READ THE FIRST SUBFILE.
-        self.current_subfile: SubFile = self.read_subfile_metadata()
-
     ## Reads metadata for the next RIFF subfile from the binary stream at the current position.
     ##
     ## The actual data in the subfile is not read, but the stream position is put at the exact start 
     ## of the FourCC of the first data chunk of this subfile.
-    def read_subfile_metadata(self) -> SubFile:
-        # ENFORCE PADDING ON THE DWORD BOUNDARY.
-        if self.stream.tell() % 2 == 1:
+    def get_next_subfile(self) -> SubFile:
+        # Padding should be enforced so the next subfile starts on an even-indexed byte.
+        stream_position_is_odd = self.stream.tell() % 2 == 1
+        if stream_position_is_odd:
+            # So, for example, if we are currently at 0x701, the next subfile actually 
+            # starts at 0x702, so we need to throw away the byte at 0x701.
+            # TODO: Verify the thrown-away byte is always zero.
             self.stream.read(1)
-
-        # RETURN THE SUBFILE.
         subfile = SubFile(self.stream)
-        self.current_subfile = subfile
         return subfile

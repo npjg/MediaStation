@@ -23,8 +23,8 @@ class SpriteFrame(Bitmap):
     ## \param[in] stream - A binary stream that supports the read method.
     ## \param[in] size - The total size, in bytes, of this sprite frame.
     ##            This number of bytes will be read from the stream.
-    def __init__(self, stream, size):
-        super().__init__(stream, length = size, header_class = SpriteFrameHeader)
+    def __init__(self, chunk):
+        super().__init__(chunk, header_class = SpriteFrameHeader)
         self._left = 0
         self._top = 0
 
@@ -45,7 +45,7 @@ class Sprite(Animation):
     ## \param[in] stream - A binary stream that supports the read method.
     ## \param[in] size - The total size, in bytes, of the sprite frame.
     ##            This number of bytes will be read from the stream.
-    def append(self, stream, size):
-        sprite_frame = SpriteFrame(stream, size)
+    def append(self, chunk):
+        sprite_frame = SpriteFrame(chunk)
         self.frames.append(sprite_frame)
         self.frames.sort(key = lambda x: x.header.index)

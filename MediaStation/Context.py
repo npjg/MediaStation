@@ -8,7 +8,6 @@ from asset_extraction_framework.Asset.Palette import RgbPalette
 
 from .Primitives.Datum import Datum
 from .Riff.DataFile import DataFile
-from .Riff.SubFile import SubFile
 
 from . import global_variables
 from .Assets.Bitmap import Bitmap
@@ -40,20 +39,17 @@ class GlobalParameters:
     ## The number of bytes read from the stream depends on the type 
     ## \param[in] stream - A binary stream that supports the read method.
     def __init__(self, stream):
-        # DECLARE THE CONTEXT NAME.
         # Titles that use the old-style format don't have human-readable context names.
         # When the names are present, they generally look like the following: "Decals_7x00".
         self.name: Optional[str] = None
-
         # TODO: Understand what this declaration is.
         self.entries = {}
-
-        # READ THE FILE NUMBER. 
         # This is not an internal file ID, but the number of the file
         # as it appears in the filename. For instance, the context in
         # "100.cxt" would have file number 100.
         self.file_number: int = Datum(stream).d
 
+        # READ THE SECTIONS.
         section_type: int = Datum(stream).d
         if section_type != GlobalParameters.SectionType.EMPTY:
             if section_type == GlobalParameters.SectionType.NAME:
@@ -167,10 +163,7 @@ class Context(DataFile):
     ## NOTE: It is an error to provide both a filepath and a stream, as the source of the data
     ##       is then ambiguous.
     def __init__(self, filepath: str = None, stream = None):
-        # OPEN THE FILE FOR READING.
         super().__init__(filepath = filepath, stream = stream, has_header = True)
-
-        # DECLARE THE CLASS MEMBERS ALWAYS PRESENT.
         self.assets: Dict[str, Asset] = {}
         self._referenced_chunks: Dict[str, Asset] = {}
         self.functions = []
@@ -192,23 +185,25 @@ class Context(DataFile):
 
         # READ THE HEADER SECTIONS.
         # TODO: Implement a better version checking system here.
-        self.current_subfile.read_chunk_metadata()
+        subfile = self.get_next_subfile()
+        chunk = subfile.get_next_chunk()
         if global_variables.version.is_first_generation_engine:
-            self.read_old_style_header_sections()
-            Datum(self.stream)
-            self.current_subfile.read_chunk_metadata()
+            self.read_old_style_header_sections(subfile, chunk)
+            # TODO: Understand why, with the new chunk reading, an extra datum
+            # previously needed to be read here but no longer needs to be read.
+            chunk = subfile.get_next_chunk()
         else:
-            self.read_new_style_header_sections()
+            chunk = self.read_new_style_header_sections(subfile, chunk)
         if self.palette is None:
             print('WARNING: No palette provided for this context.')
 
         # READ THE CHUNK-ONLY ASSETS.
         # These are assets stored in the first subfile only.
-        while not self.current_subfile.end_of_subfile:
-            self.read_asset_in_first_subfile()
-            if not self.current_subfile.end_of_subfile:
-                self.current_subfile.read_chunk_metadata()
-        
+        while not subfile.at_end:
+            self.read_asset_in_first_subfile(chunk)
+            if not subfile.at_end:
+                chunk = subfile.get_next_chunk()
+
         # READ THE ASSETS IN THE REST OF THE SUBFILES.
         # These are the "subfiled" assets, because their data is each stored in 
         # its own subfile.
@@ -217,8 +212,8 @@ class Context(DataFile):
         # you needed each of the subfiles to be listed in the BOOT.STM.
         for index in range(self.subfile_count - 1):
             # UPDATE THE CURRENT SUBFILE.
-            self.read_subfile_metadata()
-            self.read_asset_from_later_subfile()
+            subfile = self.get_next_subfile()
+            self.read_asset_from_later_subfile(subfile)
 
     ## Reads old-style header chunks from the current position of this file's binary stream.
     ##
@@ -231,9 +226,9 @@ class Context(DataFile):
     ##  - Lion King (the OG of the OG, haha)
     ##  - Pocahontas
     ## TODO: Finish off this list.
-    def read_old_style_header_sections(self):
+    def read_old_style_header_sections(self, subfile, chunk):
         # VERIFY THIS DATA CHUNK IS A LEGACY HEADER.
-        section_type = Datum(self.stream).d
+        section_type = Datum(chunk).d
         assert_equal(section_type, Context.SectionType.OLD_STYLE)
 
         # READ THE PALETTE.
@@ -242,19 +237,19 @@ class Context(DataFile):
         #
         # The parser does not enforce this, so technically the header section read
         # for this first chunk could be something else, but I haven't ever observed that.
-        self.read_header_section()
+        self.read_header_section(chunk)
 
         # GET THE NEXT DATA CHUNK.
         # The rest of the header sections after the palette are in the next igod chunk.
-        self.current_subfile.read_chunk_metadata()
+        chunk = subfile.get_next_chunk()
 
         # READ ALL THE HEADER SECTIONS.
-        section_type = Datum(self.stream).d
+        section_type = Datum(chunk).d
         assert_equal(section_type, Context.SectionType.OLD_STYLE)
         more_sections_to_read: bool = True
         while more_sections_to_read:
             # READ THIS SECTION.
-            more_sections_to_read = self.read_header_section()
+            more_sections_to_read = self.read_header_section(chunk)
             if not more_sections_to_read:
                 # Some conditions force an immediate end to reading sections,
                 # even before the data in the chunk runs out.
@@ -262,44 +257,45 @@ class Context(DataFile):
                 break
 
             # CHECK IF THERE ARE MORE SECTIONS TO READ.
-            more_sections_to_read = (self.stream.tell() <= self.current_subfile.current_chunk.end_pointer)
+            more_sections_to_read = (not chunk.at_end)
 
     ## Reads new-style header chunks from the current position of this file's binary stream.
     ##
     ## In the new-style file format, each header section has a separate igod chunk.
     ## This makes parsing much easier than with the old-style format.
-    def read_new_style_header_sections(self):
+    def read_new_style_header_sections(self, subfile, chunk):
         # READ ALL THE HEADER SECTIONS.
-        more_sections_to_read = (self.current_subfile.current_chunk.fourcc == 'igod')
+        more_sections_to_read = chunk.is_igod
         while more_sections_to_read:
             # VERIFY THIS IGOD CHUNK IS A HEADER.
-            chunk_is_header = (Datum(self.stream).d == ChunkType.HEADER)
+            chunk_is_header = (Datum(chunk).d == ChunkType.HEADER)
             if not chunk_is_header:
                 break
 
             # READ THIS DATA CHUNK.
-            more_chunks_to_read: bool = self.read_header_section()
+            more_chunks_to_read: bool = self.read_header_section(chunk)
             if not more_chunks_to_read:
                 break
 
             # QUEUE UP THE NEXT DATA CHUNK.
-            self.current_subfile.read_chunk_metadata()
-            more_sections_to_read = (self.current_subfile.current_chunk.fourcc == 'igod')
+            chunk = subfile.get_next_chunk()
+            more_sections_to_read = chunk.is_igod
+        return chunk
 
     ## Reads a header section from this file's binary stream from the current position.
     ## \return True if there are more chunks to read after this one; False otherwise.
     ##         Note that there are times other than when this function returns False.
-    def read_header_section(self, reading_stage = False):
-        section_type = Datum(self.stream).d
+    def read_header_section(self, chunk, reading_stage = False):
+        section_type = Datum(chunk).d
         if (Context.SectionType.CONTEXT_PARAMETERS == section_type):
             # VERIFY THIS CONTEXT DOES NOT ALREADY HAVE PARAMETERS.
             if self.parameters is not None:
                 raise ValueError('More than one parameters structure present in context.')
-            self.parameters = GlobalParameters(self.stream)
+            self.parameters = GlobalParameters(chunk)
 
         elif (Context.SectionType.ASSET_LINK == section_type):
             # TODO: Figure out what is going on here.
-            self.stream.seek(self.stream.tell() - 8)
+            chunk.stream.seek(chunk.stream.tell() - 8)
             return False
 
         elif (Context.SectionType.PALETTE == section_type):
@@ -308,18 +304,19 @@ class Context(DataFile):
             if self.palette is not None:
                 raise ValueError('More than one palette present in context.')
             self.palette = RgbPalette(self, has_entry_alignment = False)
-            Datum(self.stream).d
+            Datum(chunk).d
 
         elif (Context.SectionType.ASSET_HEADER == section_type):
             # READ AN ASSET HEADER.
-            asset_header = Asset(self.stream)
+            asset_header = Asset(chunk)
             self.assets.update({asset_header.id: asset_header})
             if (Asset.AssetType.STAGE == asset_header.type):
-                Datum(self.stream)
-                Datum(self.stream)
-                another_asset_header = self.read_header_section(reading_stage = True)
+                Datum(chunk)
+                Datum(chunk)
+                # TODO: Correctly handle embedded stages.
+                another_asset_header = self.read_header_section(chunk, reading_stage = True)
                 while another_asset_header:
-                    another_asset_header = self.read_header_section(reading_stage = True)
+                    another_asset_header = self.read_header_section(chunk, reading_stage = True)
 
             # ADD ANY LINKED 
             if len(asset_header.chunk_references) > 0:
@@ -332,16 +329,16 @@ class Context(DataFile):
             if (not global_variables.version.is_first_generation_engine) and \
                     (not reading_stage) and \
                     (not asset_header.type == Asset.AssetType.STAGE):
-                Datum(self.stream)
+                Datum(chunk)
 
         elif (Context.SectionType.FUNCTION == section_type):
-            function = Script(self.stream, in_independent_asset_chunk = True)
+            function = Script(chunk, in_independent_asset_chunk = True)
             self.functions.append(function)
 
         elif (Context.SectionType.END == section_type):
             # TODO: Figure out what these are.
-            Datum(self.stream)
-            Datum(self.stream)
+            Datum(chunk)
+            Datum(chunk)
             return False
 
         elif (Context.SectionType.EMPTY == section_type):
@@ -353,7 +350,7 @@ class Context(DataFile):
 
         elif (Context.SectionType.POOH == section_type):
             # TODO: Understand what this is.
-            list(map(lambda x: assert_equal(Datum(self.stream).d, x),
+            list(map(lambda x: assert_equal(Datum(chunk).d, x),
                 [0x04, 0x04, 0x012c, 0x03, 0.50, 0x01, 1.00, 0x01, 254.00, 0x00]
             ))
 
@@ -365,39 +362,38 @@ class Context(DataFile):
     ## Reads an asset in the first subfile of this context, from the binary stream
     ## at its current position. The asset header for this asset must have already 
     ## been read. 
-    def read_asset_in_first_subfile(self):
+    def read_asset_in_first_subfile(self, chunk):
         # MAKE SURE THIS IS NOT AN ASSET LINK.
         # TODO: Properly understand what these data structures are.
-        if self.current_subfile.current_chunk.fourcc == 'igod':
-            self.stream.read(self.current_subfile.current_chunk.length)
+        if chunk.is_igod:
+            chunk.read(chunk.length)
             return
 
         # RETRIEVE THE ASSET HEADER.
-        header = self.get_asset_by_chunk_id(self.current_subfile.current_chunk.fourcc)
+        header = self.get_asset_by_chunk_id(chunk.fourcc)
         if header is None:
             # Look in the whole application before throwing an error, as this could be the 
             # INSTALL.CXT case.
-            header = global_variables.application.get_asset_by_chunk_id(self.current_subfile.current_chunk.fourcc)
+            header = global_variables.application.get_asset_by_chunk_id(chunk.fourcc)
             if header is None:
                 # This should never actually be an error condition in valid contexts, because the asset headers are also in the first subfile.
                 raise ValueError(
-                    f'Asset FourCC {self.current_subfile.current_chunk.fourcc} was encountered in the first subfile, but no asset header read thus far has declared this FourCC.\n\n'
+                    f'Asset FourCC {chunk.fourcc} was encountered in the first subfile, but no asset header read thus far has declared this FourCC.\n\n'
                     'This is expected if you are trying to extract assets from an INSTALL.CXT without any other contexts, as INSTALL.CXT does not contain any asset headers.\n'
                     'Try running the extraction again on the entire game directory.')
 
         # READ THE ASSET ACCORDING TO ITS TYPE.
-        chunk_length = self.current_subfile.current_chunk.length
         if (header.type == Asset.AssetType.IMAGE) or (header.type == Asset.AssetType.CAMERA):
-            header.image = Bitmap(self.stream, length = chunk_length)
+            header.image = Bitmap(chunk)
 
         elif (header.type == Asset.AssetType.SOUND):
-            header.sound.read_chunk(self.stream, length = chunk_length)
+            header.sound.read_chunk(chunk)
 
         elif (header.type == Asset.AssetType.SPRITE):
-            header.sprite.append(self.stream, size = chunk_length)
+            header.sprite.append(chunk)
 
         elif (header.type == Asset.AssetType.FONT):
-            header.font.append(self.stream, size = chunk_length)
+            header.font.append(chunk)
 
         elif (header.type == Asset.AssetType.MOVIE):
             # READ A MOVIE STILL IMAGE.
@@ -405,39 +401,35 @@ class Context(DataFile):
             # Any movie chunk that occurs in the first subfile is a "still"
             # that displays when the movie is not playing (because, for instance,
             # the user has not clicked the hotspot to make it play).
-            header.movie.add_still(self.stream, length = chunk_length)
+            header.movie.add_still(chunk)
     
         else:
             raise ValueError(f'Unknown asset type in first subfile: {header.type}')
 
     ## Reads an asset from a subfile after the first subfile.
-    def read_asset_from_later_subfile(self):
-        # READ THE FIRST CHUNK .
-        # We assume this is for the .
-        self.current_subfile.read_chunk_metadata()
-
+    def read_asset_from_later_subfile(self, subfile):
         # RETRIEVE THE ASSET HEADER.
-        header = self.get_asset_by_chunk_id(self.current_subfile.current_chunk.fourcc)
+        chunk = subfile.get_next_chunk()
+        header = self.get_asset_by_chunk_id(chunk.fourcc)
         if header is None:
             # Look in the whole application before throwing an error, as this could be the 
             # INSTALL.CXT case.
-            header = global_variables.application.get_asset_by_chunk_id(self.current_subfile.current_chunk.fourcc)
+            header = global_variables.application.get_asset_by_chunk_id(chunk.fourcc)
             if header is None:
                 raise ValueError(
-                    f'Asset FourCC {self.current_subfile.current_chunk.fourcc} was encountered in a subfile, but no asset header read thus far has declared this FourCC.\n\n'
+                    f'Asset FourCC {chunk.fourcc} was encountered in a subfile, but no asset header read thus far has declared this FourCC.\n\n'
                     'This is expected if you are trying to extract assets from an INSTALL.CXT without any other contexts, as INSTALL.CXT does not contain any asset headers.\n'
                     'Try running the extraction again on the entire game directory.')
 
         # READ THE ASSET ACCORDING TO ITS TYPE.
-        chunk_length = self.current_subfile.current_chunk.length
         if header.type == Asset.AssetType.MOVIE:
-            header.movie.add_subfile(self.current_subfile)
+            header.movie.add_subfile(subfile, chunk)
 
         elif header.type == Asset.AssetType.SOUND:
-            header.sound.read_subfile(self.current_subfile, header.total_chunks)
+            header.sound.read_subfile(subfile, chunk, header.total_chunks)
 
         elif header.type == Asset.AssetType.UNK2:
-            Datum(self.stream)
+            Datum(chunk)
             header.image = Bitmap(self.stream, length = chunk_length - 0x04)
 
         else:

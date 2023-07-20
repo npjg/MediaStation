@@ -15,7 +15,7 @@ class Script:
     ## \param[in] stream - A binary stream that supports the read method.
     ## \param[in] in_independent_asset_chunk - When True, the function to be
     ##            read is not in an asset header but is its own data chunk.
-    def __init__(self, stream, in_independent_asset_chunk):
+    def __init__(self, chunk, in_independent_asset_chunk):
         # DECLARE THE SCRIPT ID.
         # The script ID is only populated if the script is in its own chunk.
         # If it is instead attached to an asset header, it takes on the ID of that asset.
@@ -31,26 +31,26 @@ class Script:
         if in_independent_asset_chunk:
             # VERIFY THE FILE ID.
             # TODO: Actually verify this.
-            Datum(stream)
+            Datum(chunk)
 
             # READ THE SCRIPT ID.
-            self.id = Datum(stream).d
+            self.id = Datum(chunk).d
         else:
             # READ THE SCRIPT TYPE.
-            self.type = Datum(stream).d
-            self.unk1 = Datum(stream).d
+            self.type = Datum(chunk).d
+            self.unk1 = Datum(chunk).d
 
             # READ THE SCRIPT SIZE.
             # This is not actually used in the decompilation code, but I have given it a proper name anyway.
-            self.size = Datum(stream).d
+            self.size = Datum(chunk).d
 
-        start = stream.tell()
-        initial = Datum(stream)
+        start = chunk.stream.tell()
+        initial = Datum(chunk)
         
-        self._code = self.chunk(initial, stream)
-        assert_equal(stream.tell() - start - 0x006, self._code["sz"].d, "length")
+        self._code = self.chunk(initial, chunk.stream)
+        assert_equal(chunk.stream.tell() - start - 0x006, self._code["sz"].d, "length")
         if in_independent_asset_chunk and not global_variables.version.is_first_generation_engine:
-            assert_equal(Datum(stream).d, 0x00, "end-of-chunk flag")
+            assert_equal(Datum(chunk).d, 0x00, "end-of-chunk flag")
 
     def chunk(self, size, stream):
         code = {"sz": size, "ch": []}

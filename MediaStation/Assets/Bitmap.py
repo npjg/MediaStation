@@ -13,9 +13,7 @@ class BitmapHeader:
     ## Reads a bitmap header from the binary stream at its current position.
     ## \param[in] stream - A binary stream that supports the read method.
     def __init__(self, stream):
-        start_pointer = stream.tell()
         self._header_size_in_bytes = Datum(stream).d
-        end_pointer = start_pointer + self._header_size_in_bytes
         self.dimensions = Datum(stream).d
         self.compression_type = Datum(stream).d
         self.unk2 = Datum(stream).d
@@ -32,14 +30,12 @@ class BitmapHeader:
 class Bitmap(RectangularBitmap):
     ## Reads a bitmap from the binary stream at its current position.
     ## \param[in] stream - A binary stream that supports the read method.
-    ## \param[in] size - The size (in bytes) of the image ast stored in the binary stream.
     ## \param[in] dimensions - The dimensions of the image, if they are known beforehand
     ##            (like in an asset header). Otherwise, the dimensions will be read
     ##            from the image.
-    def __init__(self, stream, length, header_class = BitmapHeader):
+    def __init__(self, chunk, header_class = BitmapHeader):
         super().__init__()
-        self._end_pointer = stream.tell() + length
-        self.header = header_class(stream)
+        self.header = header_class(chunk)
         self._width = self.header.dimensions.x
         self._height = self.header.dimensions.y
 
@@ -48,16 +44,15 @@ class Bitmap(RectangularBitmap):
         self.transparency_region = []
 
         # READ THE RAW IMAGE DATA.
-        image_data_size = self._end_pointer - stream.tell()
         if self.header._is_compressed:
             # READ THE COMPRESSED IMAGE DATA.
             # That will be decompressed later on request.
-            self._compressed_image_data_size = image_data_size
-            self._raw = stream.read(self._compressed_image_data_size)
+            self._compressed_image_data_size = chunk.bytes_remaining_count
+            self._raw = chunk.read(chunk.bytes_remaining_count)
         else:
             # READ THE UNCOMPRESSED IMAGE DIRECTLY.
-            assert stream.read(2) == b'\x00\x00'
-            self._pixels = stream.read(image_data_size - 2)
+            assert chunk.read(2) == b'\x00\x00'
+            self._pixels = chunk.read(chunk.bytes_remaining_count)
 
     # Decompresses the RLE-compressed pixel data for this bitmap.
     # The RLE compression algorithm is almost the Microsoft standard algorithm

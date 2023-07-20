@@ -5,7 +5,7 @@ from typing import Optional
 import self_documenting_struct as struct
 from asset_extraction_framework.Asserts import assert_equal
 
-from .Chunk import ChunkMetadata
+from .Chunk import Chunk
 
 ## A single RIFF-style subfile inside a Media Station data file.
 ## All subfiles follow this beginning structure:
@@ -31,7 +31,7 @@ class SubFile:
     def __init__(self, stream):
         # VERIFY THE FILE SIGNATURE.
         self.stream = stream
-        self.root_chunk: ChunkMetadata = self.read_chunk_metadata()
+        self.root_chunk: Chunk = self.get_next_chunk(called_from_init = True)
         assert_equal(self.root_chunk.fourcc, 'RIFF', 'subfile signature')
 
         # READ THE EXTRA-LONG FOURCC.
@@ -44,7 +44,7 @@ class SubFile:
         # This chunk shoudl always contain just one piece of data - the "rate"
         # (whatever that is). Usually it is zero.
         # TODO: Figure out what this actually is.
-        self.read_chunk_metadata()
+        self.get_next_chunk()
         self.rate = struct.unpack.uint32_le(stream)
 
         # READ PAST THE LIST CHUNK.
@@ -52,7 +52,7 @@ class SubFile:
         # We do not care about this chunk itself - the subchunks
         # are what really matters. So we will just read the LIST
         # chunk's metadata and throw it away.
-        self.read_chunk_metadata()
+        self.get_next_chunk()
         
         # QUEUE UP THE FIRST DATA CHUNK.
         # Client code should read the chunks itself, so we
@@ -66,21 +66,40 @@ class SubFile:
         assert_equal(stream.read(4), b'data', 'subfile signature')
         self.current_chunk = None
     
-    ## Reads the FourCC and size (collectively, the "metdata") of a RIFF-style chunk 
+    ## Reads the FourCC and size (collectively, the "metadata") of a RIFF-style chunk 
     ## from the binary stream at the current position.
     ## The binary stream is left at the start of the data for this chunk.
     ## \param[in] fourcc_length - The length, in bytes, of the FourCC to read.
-    def read_chunk_metadata(self, fourcc_length = 4) -> Optional[ChunkMetadata]:
-        # ENFORCE PADDING ON THE DWORD BOUNDARY.
-        if self.stream.tell() % 2 == 1:
-            self.stream.read(1)
+    def get_next_chunk(self, fourcc_length = 4, called_from_init = False) -> Optional[Chunk]:
+        # VERIFY WE WILL NOT GET A CHUNK PAST THE END OF THE SUBFILE.
+        if not called_from_init:
+            MINIMUM_BYTES_FOR_SUBFILE = 8
+            new_end_pointer = self.stream.tell() + MINIMUM_BYTES_FOR_SUBFILE
+            attempted_read_past_end_of_subfile =  (new_end_pointer > self.root_chunk.end_pointer)
+            if attempted_read_past_end_of_subfile:
+                bytes_past_chunk_end = new_end_pointer - self.root_chunk.end_pointer
+                raise ValueError(f'Attempted to read a new chunk past the end of the subfile whose data starts at 0x{self.root_chunk.data_start_pointer:02x} and ends at 0x{self.root_chunk.end_pointer:02x}.')
 
-        # READ THE METADATA FOR THIS CHUNK.
-        self.current_chunk = ChunkMetadata(self.stream, fourcc_length)
+        # GET THE NEXT CHUNK.
+        # Padding should be enforced so the next chunk starts on an even-indexed byte.
+        stream_position_is_odd = (self.stream.tell() % 2 == 1)
+        if stream_position_is_odd:
+            # So, for example, if we are currently at 0x701, the next chunk actually 
+            # starts at 0x702, so we need to throw away the byte at 0x701.
+            # TODO: Verify the thrown-away byte is always zero.
+            self.stream.read(1)
+        self.current_chunk = Chunk(self.stream, fourcc_length)
         return self.current_chunk
 
     ## \return False if the stream's current position is before the end
     ## of this subfile; True otherwise.
     @property
-    def end_of_subfile(self) -> bool:
-        return self.stream.tell() >= self.root_chunk.end_pointer
+    def at_end(self) -> bool:
+        stream_position_is_odd = (self.stream.tell() % 2 == 1)
+        if stream_position_is_odd:
+            # In Media Station data files, there is no meaningful data that can be stored
+            # in a single byte. So if the stream position is odd, it is possible that
+            # one byte is just a padding byte. Thus, the effective length of the subfile
+            # should be shortened by one.
+            return self.stream.tell() >= (self.root_chunk.end_pointer - 1)
+        return self.stream.tell() >= (self.root_chunk.end_pointer)
