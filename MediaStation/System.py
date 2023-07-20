@@ -121,11 +121,14 @@ class ContextDeclaration:
 
             # READ THE CONTEXT NAME.
             # Version 1 titles don't have context names.
-            section_type = Datum(stream).d
-            if ContextDeclaration.SectionType.CONTEXT_NAME == section_type:
-                self.context_name = Datum(stream).d
-            else:
-                stream.stream.seek(stream.stream.tell() - 4)
+            version_has_context_names = (not global_variables.version.is_first_generation_engine) and \
+                (global_variables.version.major_version >= 3) and (global_variables.version.minor_version > 5)
+            if version_has_context_names:
+                section_type = Datum(stream).d
+                if ContextDeclaration.SectionType.CONTEXT_NAME == section_type:
+                    self.context_name = Datum(stream).d
+                else:
+                    raise ValueError("Context name expected but not present.")
         elif ContextDeclaration.SectionType.EMPTY == section_type:
             # INDICATE THIS IS THE LAST CONTEXT DECLARATION.
             # This signals to the holder of this declaration that there
@@ -361,6 +364,7 @@ class System(DataFile):
         # READ THE ITEMS IN THIS FILE.
         section_type = Datum(chunk).d
         section_is_not_empty = (System.SectionType.EMPTY != section_type)
+        global_variables.version = EngineVersionInformation()
         while section_is_not_empty:
             if section_type == System.SectionType.VERSION_INFORMATION: 
                 # READ THE METADATA FOR THE WHOLE GAME.
@@ -368,6 +372,7 @@ class System(DataFile):
                 self.unk1 = chunk.read(2)
                 self.version = EngineVersionInformation(chunk)
                 self.source_string = Datum(chunk).d
+                global_variables.version = self.version
 
             elif section_type == System.SectionType.ENGINE_RESOURCE_NAME:
                 # READ THE NAME OF AN ENGINE RESOURCE.
@@ -426,4 +431,3 @@ class System(DataFile):
 
         # READ THE ENDING DATA.
         self.footer = chunk.read(chunk.bytes_remaining_count)
-        global_variables.version = self.version
