@@ -3,10 +3,9 @@ from enum import IntEnum
 import os
 
 import numpy as np
-
+from PIL import Image
 from asset_extraction_framework.Asserts import assert_equal
 from asset_extraction_framework.Asset.Animation import Animation
-from PIL import Image
 
 from .. import global_variables
 from ..Primitives.Datum import Datum

@@ -7,7 +7,6 @@ from asset_extraction_framework.Asserts import assert_equal
 
 from ..Primitives.Datum import Datum
 from ..Primitives.Polygon import Polygon
-
 from .Font import Font
 from .Movie import Movie
 from .Script import Script

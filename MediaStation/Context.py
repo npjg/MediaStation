@@ -6,18 +6,13 @@ from asset_extraction_framework.Asserts import assert_equal
 from asset_extraction_framework.File import File
 from asset_extraction_framework.Asset.Palette import RgbPalette
 
-from .Primitives.Datum import Datum
-from .Riff.DataFile import DataFile
-
 from . import global_variables
 from .Assets.Bitmap import Bitmap
 from .Assets.Asset import Asset
 from .Assets.Script import Script
 from .Assets.Bitmap import Bitmap
-from .Assets.Sound import Sound
-from .Assets.Sprite import Sprite
-from .Assets.Movie import Movie, MovieFrame, MovieFrameFooter
-from .Assets.Font import Font
+from .Primitives.Datum import Datum
+from .Riff.DataFile import DataFile
 
 class ChunkType(IntEnum):
     HEADER = 0x000d
