@@ -167,6 +167,7 @@ class Context(DataFile):
         self.assets: Dict[str, Asset] = {}
         self._referenced_chunks: Dict[str, Asset] = {}
         self.functions = []
+        self.links = []
         # Since this is a separate header section, it is parsed by its own class
         # rather than being read through a method in this class. That adds some 
         # indirection, but it helps preserve conceptual integrity of the design.
@@ -278,8 +279,11 @@ class Context(DataFile):
                 break
 
             # QUEUE UP THE NEXT DATA CHUNK.
-            chunk = subfile.get_next_chunk()
-            more_sections_to_read = chunk.is_igod
+            if subfile.at_end:
+                more_sections_to_read = False
+            else:
+                chunk = subfile.get_next_chunk()
+                more_sections_to_read = chunk.is_igod
         return chunk
 
     ## Reads a header section from this file's binary stream from the current position.
@@ -295,8 +299,9 @@ class Context(DataFile):
 
         elif (Context.SectionType.ASSET_LINK == section_type):
             # TODO: Figure out what is going on here.
-            chunk.stream.seek(chunk.stream.tell() - 8)
-            return False
+            asset_link = Datum(chunk).d
+            self.links.append(asset_link)
+            self.read_header_section(chunk)
 
         elif (Context.SectionType.PALETTE == section_type):
             # VERIFY THIS CONTEXT DOES NOT ALREADY HAVE A PALETTE.
