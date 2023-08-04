@@ -430,7 +430,7 @@ class Context(DataFile):
 
         elif header.type == Asset.AssetType.UNK2:
             Datum(chunk)
-            header.image = Bitmap(self.stream, length = chunk_length - 0x04)
+            header.image = Bitmap(chunk)
 
         else:
             raise ValueError(f'Unknown subfile asset type: {header.type}')
