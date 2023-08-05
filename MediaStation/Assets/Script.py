@@ -44,39 +44,40 @@ class Script:
             # This is not actually used in the decompilation code, but I have given it a proper name anyway.
             self.size = Datum(chunk).d
 
-        start = chunk.stream.tell()
-        initial = Datum(chunk)
-        
-        self._code = self.chunk(initial, chunk.stream)
-        assert_equal(chunk.stream.tell() - start - 0x006, self._code["sz"].d, "length")
+        self._code = CodeChunk(chunk.stream)
         if in_independent_asset_chunk and not global_variables.version.is_first_generation_engine:
             assert_equal(Datum(chunk).d, 0x00, "end-of-chunk flag")
 
-    def chunk(self, size, stream):
-        code = {"sz": size, "ch": []}
-        start = stream.tell()
-        while stream.tell() - start < size.d:
-            code["ch"].append(self.entity(Datum(stream), stream, end=start+size.d))
+class CodeChunk:
+    def __init__(self, stream):
+        self.stream = stream
+        self.length_in_bytes = Datum(stream).d
+        self.start_pointer = stream.tell()
+        self.code = []
+        while not self.at_end:
+            self.code.append(self.entity(Datum(stream), stream))
 
-        return code
+    @property
+    def end_pointer(self):
+        return self.start_pointer + self.length_in_bytes
 
-    def entity(self, token, stream, end, string=False):
-        if token.t == 0x0004:
-            return self.chunk(token, stream)
+    @property
+    def at_end(self):
+        return self.stream.tell() >= self.end_pointer
 
+    def entity(self, token, stream, string=False):
+        #if token.t == 0x0004:
+        #    return self.chunk(token, stream)
         code = []
         if token.d == 0x0067:
             for _ in range(3):
-                if len(code) > 0 and isinstance(code[0], Datum) and code[0].d == 203:
-                    code.append(Datum(stream))
-                else:
-                    code.append(self.entity(Datum(stream), stream, end))
-                if stream.tell() >= end:
+                code.append(self.entity(Datum(stream), stream))
+                if self.at_end:
                     break
         elif token.d == 0x0066:
             for i in range(2):
-                code.append(self.entity(Datum(stream), stream, end, string=not i))
-                if stream.tell() >= end:
+                code.append(self.entity(Datum(stream), stream, string=not i))
+                if self.at_end:
                     break
         elif token.d == 0x0065:
             code.append(Datum(stream))
