@@ -49,13 +49,17 @@ class Script:
             assert_equal(Datum(chunk).d, 0x00, "end-of-chunk flag")
 
 class CodeChunk:
-    def __init__(self, stream):
+    def __init__(self, stream, length_in_bytes = None):
         self.stream = stream
-        self.length_in_bytes = Datum(stream).d
+        if not length_in_bytes:
+            self.length_in_bytes = Datum(stream).d
+        else:
+            self.length_in_bytes = length_in_bytes
         self.start_pointer = stream.tell()
-        self.code = []
+        self.statements = []
         while not self.at_end:
-            self.code.append(self.entity(Datum(stream), stream))
+            statement = self.read_statement(stream)
+            self.statements.append(statement)
 
     @property
     def end_pointer(self):
@@ -65,27 +69,35 @@ class CodeChunk:
     def at_end(self):
         return self.stream.tell() >= self.end_pointer
 
-    def entity(self, token, stream, string=False):
-        #if token.t == 0x0004:
-        #    return self.chunk(token, stream)
+    def read_statement(self, stream, string = False):
+        section_type = Datum(stream)
+        if (Datum.Type.UINT32_1 == section_type.t):
+            return CodeChunk(stream, section_type.d)
+
         code = []
-        if token.d == 0x0067:
+        if section_type.d == 0x0067:
             for _ in range(3):
-                code.append(self.entity(Datum(stream), stream))
+                statement = self.read_statement(stream)
+                code.append(statement)
                 if self.at_end:
                     break
-        elif token.d == 0x0066:
+
+        elif section_type.d == 0x0066:
             for i in range(2):
-                code.append(self.entity(Datum(stream), stream, string=not i))
+                statement = self.read_statement(stream, string = not i)
+                code.append(statement)
                 if self.at_end:
                     break
-        elif token.d == 0x0065:
-            code.append(Datum(stream))
-            # code.append(self.entity(Datum(stream), stream, end))
-        elif token.d == 0x009a and string: # character string
+
+        elif section_type.d == 0x0065:
+            statement = self.read_statement(stream)
+            code.append(statement)
+
+        elif section_type.d == 0x009a and string: # character string
             size = Datum(stream)
-            code = stream.read(size.d).decode("utf-8")
+            code = stream.read(size.d).decode('latin-1')
+            
         else:
-            code = token
+            code = section_type.d
 
         return code
