@@ -48,6 +48,7 @@ class Script:
         if in_independent_asset_chunk and not global_variables.version.is_first_generation_engine:
             assert_equal(Datum(chunk).d, 0x00, "end-of-chunk flag")
 
+## TODO: Is this a whole function, or is it something else?
 class CodeChunk:
     def __init__(self, stream, length_in_bytes = None):
         self.stream = stream
@@ -69,35 +70,38 @@ class CodeChunk:
     def at_end(self):
         return self.stream.tell() >= self.end_pointer
 
+    # This is a recursive function that builds a statement.
+    # Statement probably isn't ths best term, since statements can contain other statements. 
+    # And I don't want to imply that it is some sort of atomic thing. 
     def read_statement(self, stream, string = False):
         section_type = Datum(stream)
         if (Datum.Type.UINT32_1 == section_type.t):
             return CodeChunk(stream, section_type.d)
 
-        code = []
+        iteratively_built_statement = []
         if section_type.d == 0x0067:
             for _ in range(3):
                 statement = self.read_statement(stream)
-                code.append(statement)
+                iteratively_built_statement.append(statement)
                 if self.at_end:
                     break
 
         elif section_type.d == 0x0066:
             for i in range(2):
                 statement = self.read_statement(stream, string = not i)
-                code.append(statement)
+                iteratively_built_statement.append(statement)
                 if self.at_end:
                     break
 
         elif section_type.d == 0x0065:
             statement = self.read_statement(stream)
-            code.append(statement)
+            iteratively_built_statement.append(statement)
 
         elif section_type.d == 0x009a and string: # character string
-            size = Datum(stream)
-            code = stream.read(size.d).decode('latin-1')
+            size = Datum(stream).d
+            iteratively_built_statement = stream.read(size).decode('latin-1')
             
         else:
-            code = section_type.d
+            iteratively_built_statement = section_type.d
 
-        return code
+        return iteratively_built_statement
