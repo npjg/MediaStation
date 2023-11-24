@@ -161,7 +161,6 @@ class Context(DataFile):
         super().__init__(filepath = filepath, stream = stream, has_header = True)
         self.assets: Dict[str, Asset] = {}
         self._referenced_chunks: Dict[str, Asset] = {}
-        self.functions = []
         self.links = []
         # Since this is a separate header section, it is parsed by its own class
         # rather than being read through a method in this class. That adds some 
@@ -333,7 +332,7 @@ class Context(DataFile):
 
         elif (Context.SectionType.FUNCTION == section_type):
             function = Script(chunk, in_independent_asset_chunk = True)
-            self.functions.append(function)
+            self.assets.update({function.id: function})
 
         elif (Context.SectionType.END == section_type):
             # TODO: Figure out what these are.
