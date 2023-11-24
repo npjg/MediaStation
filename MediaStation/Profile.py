@@ -193,8 +193,8 @@ class AssetDeclaration(ProfileEntry):
         if (self._is_summary) or (self._end_of_section):
             return
 
-        self.asset_name: str = self._raw_entry[0]
-        self.asset_id: int = int(self._raw_entry[1])
+        self.name: str = self._raw_entry[0]
+        self.id: int = int(self._raw_entry[1])
         # Movies have more than one chunk, so we will just get the rest of the line.
         # TODO: Verify exactly three are actually listed.
         raw_chunk_ids = self._raw_entry[2:]
