@@ -382,7 +382,10 @@ class Context(DataFile):
                     'Try running the extraction again on the entire game directory.')
 
         # READ THE ASSET ACCORDING TO ITS TYPE.
-        if (header.type == Asset.AssetType.IMAGE) or (header.type == Asset.AssetType.CAMERA):
+        if (header.type == Asset.AssetType.IMAGE):
+            header.image = Bitmap(chunk)
+
+        elif (header.type == Asset.AssetType.CAMERA):
             header.image = Bitmap(chunk)
 
         elif (header.type == Asset.AssetType.SOUND):
