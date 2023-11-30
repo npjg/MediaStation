@@ -302,7 +302,7 @@ class Context(DataFile):
             # We can only have one palette for each context.
             if self.palette is not None:
                 raise ValueError('More than one palette present in context.')
-            self.palette = RgbPalette(self, has_entry_alignment = False)
+            self.palette = RgbPalette(self.stream, has_entry_alignment = False)
             Datum(chunk).d
 
         elif (Context.SectionType.ASSET_HEADER == section_type):
