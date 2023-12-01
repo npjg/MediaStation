@@ -8,9 +8,9 @@ from asset_extraction_framework.Asset.Palette import RgbPalette
 
 from . import global_variables
 from .Assets.Bitmap import Bitmap
+from .Assets.BitmapSet import BitmapSet
 from .Assets.Asset import Asset
 from .Assets.Script import Script
-from .Assets.Bitmap import Bitmap
 from .Primitives.Datum import Datum
 from .Riff.DataFile import DataFile
 
@@ -388,6 +388,9 @@ class Context(DataFile):
         elif (header.type == Asset.AssetType.CAMERA):
             header.image = Bitmap(chunk)
 
+        elif (header.type == Asset.AssetType.IMAGE_SET):
+            header.image_set.read_chunk(chunk)
+
         elif (header.type == Asset.AssetType.SOUND):
             header.sound.read_chunk(chunk)
 
@@ -430,9 +433,8 @@ class Context(DataFile):
         elif header.type == Asset.AssetType.SOUND:
             header.sound.read_subfile(subfile, chunk, header.total_chunks)
 
-        elif header.type == Asset.AssetType.UNK2:
-            Datum(chunk)
-            header.image = Bitmap(chunk)
+        elif header.type == Asset.AssetType.IMAGE_SET:
+            header.image_set.read_subfile(subfile, chunk)
 
         else:
             raise ValueError(f'Unknown subfile asset type: {header.type}')
@@ -441,9 +443,11 @@ class Context(DataFile):
     def apply_palette(self):
         for asset in self._referenced_chunks.values():
             if (asset.type == Asset.AssetType.IMAGE) or \
-                    (asset.type == Asset.AssetType.CAMERA) or \
-                    (asset.type == Asset.AssetType.UNK2):
+                    (asset.type == Asset.AssetType.CAMERA):
                 asset.image._palette = self.palette
+
+            elif (asset.type == Asset.AssetType.IMAGE_SET):
+                asset.image_set.apply_palette(self.palette)
 
             elif (asset.type == Asset.AssetType.SPRITE):
                 for frame in asset.sprite.frames:

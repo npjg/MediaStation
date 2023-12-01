@@ -193,7 +193,27 @@ class AssetDeclaration(ProfileEntry):
         if (self._is_summary) or (self._end_of_section):
             return
 
+        # READ THE ASSET NAME.
+        # Later titles have asset names built right into the asset headers, 
+        # but earlier titles only map the asset names to asset IDs in PROFILE._ST.
         self.name: str = self._raw_entry[0]
+
+        # CHECK IF WE HAVE AN IMAGE SET.
+        # In Hercules, there is a puzzling line in PROFILE._ST:
+        #  "# image_7d12g_Background 15000 15001 15002 15003 15004 15005 15006 15007 15008 15009 15010 15011 15012 15013"
+        # This line calls out all the IDs of the bitmap set. These IDs are not really asset IDs, but some other IDs.
+        # It isn't really necessary to process this line becuase the image set has its own asset ID. 
+        # 
+        # In the case of Hercules, it's in the immediately previous line:
+        #  "image_7d12g_Background 1453 254"
+        # Since there is no unique name assigned to each of the bitmaps in the bitmap set (only the IDs noted above),
+        # we will just discard this line.
+        IMAGE_SET_LINE_INDICATOR = '#'
+        if (IMAGE_SET_LINE_INDICATOR == self.name):
+            print(f'INFO: Found image set: {self._raw_entry}. This case might not be completely handled yet.')
+            self._is_summary = True
+            return
+
         self.id: int = int(self._raw_entry[1])
         # Movies have more than one chunk, so we will just get the rest of the line.
         # TODO: Verify exactly three are actually listed.

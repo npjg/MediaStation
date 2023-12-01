@@ -7,6 +7,7 @@ from asset_extraction_framework.Asserts import assert_equal
 
 from ..Primitives.Datum import Datum
 from ..Primitives.Polygon import Polygon
+from .BitmapSet import BitmapSet, BitmapSetBitmapDeclaration
 from .Font import Font
 from .Movie import Movie
 from .Script import Script
@@ -36,7 +37,7 @@ class Asset:
         SPRITE  = 0x000e # SPR
         LK_ZAZU = 0x000f
         LK_CONSTELLATIONS = 0x0010
-        UNK2 = 0x001d
+        IMAGE_SET = 0x001d
         CURSOR  = 0x000c # CSR
         PRINTER  = 0x0019 # PRT
         MOVIE  = 0x0016 # MOV
@@ -82,9 +83,9 @@ class Asset:
         elif (Asset.AssetType.MOVIE == self.type):
             self.movie.name = self.name
             self.movie.export(directory_path, command_line_arguments)
-        elif (Asset.AssetType.UNK2 == self.type):
-            self.image.name = self.name
-            self.image.export(directory_path, command_line_arguments)
+        elif (Asset.AssetType.IMAGE_SET == self.type):
+            self.image_set.name = self.name
+            self.image_set.export(directory_path, command_line_arguments)
         elif (Asset.AssetType.STAGE == self.type):
             pass
 
@@ -142,6 +143,8 @@ class Asset:
         # CREATE THE CHILDREN.
         if (Asset.AssetType.IMAGE == self.type):
             self.image = None
+        elif (Asset.AssetType.IMAGE_SET == self.type):
+            self.image_set = BitmapSet(self)
         elif (Asset.AssetType.CAMERA == self.type):
             self.camera = None
         elif (Asset.AssetType.SOUND == self.type):
@@ -152,8 +155,6 @@ class Asset:
             self.font = Font(self)
         elif (Asset.AssetType.MOVIE == self.type):
             self.movie = Movie(self)
-        elif (Asset.AssetType.UNK2 == self.type):
-            self.image = None
 
     ## Reads all the various sections that can occur in an asset header.
     def _read_section(self, section_type, stream):
@@ -386,6 +387,27 @@ class Asset:
 
         elif section_type == 0x0772: # STG
             self.unks.append({hex(section_type): Datum(stream).d})
+
+        elif section_type == 0x774: # IMAGE_SET
+            self.bitmap_count = Datum(stream).d
+
+        elif section_type == 0x775: # IMAGE_SET
+            self.unks.append({hex(section_type): Datum(stream).d})
+
+        elif section_type == 0x776: # IMAGE_SET
+            # I think this is just a marker for the beginning of the image set
+            # data (0x778s), so I think we can just ignore this.
+            self.unks.append({hex(section_type): Datum(stream).d})
+            self.bitmap_declarations = []
+
+        elif section_type == 0x778: # IMAGE_SET
+            bitmap_declaration = BitmapSetBitmapDeclaration(stream)
+            self.bitmap_declarations.append(bitmap_declaration)
+
+        elif section_type == 0x779: # IMAGE_SET
+            # TODO: Figure out what this is. I just split it out here so I 
+            # wouldn't forget about it.
+            self.unk_bitmap_set_bounding_box = Datum(stream).d
 
         elif section_type >= 0x0773 and section_type <= 0x0780:
             self.unks.append({hex(section_type): Datum(stream).d})
