@@ -291,7 +291,7 @@ class Asset:
             self.unks.append({hex(section_type): Datum(stream).d})
 
         elif section_type == 0x03e8: # SPR
-            self.chunks = Datum(stream)
+            self.chunks = Datum(stream).d
 
         elif section_type == 0x03e9: # SPR
             self.mouse = {"frames": [], "first": None}
