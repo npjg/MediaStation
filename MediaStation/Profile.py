@@ -74,29 +74,15 @@ class Profile(File):
     # That means Profiles from Mac versions will not be read correctly;
     # the file appears as one huge line. 
     #
-    # So this function restores "universal" newline functionality to mmap.mmap
+    # So this generator restores "universal" newline functionality to mmap.mmap
     # streams.
-    def readline_with_universal_newline(self, stream, chunk_size = 4096):
-        newline_characters = b'\r\n'  # Universal newline characters
-        file_content_waiting_to_be_processed = b''
-        while True:
-            chunk = stream.read(chunk_size)
-            if not chunk:
-                # WE ARE OUT OF DATA.
-                break
-
-            file_content_waiting_to_be_processed += chunk
-            while True:
-                line_end_index = max(file_content_waiting_to_be_processed.find(newline_char) for newline_char in newline_characters)
-                line_end_index_not_found = (line_end_index < 0)
-                if line_end_index_not_found:
-                    break
-                line = file_content_waiting_to_be_processed[:line_end_index + 1]
-                yield line
-                file_content_waiting_to_be_processed = file_content_waiting_to_be_processed[line_end_index + 1:]
-
-        if file_content_waiting_to_be_processed is not None:
-            yield file_content_waiting_to_be_processed
+    def readline_with_universal_newline(self, stream):
+        raw_data = stream.read()
+        split_by_carriage_return = raw_data.split(b'\r')
+        for line in split_by_carriage_return:
+            # This strips out any other whitespace (including a newline)
+            # from the line, leaving good clean data!
+            yield line.strip()
 
 class ProfileSection:
     ## Creates a profile section that contains entries (parsed forms of individual
