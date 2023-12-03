@@ -14,6 +14,8 @@
 ##  - Each of the classes populated from the data is generally exported to JSON.
 ##  - Multimedia files are exported to BMP or WAV.
 
+from typing import List
+
 from asset_extraction_framework.CommandLine import CommandLineArguments
 from asset_extraction_framework.Application import Application, FileDetectionEntry
 
@@ -27,8 +29,7 @@ class MediaStationEngine(Application):
         super().__init__(application_name)
 
     ## Verifies that the asstes listed in the BOOT.STM file are exactly the ones
-    ## that are actually present in the CXT files. Requires at least one BOOT.STM
-    ## file and 
+    ## that are actually present in the CXT files.
     def check_integrity(self):
         pass
 
@@ -109,6 +110,7 @@ class MediaStationEngine(Application):
             
             print(f'WARNING: Asset {asset_entry.id} present in PROFILE._ST but not found in parsed assets.')
 
+def main(raw_command_line: List[str] = None):
     # DEFINE THE FILE TYPES IN THIS APPLICATION.
     file_detection_entries = [
         FileDetectionEntry(filename_regex = '.*\.stm$', case_sensitive = False, file_processor = System),
@@ -119,17 +121,18 @@ class MediaStationEngine(Application):
         # headers have not all been read, an error will be thrown. It is much simpler to just force INSTALL.CXT
         # to be read afterward than let asset subfiles be read before the headers.
         FileDetectionEntry(filename_regex = 'install.cxt$', case_sensitive = False, file_processor = Context),
-        FileDetectionEntry(filename_regex = 'profile._st$', case_sensitive = False, file_processor = Profile),
+        FileDetectionEntry(filename_regex = 'profile._st$', case_sensitive = False, file_processor = Profile)
     ]
 
     # PARSE THE COMMAND-LINE ARGUMENTS.
     APPLICATION_NAME = 'Media Station'
     APPLICATION_DESCRIPTION = ''
-    command_line_arguments = CommandLineArguments(APPLICATION_NAME, APPLICATION_DESCRIPTION).parse()
+    command_line_arguments = CommandLineArguments(APPLICATION_NAME, APPLICATION_DESCRIPTION).parse(raw_command_line)
 
     # PARSE THE ASSETS.
     media_station_engine = MediaStationEngine(APPLICATION_NAME)
     global_variables.application = media_station_engine
+    # TODO: Display a scary warning if individual files are passed in.
     media_station_engine.process(command_line_arguments.input, file_detection_entries)
     media_station_engine.correlate_asset_ids_to_names()
 
