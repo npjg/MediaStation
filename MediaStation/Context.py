@@ -363,8 +363,6 @@ class Context(DataFile):
             # THIS IS AN EMPTY SECTION.
             if reading_stage:
                 return False
-            else:
-                pass
 
         elif (Context.SectionType.POOH == section_type):
             # TODO: Understand what this is.
