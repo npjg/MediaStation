@@ -316,7 +316,11 @@ class Context(DataFile):
         elif (Context.SectionType.ASSET_HEADER == section_type):
             # READ AN ASSET HEADER.
             asset_header = Asset(chunk)
+            asset_already_exists = self.assets.get(asset_header.id) is not None
+            if asset_already_exists:
+                raise ValueError(f'Attempted to reassign asset {asset_header.id} which already exists!')
             self.assets.update({asset_header.id: asset_header})
+
             if (Asset.AssetType.STAGE == asset_header.type):
                 # TODO: Figure out what these are. Are they always zero?
                 Datum(chunk)
