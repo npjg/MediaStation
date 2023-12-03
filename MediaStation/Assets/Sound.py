@@ -7,15 +7,6 @@ from asset_extraction_framework.Asserts import assert_equal
 from .. import global_variables
 from ..Primitives.Datum import Datum
 
-            # if self.encoding and self.encoding == 0x0010:
-            #     command = ['ffmpeg', '-y', '-f', 's16le', '-ar', '11.025k', '-ac', '2', '-i', 'pipe:', filename]
-            # elif self.encoding and self.encoding == 0x0004:
-            #     # TODO: Fine the proper codec. This ALMOST sounds right.
-            #     command = ['ffmpeg', '-y', '-f', 's16le', '-ar', '22.050k', '-ac', '1', "-acodec", "adpcm_ima_ws", '-i', 'pipe:', filename]
-            # else:
-            #     raise ValueError("Sound.export(): Received unknown encoding specifier: 0x{:04x}.".format(self.encoding))
-            #     command = ['ffmpeg', '-y', '-f', 's16le', '-ar', '11.025k', '-ac', '2', '-i', 'pipe:', filename]
-
 class Sound(BaseSound):
     ## Reads a sound from the binary stream at its current position.
     ## \param[in] stream - A binary stream that supports the read method.
@@ -25,15 +16,19 @@ class Sound(BaseSound):
         self._pcm = bytearray()
         self._signed = True
         self._big_endian = False
-        self._sample_width = 2
+        self._sample_width = 2 # 16 bits
         if audio_encoding == 0x0010:
-            self._sample_rate = 11025
-            self._channel_count = 2
+            self._sample_rate = 22050
+            self._channel_count = 1
         elif audio_encoding == 0x0004:
+            # TODO: This audio encoding is not quite correct.
+            # The raw ffmpeg encoding that sounds the best is adpcm_ima_ws
+            # at mono 22050 Hz (s16le) but even that is not quite right! 
+            # There is some weirdness going on here for sure!
             self._sample_rate = 22050
             self._channel_count = 1
         else: 
-            print (f'Sound.export(): Received unknown encoding specifier: 0x{audio_encoding:04x}.')
+            raise ValueError(f'Received unknown sound encoding specifier: 0x{audio_encoding:04x}')
 
     ## Reads a sound in a subfile.
     ## \param[in] subfile - The subfile to read. The binary stream must generally
