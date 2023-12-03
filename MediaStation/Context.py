@@ -295,7 +295,7 @@ class Context(DataFile):
             # TODO: Figure out what is going on here.
             asset_link = Datum(chunk).d
             self.links.append(asset_link)
-            self.read_header_section(chunk)
+            self.read_header_section(chunk, reading_stage = reading_stage)
 
         elif (Context.SectionType.PALETTE == section_type):
             # VERIFY THIS CONTEXT DOES NOT ALREADY HAVE A PALETTE.
@@ -310,14 +310,20 @@ class Context(DataFile):
             asset_header = Asset(chunk)
             self.assets.update({asset_header.id: asset_header})
             if (Asset.AssetType.STAGE == asset_header.type):
+                # TODO: Figure out what these are. Are they always zero?
                 Datum(chunk)
                 Datum(chunk)
+
                 # TODO: Correctly handle embedded stages.
+                if reading_stage:
+                    print('WARNING: Found embedded stage, there mght be trouble afoot.')
+
+                # READ THE ASSET HEADERS IN THE STAGE.
                 another_asset_header = self.read_header_section(chunk, reading_stage = True)
                 while another_asset_header:
                     another_asset_header = self.read_header_section(chunk, reading_stage = True)
 
-            # ADD ANY LINKED 
+            # REGISTER ANY REFERENCED CHUNKS.
             if len(asset_header.chunk_references) > 0:
                 # For movies, the first chunk is sufficient to identify
                 # the movie since the IDs of the three chunks are always 
@@ -325,10 +331,15 @@ class Context(DataFile):
                 for chunk_reference in asset_header.chunk_references:
                     self._referenced_chunks.update({chunk_reference: asset_header})
 
-            if (not global_variables.version.is_first_generation_engine) and \
-                    (not reading_stage) and \
-                    (not asset_header.type == Asset.AssetType.STAGE):
-                Datum(chunk)
+            if (not chunk.at_end) and \
+                (not global_variables.version.is_first_generation_engine) and \
+                (not reading_stage) and \
+                (not asset_header.type == Asset.AssetType.STAGE):
+                Datum(chunk).d
+
+            # TODO: I think this is related to embedded stages.
+            if (chunk.at_end) and reading_stage:
+                return False
 
         elif (Context.SectionType.FUNCTION == section_type):
             function = Script(chunk, in_independent_asset_chunk = True)
