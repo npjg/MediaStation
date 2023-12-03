@@ -189,6 +189,10 @@ class Context(DataFile):
             chunk = subfile.get_next_chunk()
         else:
             chunk = self.read_new_style_header_sections(subfile, chunk)
+
+        # VERIFY WE HAVE A PALETTE.
+        # A palette is not expected for all contexts, but most of them have it.
+        # TODO: Figure out when contexts validly don't have a palette.
         if self.palette is None:
             print('WARNING: No palette provided for this context.')
 
