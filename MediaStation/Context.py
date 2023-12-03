@@ -293,6 +293,10 @@ class Context(DataFile):
             # VERIFY THIS CONTEXT DOES NOT ALREADY HAVE PARAMETERS.
             if self.parameters is not None:
                 raise ValueError('More than one parameters structure present in context.')
+            
+            # TODO: If a context is itself an asset, do we really need a separate parameters field?
+            # (Currently the answer is yes because these parameters don't provide the same fields
+            # as asset headers.)
             self.parameters = GlobalParameters(chunk)
 
         elif (Context.SectionType.ASSET_LINK == section_type):
@@ -481,6 +485,11 @@ class Context(DataFile):
     ##         If an asset does not match, None is returned.
     def get_asset_by_chunk_id(self, chunk_id: str) -> Optional[Asset]:
         return self._referenced_chunks.get(chunk_id, None)
+
+    ## \return The asset whose asset ID matches the provided asset ID.
+    ## If an asset does not match, None is returned.
+    def get_asset_by_asset_id(self, asset_id: int) -> Optional[Asset]:
+        return self.assets.get(asset_id, None)
 
     ## Exports all the assets in this file.
     ## \param[in] root_directory_path - The root directory where the assets should be exported.
