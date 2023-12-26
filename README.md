@@ -1,4 +1,4 @@
-![Disney's Animated Storybook: The Lion King](.github/favicon.svg)
+<img src=".github/favicon.svg" width="100" height="100" alt="Disney's Animated Storybook: The Lion King">
 
 A Python-based asset extractor and very incomplete bytecode decompiler for
 [Media Station, Inc.](https://www.mobygames.com/company/media-station-inc) CD-ROM children's titles. 
