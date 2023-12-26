@@ -1,3 +1,5 @@
+![Disney's Animated Storybook: The Lion King](.github/favicon.svg)
+
 A Python-based asset extractor and very incomplete bytecode decompiler for
 [Media Station, Inc.](https://www.mobygames.com/company/media-station-inc) CD-ROM children's titles. 
 I loved many of these when I was growing up.
