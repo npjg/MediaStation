@@ -105,40 +105,44 @@ rmdir "$mount_point"
 # TODO: Make sure there is indeed an HFS portion.
 echo -e "\nAttempting to mount HFS (Macintosh) portion with hmount..."
 hfs_partition=$(echo "$partitions_on_attached_iso" | grep "Apple_HFS" | awk '{print $1}')
-hmount $hfs_partition
+if [ -n "$hfs_partition" ]; then
+  hmount $hfs_partition
 
-# COPY THE MAC PORTION TO THE CORRECT DIRECTORY.
-# We will assume that the versions are all the same as the PC one... though maybe this should be checked.
-# It is easier to just check the PC version since hfstools doesn't provide direct access to the files; they
-# must be copied out first.
-platform="Mac"
-folder_name="$game_name - $title_compiler_version - $engine_version - $language - $platform"
-mac_folder_path="$extracted_files_root/$folder_name"
-mkdir -p "$mac_folder_path"
-# These files just have a data fork. Executable files need to have a resource fork copied to to be useful.
-# This is not a recursive copy but specifying that we want raw data (just the data fork).
-echo "Copying data from HFS volume to $mac_folder_path (progress will not echo)..."
-# Apparently you cannot use the path 'data/*' to get the paths.
-hcd data
-hcopy -r '*' "$mac_folder_path"
-humount
+  # COPY THE MAC PORTION TO THE CORRECT DIRECTORY.
+  # We will assume that the versions are all the same as the PC one... though maybe this should be checked.
+  # It is easier to just check the PC version since hfstools doesn't provide direct access to the files; they
+  # must be copied out first.
+  platform="Mac"
+  folder_name="$game_name - $title_compiler_version - $engine_version - $language - $platform"
+  mac_folder_path="$extracted_files_root/$folder_name"
+  mkdir -p "$mac_folder_path"
+  # These files just have a data fork. Executable files need to have a resource fork copied to to be useful.
+  # This is not a recursive copy but specifying that we want raw data (just the data fork).
+  echo "Copying data from HFS volume to $mac_folder_path (progress will not echo)..."
+  # Apparently you cannot use the path 'data/*' to get the paths.
+  hcd data
+  hcopy -r '*' "$mac_folder_path"
+  humount
 
-# CHECK THE HASHES.
-# The hashes of the data files should be EXACTLY the same across the Windows and Mac versions.
-# The only difference should be the executable file, of course.
-# 
-# md5sum returns lines like this:
-#  b74d5f875eff726d2a1b7c0778ffd769  ./DATA/160.CXT
-# This extracts the first field.
-echo -e "\nChecking to see if there is any difference in the data files in the Windows and Mac versions..."
-echo "If there is a difference a diff will be shown here."
-pc_hashes=$(mktemp)
-find "$pc_folder_path" \( -iname "*.cxt" -o -iname "*.stm" -o -iname "*._st" \) -exec md5sum {} + | sort | awk '{print $1}' > $pc_hashes
-mac_hashes=$(mktemp)
-find "$mac_folder_path" \( -iname "*.cxt" -o -iname "*.stm" -o -iname "*._st" \) -exec md5sum {} + | sort | awk '{print $1}' > $mac_hashes
-diff $pc_hashes $mac_hashes
-rm $pc_hashes $mac_hashes
-# TODO: Remove the Mac folder if all the hashes are the same.
+  # CHECK THE HASHES.
+  # The hashes of the data files should be EXACTLY the same across the Windows and Mac versions.
+  # The only difference should be the executable file, of course.
+  # 
+  # md5sum returns lines like this:
+  #  b74d5f875eff726d2a1b7c0778ffd769  ./DATA/160.CXT
+  # This extracts the first field.
+  echo -e "\nChecking to see if there is any difference in the data files in the Windows and Mac versions..."
+  echo "If there is a difference a diff will be shown here."
+  pc_hashes=$(mktemp)
+  find "$pc_folder_path" \( -iname "*.cxt" -o -iname "*.stm" -o -iname "*._st" \) -exec md5sum {} + | sort | awk '{print $1}' > $pc_hashes
+  mac_hashes=$(mktemp)
+  find "$mac_folder_path" \( -iname "*.cxt" -o -iname "*.stm" -o -iname "*._st" \) -exec md5sum {} + | sort | awk '{print $1}' > $mac_hashes
+  diff $pc_hashes $mac_hashes
+  rm $pc_hashes $mac_hashes
+  # TODO: Remove the Mac folder if all the hashes are the same.
+else
+  echo "No HFS partition found, so skipping Mac portion."
+fi
 
 # DETATCH THE DISK IMAGE.
 echo -e "\nMoving ISO to the correct location"
