@@ -4,22 +4,12 @@ import pytest
 import os
 from MediaStation import Engine 
 
-# The directories follow this nomenclature:
-#  - Game Title (DW, Dalmatians, etc.)
-#  - Title Compiler Version (4.0r8, T3.5r5, etc.)
-#  - Platform (PC, Mac)
-#  - Language (English, German, etc.)
-# This should be sufficient to identify the game.
-GAME_ROOT_DIRECTORY = '/Users/nathanaelgentry/My Drive/Software/Media Station'
-game_directories = [
-    'DW - 4.0r8 - PC - English',
-    'Dalmatians - T3.5r5 - Mac - English',
-    'Dalmatians - T3.5r5 - PC - English',
-    'Hercules - T3.5r5 - PC - English',
-    'Lion King - T1.0 - PC - German'
-    'Pocahontas - T3.1.1 - PC - German',
-    'Pooh - T3.3 - PC - English',
-    'Tonka Garage - T4.0r8 - PC - English']
+GAME_ROOT_DIRECTORY = 'tests/test_data/Extracted Folders'
+game_directories = []
+for filename in os.listdir(os.path.realpath(GAME_ROOT_DIRECTORY)):
+    filepath = os.path.join(GAME_ROOT_DIRECTORY, filename)
+    if os.path.isdir(filepath):
+        game_directories.append(filepath)
 
 @pytest.mark.parametrize("game_directory_path", game_directories)
 def test_process_game(game_directory_path):
@@ -31,5 +21,7 @@ def test_process_game(game_directory_path):
     Engine.main([full_game_directory_folder_path])
     # TODO: Attempt to export the resources (if that is part of the test).
 
+# This isn't required for running the tests from the `pytest` command line,
+# but it is useful to be able to debug tests in VS Code.
 if __name__ == "__main__":
     pytest.main()
