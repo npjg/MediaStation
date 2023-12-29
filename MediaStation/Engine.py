@@ -113,7 +113,10 @@ class MediaStationEngine(Application):
 def main(raw_command_line: List[str] = None):
     # DEFINE THE FILE TYPES IN THIS APPLICATION.
     file_detection_entries = [
+        # We want to process the BOOT.STM and PROFILE._ST (if present) becuase these both provide useful debugging
+        # information that we want to show to the user first thing.
         FileDetectionEntry(filename_regex = '.*\.stm$', case_sensitive = False, file_processor = System),
+        FileDetectionEntry(filename_regex = 'profile._st$', case_sensitive = False, file_processor = Profile),
         # All regular context files have only digits in their main file names. 
         FileDetectionEntry(filename_regex = '\d+\.cxt$', case_sensitive = False, file_processor = Context),
         # The INSTALL.CXT, if present, MUST be read after all the other contexts are read. This is because 
@@ -121,7 +124,6 @@ def main(raw_command_line: List[str] = None):
         # headers have not all been read, an error will be thrown. It is much simpler to just force INSTALL.CXT
         # to be read afterward than let asset subfiles be read before the headers.
         FileDetectionEntry(filename_regex = 'install.cxt$', case_sensitive = False, file_processor = Context),
-        FileDetectionEntry(filename_regex = 'profile._st$', case_sensitive = False, file_processor = Profile)
     ]
 
     # PARSE THE COMMAND-LINE ARGUMENTS.

@@ -139,6 +139,9 @@ class Version(ProfileEntry):
         # Known strings are "PC" and "MAC".
         self.platform: str = self._raw_entry[1]
 
+        # PRINT THIS INFORMATION FOR DEBUGGING PURPOSES.
+        print(f'---\n {self.version_number} {self.platform}\n---')
+
 ## Examples:
 ##  Context cxt_7x70_Sounds 888886792
 ##  ^       ^               ^

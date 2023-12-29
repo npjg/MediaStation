@@ -32,6 +32,9 @@ class EngineVersionInformation:
             #           | Engine name   | Version number
             self.string = Datum(stream).d
 
+            # LOG THE TITLE INFORMATION FOR DEBUGGING PURPOSES.
+            print(f' {self.string} - {self.version_number}')
+
     ## Engine version information is not present in version 1 games,
     ## so all the fields are initialized to be None.
     @property
@@ -362,6 +365,7 @@ class System(DataFile):
         self.engine_resource_ids = []
 
         # READ THE ITEMS IN THIS FILE.
+        print('---')
         section_type = Datum(chunk).d
         section_is_not_empty = (System.SectionType.EMPTY != section_type)
         global_variables.version = EngineVersionInformation()
@@ -373,6 +377,10 @@ class System(DataFile):
                 self.version = EngineVersionInformation(chunk)
                 self.source_string = Datum(chunk).d
                 global_variables.version = self.version
+
+                # LOG THIS DATA FOR DEBUGGING PURPOSES.
+                print(f' {self.game_title}')
+                print(f' {self.source_string}')
 
             elif section_type == System.SectionType.ENGINE_RESOURCE_NAME:
                 # READ THE NAME OF AN ENGINE RESOURCE.
@@ -431,3 +439,4 @@ class System(DataFile):
 
         # READ THE ENDING DATA.
         self.footer = chunk.read(chunk.bytes_remaining_count)
+        print('---')
