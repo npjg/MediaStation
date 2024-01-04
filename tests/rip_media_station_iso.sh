@@ -125,6 +125,9 @@ if [ -n "$hfs_partition" ]; then
   # This is not a recursive copy but specifying that we want raw data (just the data fork).
   echo "Copying data from HFS volume to $mac_folder_path (progress will not echo)..."
   # Apparently you cannot use the path 'data/*' to get the paths.
+  # TODO: For DW and maybe some others, the CXTs aren't in a data directory, they
+  # are in program/data directory, so you might need to change to that.
+  # hcd program
   hcd data
   hcopy -r '*' "$mac_folder_path"
   humount
