@@ -178,6 +178,25 @@ class Context(DataFile):
         if self.header_only:
             return
 
+        # SEE IF THIS IS A HARD DRIVE CACHE FILE.
+        # Typically this is called "INSTALL.CXT", but in some titles it does 
+        # not have that name. The defining characteristic is that it has no
+        # asset headers on its own.
+        #
+        # TODO: See if there is some flag set in the file that can replace
+        # this rather hacky condition below.
+        # If we just checked that there were no asset headers defined, we
+        # would match all the contexts that are just code.
+        subfile = self.get_next_subfile()
+        chunk = subfile.get_next_chunk()
+        is_hard_drive_cache: bool = (not chunk.is_igod)
+        if is_hard_drive_cache:
+            self.read_asset_from_later_subfile(subfile, chunk)
+            for _ in range(self.subfile_count - 1):
+                subfile = self.get_next_subfile()
+                self.read_asset_from_later_subfile(subfile)
+            return
+
         # READ THE HEADER SECTIONS.
         # TODO: Implement a better version checking system here.
         if global_variables.version.is_first_generation_engine:
