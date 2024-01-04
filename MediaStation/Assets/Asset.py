@@ -428,6 +428,11 @@ class Asset:
         elif section_type == 0x0001: # SND
             self.audio_encoding = Datum(stream).d
 
+        elif section_type == 0x0002: # SND
+            # TODO: Determine what the dfference is between the previous
+            # audio encoding section type and this one.
+            self.audio_encoding = Datum(stream).d
+
         else:
             # INDICATE AN ERROR.
             raise TypeError(f'Unknown section type: 0x{section_type:0>4x}')
