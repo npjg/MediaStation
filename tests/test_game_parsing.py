@@ -2,6 +2,7 @@
 
 import pytest
 import os
+
 from MediaStation import Engine 
 
 GAME_ROOT_DIRECTORY = 'tests/test_data/Extracted Folders'
@@ -13,12 +14,9 @@ for filename in os.listdir(os.path.realpath(GAME_ROOT_DIRECTORY)):
 
 @pytest.mark.parametrize("game_directory_path", game_directories)
 def test_process_game(game_directory_path):
-    # GET THE FULL GAME DIRECTORY.
-    full_game_directory_folder_path = os.path.join(GAME_ROOT_DIRECTORY, game_directory_path)
-    print(full_game_directory_folder_path)
-
     # PARSE THE RESOURCES.
-    Engine.main([full_game_directory_folder_path])
+    print(game_directory_path)
+    Engine.main([game_directory_path])
     # TODO: Attempt to export the resources (if that is part of the test).
 
 # This isn't required for running the tests from the `pytest` command line,
