@@ -16,6 +16,8 @@ class Chunk:
         self.stream = stream
         self.fourcc = stream.read(fourcc_length).decode('ascii')
         self.length = struct.unpack.uint32_le(stream)
+        if self.length == 0:
+            raise ValueError('Encountered zero-length chunk.')
         self.data_start_pointer = stream.tell()
 
     ## Reads the given number of bytes from the chunk, or throws an error if there is an attempt
