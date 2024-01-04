@@ -79,7 +79,12 @@ fi
 echo "EXEs"
 for exe in $(find "$mount_point" -iname "*.exe" -print); do
     echo " $exe"
+    # First we will search for just ASCII strings.
     strings $exe | grep -E ".+/[A-Z][A-Z]$" || true
+    # Then we will search for little-endian UTF-8 string.
+    # Sadly, even with the latest from binutils, we still
+    # need to run it separately.
+    strings -e l $exe  | grep -E ".+/[A-Z][A-Z]$" || true
 done
 
 # COPY THE PC PORTION TO THE CORRECT DIRECTORY.
