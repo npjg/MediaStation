@@ -127,19 +127,29 @@ if [ -n "$hfs_partition" ]; then
   # CHECK THE HASHES.
   # The hashes of the data files should be EXACTLY the same across the Windows and Mac versions.
   # The only difference should be the executable file, of course.
-  # 
-  # md5sum returns lines like this:
-  #  b74d5f875eff726d2a1b7c0778ffd769  ./DATA/160.CXT
-  # This extracts the first field.
   echo -e "\nChecking to see if there is any difference in the data files in the Windows and Mac versions..."
   echo "If there is a difference a diff will be shown here."
   pc_hashes=$(mktemp)
+  echo "Windows hashes stored at $pc_hashes"
+  # md5sum returns lines like this:
+  #  b74d5f875eff726d2a1b7c0778ffd769  ./DATA/160.CXT
+  # This extracts the first field (hash). The filenames might have different capitalization
+  # and so forth, so rather than worrying about that we will just sort in place and then check
+  # the hash list. Of course, if they don't match then there will be some more effort to sort out
+  # which lines don't match. 
   find "$pc_folder_path" \( -iname "*.cxt" -o -iname "*.stm" -o -iname "*._st" \) -exec md5sum {} + | sort | awk '{print $1}' > $pc_hashes
   mac_hashes=$(mktemp)
+  echo "Mac hashes stored at $mac_hashes"
   find "$mac_folder_path" \( -iname "*.cxt" -o -iname "*.stm" -o -iname "*._st" \) -exec md5sum {} + | sort | awk '{print $1}' > $mac_hashes
-  diff $pc_hashes $mac_hashes
-  rm $pc_hashes $mac_hashes
-  # TODO: Remove the Mac folder if all the hashes are the same.
+  set +e
+  windows_mac_hash_diff=$(diff $pc_hashes $mac_hashes)
+  set -e
+  echo $windows_mac_hash_diff
+  if [ -z "$windows_mac_hash_diff" ]; then
+    echo "Hashes match exactly, so removing the Mac version..."
+    rm -r "$mac_folder_path"
+  fi
+  # rm $pc_hashes $mac_hashes
 else
   echo "No HFS partition found, so skipping Mac portion."
 fi
