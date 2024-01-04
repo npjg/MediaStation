@@ -213,8 +213,12 @@ class Context(DataFile):
 
     ## Reads old-style header chunks from the current position of this file's binary stream.
     ##
-    ## In the old-style file format, all header chunks EXCEPT the palette are lumped into one igod
-    ## chunk; they do not have separate chunks. This caused some craziness and I'm glad Media
+    ## In the old-style file format, generally all header chunks EXCEPT the palette are 
+    ## lumped into one igod chunk; they do not have separate chunks. An exception is a 
+    ## yet-undocumented pattern in Pocahontas that has another short igod chunk after the
+    ## palette but before the headers. 
+    ##
+    ## This old-style format caused some craziness and I'm glad Media
     ## Station put the header chunks in separate igod chunks in later versions. Thankfully the
     ## header chunk types are the same in both the old-style and new-style.
     ##
