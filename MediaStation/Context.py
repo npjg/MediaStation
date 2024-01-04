@@ -180,13 +180,10 @@ class Context(DataFile):
 
         # READ THE HEADER SECTIONS.
         # TODO: Implement a better version checking system here.
-        subfile = self.get_next_subfile()
-        chunk = subfile.get_next_chunk()
         if global_variables.version.is_first_generation_engine:
-            self.read_old_style_header_sections(subfile, chunk)
+            chunk = self.read_old_style_header_sections(subfile, chunk)
             # TODO: Understand why, with the new chunk reading, an extra datum
             # previously needed to be read here but no longer needs to be read.
-            chunk = subfile.get_next_chunk()
         else:
             chunk = self.read_new_style_header_sections(subfile, chunk)
 
@@ -226,37 +223,30 @@ class Context(DataFile):
     ##  - Pocahontas
     ## TODO: Finish off this list.
     def read_old_style_header_sections(self, subfile, chunk):
-        # VERIFY THIS DATA CHUNK IS A LEGACY HEADER.
-        section_type = Datum(chunk).d
-        assert_equal(section_type, Context.SectionType.OLD_STYLE)
-
-        # READ THE PALETTE.
-        # In the old-style format, the palette is ALWAYS the only header section
-        # in the first igod chunk.
-        #
-        # The parser does not enforce this, so technically the header section read
-        # for this first chunk could be something else, but I haven't ever observed that.
-        self.read_header_section(chunk)
-
         # GET THE NEXT DATA CHUNK.
         # The rest of the header sections after the palette are in the next igod chunk.
-        chunk = subfile.get_next_chunk()
+        more_chunks_to_read = (not subfile.at_end) and (chunk.is_igod)
+        while more_chunks_to_read:
+            # READ ALL THE HEADER SECTIONS IN THIS CHUNK.
+            section_type = Datum(chunk).d
+            assert_equal(section_type, Context.SectionType.OLD_STYLE)
+            more_sections_to_read: bool = True
+            while more_sections_to_read:
+                # READ THIS SECTION.
+                more_sections_to_read = self.read_header_section(chunk)
+                if not more_sections_to_read:
+                    # Some conditions force an immediate end to reading sections,
+                    # even before the data in the chunk runs out.
+                    # TODO: Document these better.
+                    break
 
-        # READ ALL THE HEADER SECTIONS.
-        section_type = Datum(chunk).d
-        assert_equal(section_type, Context.SectionType.OLD_STYLE)
-        more_sections_to_read: bool = True
-        while more_sections_to_read:
-            # READ THIS SECTION.
-            more_sections_to_read = self.read_header_section(chunk)
-            if not more_sections_to_read:
-                # Some conditions force an immediate end to reading sections,
-                # even before the data in the chunk runs out.
-                # TODO: Document these better.
-                break
+                # CHECK IF THERE ARE MORE SECTIONS TO READ.
+                more_sections_to_read = (not chunk.at_end)
 
-            # CHECK IF THERE ARE MORE SECTIONS TO READ.
-            more_sections_to_read = (not chunk.at_end)
+            # CHECK IF THERE ARE MORE CHUNKS TO READ.
+            chunk = subfile.get_next_chunk()
+            more_chunks_to_read = (not subfile.at_end) and (chunk.is_igod)
+        return chunk
 
     ## Reads new-style header chunks from the current position of this file's binary stream.
     ##
