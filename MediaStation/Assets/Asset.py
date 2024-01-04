@@ -252,6 +252,9 @@ class Asset:
             self.total_chunks = Datum(stream).d
             self.rate = Datum(stream).d
 
+        elif section_type == 0x0034:
+            self.unks.append({hex(section_type): Datum(stream).d})
+
         elif section_type == 0x0037:
             # TODO: Determine what this is.
             self.unks.append({hex(section_type): Datum(stream).d})
@@ -413,6 +416,9 @@ class Asset:
             self.unks.append({hex(section_type): Datum(stream).d})
 
         elif section_type == 0x2734:
+            self.unks.append({hex(section_type): Datum(stream).d})
+
+        elif section_type == 0x27b2:
             self.unks.append({hex(section_type): Datum(stream).d})
 
         elif section_type == 0x0bb8:
