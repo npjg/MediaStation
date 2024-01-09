@@ -57,29 +57,33 @@ class Script:
 ## TODO: Is this a whole function, or is it something else?
 class CodeChunk:
     def __init__(self, stream, length_in_bytes = None):
-        self.stream = stream
+        self._stream = stream
         if not length_in_bytes:
-            self.length_in_bytes = Datum(stream).d
+            self._length_in_bytes = Datum(stream).d
         else:
-            self.length_in_bytes = length_in_bytes
-        self.start_pointer = stream.tell()
+            self._length_in_bytes = length_in_bytes
+        self._start_pointer = stream.tell()
         self.statements = []
-        while not self.at_end:
+        while not self._at_end:
             statement = self.read_statement(stream)
             self.statements.append(statement)
 
     @property
-    def end_pointer(self):
-        return self.start_pointer + self.length_in_bytes
+    def _end_pointer(self):
+        return self._start_pointer + self._length_in_bytes
 
     @property
-    def at_end(self):
-        return self.stream.tell() >= self.end_pointer
+    def _at_end(self):
+        return self._stream.tell() >= self._end_pointer
 
     # This is a recursive function that builds a statement.
     # Statement probably isn't ths best term, since statements can contain other statements. 
     # And I don't want to imply that it is some sort of atomic thing. 
-    def read_statement(self, stream, string = False):
+    ## \param[in] stream - A binary stream at the start of the statement.
+    ## \param[in] string_reading_enabled - True if seeing the section type for a string indicates 
+    ##            that a string should be read. Strings seem to be present in only a few files
+    ##            in Dalmatians, and it is difficult to predict where they will appear.
+    def read_statement(self, stream, string_reading_enabled = False):
         section_type = Datum(stream)
         if (Datum.Type.UINT32_1 == section_type.t):
             return CodeChunk(stream, section_type.d)
@@ -89,24 +93,27 @@ class CodeChunk:
             for _ in range(3):
                 statement = self.read_statement(stream)
                 iteratively_built_statement.append(statement)
-                if self.at_end:
+                if self._at_end:
                     break
 
         elif section_type.d == 0x0066:
-            for i in range(2):
-                statement = self.read_statement(stream, string = not i)
+            for index in range(2):
+                ## I haven't figured out another heuristic to determine when
+                ## the datum is a literal or when it is the prefix for a string.
+                string_reading_enabled = (index == 0)
+                statement = self.read_statement(stream, string_reading_enabled = string_reading_enabled)
                 iteratively_built_statement.append(statement)
-                if self.at_end:
+                if self._at_end:
                     break
 
         elif section_type.d == 0x0065:
             statement = self.read_statement(stream)
             iteratively_built_statement.append(statement)
 
-        elif section_type.d == 0x009a and string: # character string
-            size = Datum(stream).d
-            iteratively_built_statement = stream.read(size).decode('latin-1')
-            
+        elif section_type.d == 0x009a and string_reading_enabled: # character string
+            string_length = Datum(stream).d
+            iteratively_built_statement = stream.read(string_length).decode('latin-1')
+
         else:
             iteratively_built_statement = section_type.d
 
