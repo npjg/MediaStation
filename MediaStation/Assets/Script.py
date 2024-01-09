@@ -19,6 +19,7 @@ class Script:
         # DECLARE THE SCRIPT ID.
         # The script ID is only populated if the script is in its own chunk.
         # If it is instead attached to an asset header, it takes on the ID of that asset.
+        self.name = None
         self.id = None
 
         # DECLARE THE SCRIPT TYPE.
@@ -34,7 +35,7 @@ class Script:
             Datum(chunk)
 
             # READ THE SCRIPT ID.
-            self.id = Datum(chunk).d
+            self.id = Datum(chunk).d + 19900
         else:
             # READ THE SCRIPT TYPE.
             self.type = Datum(chunk).d
@@ -47,6 +48,11 @@ class Script:
         self._code = CodeChunk(chunk.stream)
         if in_independent_asset_chunk and not global_variables.version.is_first_generation_engine:
             assert_equal(Datum(chunk).d, 0x00, "end-of-chunk flag")
+
+    ## TODO: Export these to individual JSONs rather than putting them in the 
+    ## main JSON export (that will make analyzing them much easier!)
+    def export(self, root_directory_path, command_line_arguments):
+        return
 
 ## TODO: Is this a whole function, or is it something else?
 class CodeChunk:
