@@ -7,6 +7,7 @@ from PIL import Image
 from asset_extraction_framework.Asserts import assert_equal
 from asset_extraction_framework.Asset.Animation import Animation
 
+from asset_extraction_framework.Exceptions import BinaryParsingError
 from .. import global_variables
 from ..Primitives.Datum import Datum
 from ..Primitives.Point import Point
@@ -138,7 +139,7 @@ class Movie(Animation):
                     frame.set_footer(footer)
 
         else:
-            raise ValueError(f'Unknown header type in movie still area: {section_type.d}')
+            raise BinaryParsingError(f'Unknown header type in movie still area: 0x{section_type.d:02x}', chunk.stream)
 
     ## Reads the data in a subfile from the binary stream at its current position.
     ## The subfile's metadata must have already been read.

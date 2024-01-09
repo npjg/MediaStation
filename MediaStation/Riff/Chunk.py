@@ -1,6 +1,7 @@
 
 
 import self_documenting_struct as struct
+from asset_extraction_framework.Exceptions import BinaryParsingError
 
 from asset_extraction_framework.Asserts import assert_equal
 
@@ -33,7 +34,9 @@ class Chunk:
         attempted_read_past_end_of_chunk = (new_end_pointer > self.end_pointer)
         if attempted_read_past_end_of_chunk:
             bytes_past_chunk_end =  new_end_pointer - self.end_pointer
-            raise ValueError(f'Attempted to read {bytes_past_chunk_end} bytes past end of chunk "{self.fourcc}". Attempted read started at 0x{self.stream.tell():02x}.')
+            raise BinaryParsingError(
+                f'Attempted to read {bytes_past_chunk_end} bytes past end of chunk "{self.fourcc}". Attempted read started at 0x{self.stream.tell():02x}.',
+                self.stream)
         
         # READ THE REQUESTED DATA.
         return self.stream.read(number_of_bytes)

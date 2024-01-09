@@ -2,6 +2,7 @@
 from enum import IntEnum
 from typing import Dict, List, Optional
 
+from asset_extraction_framework.Exceptions import BinaryParsingError
 from asset_extraction_framework.Asserts import assert_equal
 from asset_extraction_framework.File import File
 from asset_extraction_framework.Asset.Palette import RgbPalette
@@ -443,7 +444,7 @@ class Context(DataFile):
             header.movie.add_still(chunk)
     
         else:
-            raise ValueError(f'Unknown asset type in first subfile: {header.type}')
+            raise BinaryParsingError(f'Unknown asset type in first subfile: 0x{header.type:02x}', chunk.stream)
 
     ## Reads an asset from a subfile after the first subfile.
     def read_asset_from_later_subfile(self, subfile):
@@ -471,7 +472,7 @@ class Context(DataFile):
             header.image_set.read_subfile(subfile, chunk)
 
         else:
-            raise ValueError(f'Unknown subfile asset type: {header.type}')
+            raise BinaryParsingError(f'Unknown subfile asset type: {header.type}', chunk.stream)
 
     ## This is included as a separate step becuase it is not connected to reading the data.
     def apply_palette(self):
