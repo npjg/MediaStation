@@ -413,7 +413,7 @@ class Context(DataFile):
                 # This should never actually be an error condition in valid contexts, because the asset headers are also in the first subfile.
                 raise ValueError(
                     f'Asset FourCC {chunk.fourcc} was encountered in the first subfile, but no asset header read thus far has declared this FourCC.\n\n'
-                    'This is expected if you are trying to extract assets from an INSTALL.CXT without any other contexts, as INSTALL.CXT does not contain any asset headers.\n'
+                    'This is expected if you are trying to extract assets from an INSTALL.CXT while excluding other CXTs, as INSTALL.CXT does not contain any asset headers.\n'
                     'Try running the extraction again on the entire game directory.')
 
         # READ THE ASSET ACCORDING TO ITS TYPE.
@@ -504,8 +504,8 @@ class Context(DataFile):
                     frame._palette = self.palette
 
     ## \return The asset whose chunk ID matches the provided chunk ID.
-    ##         (For movie assets, the chunk ID used for lookup is the first chunk.)
-    ##         If an asset does not match, None is returned.
+    ## (For movie assets, the chunk ID used for lookup is the first chunk.)
+    ## If an asset does not match, None is returned.
     def get_asset_by_chunk_id(self, chunk_id: str) -> Optional[Asset]:
         return self._referenced_chunks.get(chunk_id, None)
 
@@ -532,5 +532,4 @@ class Context(DataFile):
         #  - 
         #  - INSTALL.CXT, which contains assets that are declared in other contexts.
         self.apply_palette()
-
         super().export(root_directory_path, command_line_arguments)
