@@ -447,9 +447,16 @@ class Context(DataFile):
             raise BinaryParsingError(f'Unknown asset type in first subfile: 0x{header.type:02x}', chunk.stream)
 
     ## Reads an asset from a subfile after the first subfile.
-    def read_asset_from_later_subfile(self, subfile):
+    def read_asset_from_later_subfile(self, subfile, chunk = None):
+        # GET THE CHUNK.
+        # The chunk parameter is basically only here to handle the case where we have a hard-drive
+        # cache (INSTALL.CXT). All other cases will not have read any chunks yet from this subfile,
+        # thus they will not use the parameter. This can probably be cleaned up at some point, but 
+        # it works for now.
+        if chunk is None:
+            chunk = subfile.get_next_chunk()
+
         # RETRIEVE THE ASSET HEADER.
-        chunk = subfile.get_next_chunk()
         header = self.get_asset_by_chunk_id(chunk.fourcc)
         if header is None:
             # Look in the whole application before throwing an error, as this could be the 
