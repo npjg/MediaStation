@@ -17,7 +17,15 @@ MediaStation ~/DALMATIANS/DATA ~/DalmatiansExtract
 ```
 
 ## Known Titles
-See and contribute to the updated list on this projects's [wiki](https://github.com/npjg/cxt/wiki/All-Known-Media-Station-Titles)!
+See and contribute to the updated list on this projects's [wiki](https://github.com/npjg/cxt/wiki/All-Known-Media-Station-Titles).
+
+## Support My Reverse Engineering!
+<a href="https://www.buymeacoffee.com/natster" target="_blank"><img src="https://cdn.buymeacoffee.com/buttons/default-orange.png" alt="Buy Me A Coffee" height="41" width="174"></a>
+
+If you like my reverse engineering, you can [buy me a matcha latte](https://www.buymeacoffee.com/natster) to show your appreciation 🍵!
+
+# Technical Details
+Please contribute if you have more details here!
 
 ## File Formats
 All the data files for known titles are stored in the `data/` subdirectory on the CD-ROM. These seem to be the same across the Windows and Mac versions. Some titles have additional files than these (like Tonka Garage, which has some Direct3D models for the car design activity), but these are the known files and formats unique to the Media Station engine.
