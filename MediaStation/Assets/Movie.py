@@ -236,9 +236,11 @@ class Movie(Animation):
         bounding_box = self._minimal_bounding_box
         # TODO: Need to determine why some movies aren't exported.
         for index, frame in enumerate(self.frames):
-            if frame.keyframe_end_in_milliseconds > timestamp:
-                timestamp = frame.keyframe_end_in_milliseconds
-                if current_keyframe is None or current_keyframe.index != frame.index:
+            if frame.header.keyframe_end_in_milliseconds > timestamp:
+                timestamp = frame.header.keyframe_end_in_milliseconds
+                if current_keyframe is None or current_keyframe.header.index != frame.header.index:
+                    # The keyframe is not intended to be included in the export.
+                    # Though maybe we could include them as some sort of "K1.bmp" filename.
                     current_keyframe = frame
                     current_keyframe._include_in_export = False
                     continue
