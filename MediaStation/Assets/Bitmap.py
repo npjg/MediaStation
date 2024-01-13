@@ -66,9 +66,7 @@ class Bitmap(RectangularBitmap):
         # To ask ChatGPT. I am making a decompression algorithm in Python.
         # Yes, I know I should probably write it in C instead, but I am using Python
         # to prototype for now. Anyway, I am creating a bytearray 
-        self._pixels = b''
         compressed_image_data = io.BytesIO(self._raw)
-        compressed_image_data_size = compressed_image_data.getbuffer().nbytes
         pixels = bytearray((self.width * self.height) * b'\x00')
 
         #compressed_data = b'\x01\x02\x03...'  # Provide the compressed data
@@ -91,7 +89,7 @@ class Bitmap(RectangularBitmap):
         while row_index < self.height:
             horizontal_pixel_offset = 0
             reading_transparency_run = False
-            while compressed_image_data.tell() < compressed_image_data_size:
+            while compressed_image_data.tell() < self._compressed_image_data_size:
                 operation = struct.unpack.uint8(compressed_image_data)
                 if operation == 0x00:
                     # ENTER CONTROL MODE.
