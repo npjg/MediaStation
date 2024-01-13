@@ -137,12 +137,12 @@ class Bitmap(RectangularBitmap):
 
                     elif operation >= 0x04: 
                         # READ A RUN OF UNCOMPRESSED PIXELS.
-                        color_index_to_repeat = compressed_image_data.read(operation)
+                        uncompressed_pixels_run = compressed_image_data.read(operation)
                         vertical_pixel_offset = (row_index * self.width)
                         run_starting_offset = vertical_pixel_offset + horizontal_pixel_offset
-                        pixels[run_starting_offset:run_starting_offset+len(color_index_to_repeat)] = color_index_to_repeat
+                        pixels[run_starting_offset:run_starting_offset+len(uncompressed_pixels_run)] = uncompressed_pixels_run
 
-                        horizontal_pixel_offset += len(color_index_to_repeat)
+                        horizontal_pixel_offset += len(uncompressed_pixels_run)
                         if compressed_image_data.tell() % 2 == 1:
                             compressed_image_data.read(1)
 
