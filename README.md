@@ -3,9 +3,9 @@ A Python-based asset extractor and very incomplete bytecode decompiler for
 [Media Station, Inc.](https://www.mobygames.com/company/media-station-inc) CD-ROM children's titles. 
 I loved many of these when I was growing up - especially Dalmatians. 
 The ultimate goal of this repo is to create an engine for ScummVM,
-but I've found investigation and reverse-engineering easier to do out-of-tree in Python. 
+but I've found investigation and reverse-engineering easier to do out-of-tree in Python. Please join me in preserving these top-quality children's titles for future generations! 
 
-Please join me in preserving these top-quality children's titles for future generations!
+The most important knowledge needed right now is documentation for the bytecode engine (scripts). If you have knowledge or code you can contribute, please let us know! 
 
 ## Installation
 Get it [on PyPI](https://pypi.org/project/MediaStation/): ```pip3 install MediaStation```
