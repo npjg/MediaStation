@@ -88,7 +88,8 @@
         "source_url": null,
         "full_name": "Disney's Animated Storybook: The Lion King",
         "platforms": [
-            "Win16"
+            "Win16",
+            "Mac68k"
         ],
         "language": "English",
         "publisher": "Disney Interactive",
@@ -109,7 +110,8 @@
         "source_url": null,
         "full_name": "Disney's Animated Storybook: Pocahontas",
         "platforms": [
-            "Win16"
+            "Win16",
+            "Mac68k"
         ],
         "language": "English",
         "publisher": "Disney Interactive",
@@ -130,7 +132,8 @@
         "source_url": null,
         "full_name": "Disney's Animated Storybook: Pocahontas",
         "platforms": [
-            "Win16"
+            "Win16",
+            "Mac68k"
         ],
         "language": "German",
         "publisher": "Disney Interactive",
@@ -172,7 +175,8 @@
         "source_url": null,
         "full_name": "Disney's Animated Storybook: Winnie the Pooh and the Honey Tree",
         "platforms": [
-            "Win16"
+            "Win16",
+            "Mac68k"
         ],
         "language": "Spanish",
         "publisher": "Disney Interactive",
@@ -193,7 +197,8 @@
         "source_url": null,
         "full_name": "Disney's Animated Storybook: The Hunchback of Notre Dame",
         "platforms": [
-            "Win16"
+            "Win16",
+            "Mac68k"
         ],
         "language": "Spanish",
         "publisher": "Disney Interactive",
@@ -277,7 +282,8 @@
         "source_url": null,
         "full_name": "Disney's Animated Storybook: Hercules",
         "platforms": [
-            "Win16"
+            "Win16",
+            "Mac68k"
         ],
         "language": "English",
         "publisher": "Disney Interactive",
@@ -298,7 +304,9 @@
         "source_url": null,
         "full_name": "Disney's Animated Storybook: 101 Dalmatians",
         "platforms": [
-            "Win16"
+            "Win16",
+            "Mac68k"
+            
         ],
         "language": "English",
         "publisher": "Disney Interactive",
@@ -338,7 +346,8 @@
         "source_url": null,
         "full_name": "Tonka Search & Rescue",
         "platforms": [
-            "Win32"
+            "Win32",
+            "MacPPC"
         ],
         "language": "English",
         "publisher": "Hasbro Interactive",
@@ -359,7 +368,8 @@
         "source_url": null,
         "full_name": "Tonka Garage",
         "platforms": [
-            "Win32"
+            "Win32",
+            "MacPPC"
         ],
         "language": "English",
         "publisher": "Hasbro Interactive",
@@ -380,7 +390,8 @@
         "source_url": null,
         "full_name": "D.W. the Picky Eater",
         "platforms": [
-            "Win32"
+            "Win32",
+            "MacPPC"
         ],
         "language": "English",
         "publisher": "Living Books (?)",
@@ -401,7 +412,8 @@
         "source_url": null,
         "full_name": "Tonka Workshop",
         "platforms": [
-            "Win32"
+            "Win32",
+            "MacPPC"
         ],
         "language": "English",
         "publisher": "Hasbro Interactive",
@@ -422,7 +434,8 @@
         "source_url": null,
         "full_name": "Tonka Raceway",
         "platforms": [
-            "Win32"
+            "Win32",
+            "MacPPC"
         ],
         "language": "English",
         "publisher": "Hasbro Interactive",
@@ -464,7 +477,8 @@
         "source_url": null,
         "full_name": "Stuart Little: Big City Adventures",
         "platforms": [
-            "Win32"
+            "Win32",
+            "MacPPC"
         ],
         "language": "English",
         "publisher": "Hasbro Interactive",
@@ -485,7 +499,8 @@
         "source_url": null,
         "full_name": "Hot Wheels: Custom Car Designer",
         "platforms": [
-            "Win32"
+            "Win32",
+            "MacPPC"
         ],
         "language": "English",
         "publisher": "Hasbro Interactive",
