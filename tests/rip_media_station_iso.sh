@@ -101,7 +101,13 @@ read -p "Language: " language
 platform="Windows"
 folder_name="$game_name - $title_compiler_version - $engine_version - $language - $platform"
 pc_folder_path="$extracted_files_root/$folder_name"
-mkdir -p "$pc_folder_path"
+if [ ! -d "$pc_folder_path" ]; then
+  mkdir -p "$pc_folder_path"
+else
+  echo "Directory already exists and will not be overwritten: $pc_folder_path"
+  exit 1
+fi
+
 cp -rv "$mount_point"/* "$pc_folder_path"
 umount "$mount_point"
 rmdir "$mount_point"
