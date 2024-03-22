@@ -3,7 +3,6 @@
         "have_cdrom": true,
         "source": "https://www.thefreelibrary.com/Media+Station+aims+for+limelight-a016377429",
         "full_name": "George Shrinks Interactive Storybook",
-        "internal_name": "GEORGE",
         "platforms": [
             "Win16"
         ],
@@ -25,7 +24,6 @@
         "have_cdrom": false,
         "source": "https://www.thefreelibrary.com/Media+Station+aims+for+limelight-a016377429",
         "full_name": "If You Give a Mouse a Cookie Interactive Storybook",
-        "internal_name": null,
         "platforms": [
             "Win16"
         ],
@@ -47,7 +45,6 @@
         "have_cdrom": false,
         "source": "https://www.thefreelibrary.com/Media+Station+aims+for+limelight-a016377429",
         "full_name": "Lambchop Loves Music",
-        "internal_name": null,
         "platforms": [
             "Win16"
         ],
@@ -69,8 +66,6 @@
         "have_cdrom": false,
         "source": "https://www.thefreelibrary.com/Media+Station+aims+for+limelight-a016377429",
         "full_name": "Haunted Hotel",
-        "short_name": null,
-        "internal_name": null,
         "platforms": [
             "Win16"
         ],
@@ -113,7 +108,6 @@
         "have_cdrom": true,
         "source": null,
         "full_name": "Disney's Animated Storybook: Pocahontas",
-        "internal_name": null,
         "platforms": [
             "Win16"
         ],
@@ -135,7 +129,6 @@
         "have_cdrom": true,
         "source": null,
         "full_name": "Disney's Animated Storybook: Pocahontas",
-        "internal_name": null,
         "platforms": [
             "Win16"
         ],
@@ -157,7 +150,6 @@
         "have_cdrom": false,
         "source": "https://www.thefreelibrary.com/Media+Station+aims+for+limelight-a016377429",
         "full_name": "Fractured Fairy Tales: The Frog Prince",
-        "internal_name": null,
         "platforms": [
             "Win16"
         ],
@@ -179,7 +171,6 @@
         "have_cdrom": true,
         "source": null,
         "full_name": "Disney's Animated Storybook: Winnie the Pooh and the Honey Tree",
-        "internal_name": null,
         "platforms": [
             "Win16"
         ],
@@ -201,7 +192,6 @@
         "have_cdrom": true,
         "source": null,
         "full_name": "Disney's Animated Storybook: The Hunchback of Notre Dame",
-        "internal_name": null,
         "platforms": [
             "Win16"
         ],
@@ -223,7 +213,6 @@
         "have_cdrom": false,
         "source": null,
         "full_name": "Puzzle Castle",
-        "internal_name": null,
         "platforms": [
             "Win16"
         ],
@@ -245,7 +234,6 @@
         "have_cdrom": false,
         "source": "https://www.thefreelibrary.com/Media+Station+aims+for+limelight-a016377429",
         "full_name": "Jan Pienkowski's Haunted House",
-        "internal_name": null,
         "platforms": [
             "Win16"
         ],
@@ -267,7 +255,6 @@
         "have_cdrom": false,
         "source": null,
         "full_name": "Extreme Tactics",
-        "internal_name": null,
         "platforms": [
             "Win16"
         ],
@@ -289,7 +276,6 @@
         "have_cdrom": true,
         "source": null,
         "full_name": "Disney's Animated Storybook: Hercules",
-        "internal_name": null,
         "platforms": [
             "Win16"
         ],
@@ -311,7 +297,6 @@
         "have_cdrom": true,
         "source": null,
         "full_name": "Disney's Animated Storybook: 101 Dalmatians",
-        "internal_name": null,
         "platforms": [
             "Win16"
         ],
@@ -333,7 +318,6 @@
         "have_cdrom": false,
         "source": null,
         "full_name": "Magic Fairy Tales: Barbie as Rapunzel",
-        "internal_name": null,
         "platforms": [],
         "language": "English",
         "publisher": "Hasbro Interactive",
@@ -353,7 +337,6 @@
         "have_cdrom": false,
         "source": null,
         "full_name": "Tonka Search & Rescue",
-        "internal_name": null,
         "platforms": [
             "Win32"
         ],
@@ -375,7 +358,6 @@
         "have_cdrom": false,
         "source": null,
         "full_name": "Tonka Garage",
-        "internal_name": null,
         "platforms": [
             "Win32"
         ],
@@ -397,7 +379,6 @@
         "have_cdrom": true,
         "source": null,
         "full_name": "D.W. the Picky Eater",
-        "internal_name": null,
         "platforms": [
             "Win32"
         ],
@@ -419,7 +400,6 @@
         "have_cdrom": true,
         "source": null,
         "full_name": "Tonka Workshop",
-        "internal_name": null,
         "platforms": [
             "Win32"
         ],
@@ -441,7 +421,6 @@
         "have_cdrom": true,
         "source": null,
         "full_name": "Tonka Raceway",
-        "internal_name": null,
         "platforms": [
             "Win32"
         ],
@@ -463,7 +442,6 @@
         "have_cdrom": false,
         "source": null,
         "full_name": "Disney presents Ariel's Story Studio",
-        "internal_name": null,
         "platforms": [
             "Win32"
         ],
@@ -485,7 +463,6 @@
         "have_cdrom": false,
         "source": null,
         "full_name": "Stuart Little: Big City Adventures",
-        "internal_name": null,
         "platforms": [
             "Win32"
         ],
@@ -507,7 +484,6 @@
         "have_cdrom": false,
         "source": null,
         "full_name": "Hot Wheels: Custom Car Designer",
-        "internal_name": null,
         "platforms": [
             "Win32"
         ],
