@@ -1,0 +1,528 @@
+[
+    {
+        "have_cdrom": true,
+        "source": "https://www.thefreelibrary.com/Media+Station+aims+for+limelight-a016377429",
+        "full_name": "George Shrinks Interactive Storybook",
+        "internal_name": "GEORGE",
+        "platforms": [
+            "Win16"
+        ],
+        "language": "English",
+        "publisher": "HarperCollins Interactive",
+        "date": "1994",
+        "title_compiler_version": null,
+        "engine_version": null,
+        "profile_version": null,
+        "support": "Unsupported",
+        "files": [
+            {
+                "path": "",
+                "md5": ""
+            }
+        ]
+    },
+    {
+        "have_cdrom": false,
+        "source": "https://www.thefreelibrary.com/Media+Station+aims+for+limelight-a016377429",
+        "full_name": "If You Give a Mouse a Cookie Interactive Storybook",
+        "internal_name": null,
+        "platforms": [
+            "Win16"
+        ],
+        "language": "English",
+        "publisher": "HarperCollins Interactive",
+        "date": "1994",
+        "title_compiler_version": null,
+        "engine_version": null,
+        "profile_version": null,
+        "support": "Unsupported",
+        "files": [
+            {
+                "path": "",
+                "md5": ""
+            }
+        ]
+    },
+    {
+        "have_cdrom": false,
+        "source": "https://www.thefreelibrary.com/Media+Station+aims+for+limelight-a016377429",
+        "full_name": "Lambchop Loves Music",
+        "internal_name": null,
+        "platforms": [
+            "Win16"
+        ],
+        "language": "English",
+        "publisher": "Phillips Interactive Media",
+        "date": "1995",
+        "title_compiler_version": null,
+        "engine_version": null,
+        "profile_version": null,
+        "support": "Unsupported",
+        "files": [
+            {
+                "path": "",
+                "md5": ""
+            }
+        ]
+    },
+    {
+        "have_cdrom": false,
+        "source": "https://www.thefreelibrary.com/Media+Station+aims+for+limelight-a016377429",
+        "full_name": "Haunted Hotel",
+        "short_name": null,
+        "internal_name": null,
+        "platforms": [
+            "Win16"
+        ],
+        "language": "English",
+        "publisher": null,
+        "date": "1995",
+        "title_compiler_version": null,
+        "engine_version": null,
+        "profile_version": null,
+        "support": "Unsupported",
+        "files": [
+            {
+                "path": "",
+                "md5": ""
+            }
+        ]
+    },
+    {
+        "have_cdrom": true,
+        "source": null,
+        "full_name": "Disney's Animated Storybook: The Lion King",
+        "platforms": [
+            "Win16"
+        ],
+        "language": "English",
+        "publisher": "Disney Interactive",
+        "date": "1994",
+        "title_compiler_version": null,
+        "engine_version": "v1.0/US",
+        "profile_version": null,
+        "support": "Supported",
+        "files": [
+            {
+                "path": "",
+                "md5": ""
+            }
+        ]
+    },
+    {
+        "have_cdrom": true,
+        "source": null,
+        "full_name": "Disney's Animated Storybook: Pocahontas",
+        "internal_name": null,
+        "platforms": [
+            "Win16"
+        ],
+        "language": "English",
+        "publisher": "Disney Interactive",
+        "date": "1995",
+        "title_compiler_version": null,
+        "engine_version": "1.1.01",
+        "profile_version": null,
+        "support": "Supported",
+        "files": [
+            {
+                "path": "",
+                "md5": ""
+            }
+        ]
+    },
+    {
+        "have_cdrom": true,
+        "source": null,
+        "full_name": "Disney's Animated Storybook: Pocahontas",
+        "internal_name": null,
+        "platforms": [
+            "Win16"
+        ],
+        "language": "German",
+        "publisher": "Disney Interactive",
+        "date": "1995",
+        "title_compiler_version": "3.1.1",
+        "engine_version": "1.0/DE",
+        "profile_version": null,
+        "support": "Supported",
+        "files": [
+            {
+                "path": "",
+                "md5": ""
+            }
+        ]
+    },
+    {
+        "have_cdrom": false,
+        "source": "https://www.thefreelibrary.com/Media+Station+aims+for+limelight-a016377429",
+        "full_name": "Fractured Fairy Tales: The Frog Prince",
+        "internal_name": null,
+        "platforms": [
+            "Win16"
+        ],
+        "language": "English",
+        "publisher": null,
+        "date": "1995",
+        "title_compiler_version": null,
+        "engine_version": null,
+        "profile_version": null,
+        "support": "Unsupported",
+        "files": [
+            {
+                "path": "",
+                "md5": ""
+            }
+        ]
+    },
+    {
+        "have_cdrom": true,
+        "source": null,
+        "full_name": "Disney's Animated Storybook: Winnie the Pooh and the Honey Tree",
+        "internal_name": null,
+        "platforms": [
+            "Win16"
+        ],
+        "language": "Spanish",
+        "publisher": "Disney Interactive",
+        "date": "1996",
+        "title_compiler_version": "3.3",
+        "engine_version": "2.0/US",
+        "profile_version": null,
+        "support": "Supported",
+        "files": [
+            {
+                "path": "",
+                "md5": ""
+            }
+        ]
+    },
+    {
+        "have_cdrom": true,
+        "source": null,
+        "full_name": "Disney's Animated Storybook: The Hunchback of Notre Dame",
+        "internal_name": null,
+        "platforms": [
+            "Win16"
+        ],
+        "language": "Spanish",
+        "publisher": "Disney Interactive",
+        "date": "1996",
+        "title_compiler_version": "3.5r5",
+        "engine_version": "1.0/US",
+        "profile_version": "3.3",
+        "support": "Unsupported",
+        "files": [
+            {
+                "path": "",
+                "md5": ""
+            }
+        ]
+    },
+    {
+        "have_cdrom": false,
+        "source": null,
+        "full_name": "Puzzle Castle",
+        "internal_name": null,
+        "platforms": [
+            "Win16"
+        ],
+        "language": "English",
+        "publisher": null,
+        "date": "1996",
+        "title_compiler_version": null,
+        "engine_version": null,
+        "profile_version": null,
+        "support": "Unsupported",
+        "files": [
+            {
+                "path": "",
+                "md5": ""
+            }
+        ]
+    },
+    {
+        "have_cdrom": false,
+        "source": "https://www.thefreelibrary.com/Media+Station+aims+for+limelight-a016377429",
+        "full_name": "Jan Pienkowski's Haunted House",
+        "internal_name": null,
+        "platforms": [
+            "Win16"
+        ],
+        "language": "English",
+        "publisher": "Phillips Interactive",
+        "date": "1996",
+        "title_compiler_version": null,
+        "engine_version": null,
+        "profile_version": null,
+        "support": "Unsupported",
+        "files": [
+            {
+                "path": "",
+                "md5": ""
+            }
+        ]
+    },
+    {
+        "have_cdrom": false,
+        "source": null,
+        "full_name": "Extreme Tactics",
+        "internal_name": null,
+        "platforms": [
+            "Win16"
+        ],
+        "language": "English",
+        "publisher": null,
+        "date": "1996",
+        "title_compiler_version": null,
+        "engine_version": null,
+        "profile_version": null,
+        "support": "Unsupported",
+        "files": [
+            {
+                "path": "",
+                "md5": ""
+            }
+        ]
+    },
+    {
+        "have_cdrom": true,
+        "source": null,
+        "full_name": "Disney's Animated Storybook: Hercules",
+        "internal_name": null,
+        "platforms": [
+            "Win16"
+        ],
+        "language": "English",
+        "publisher": "Disney Interactive",
+        "date": "1997",
+        "title_compiler_version": "3.5r5",
+        "engine_version": "1.0/US",
+        "profile_version": "3.4",
+        "support": "Supported",
+        "files": [
+            {
+                "path": "",
+                "md5": ""
+            }
+        ]
+    },
+    {
+        "have_cdrom": true,
+        "source": null,
+        "full_name": "Disney's Animated Storybook: 101 Dalmatians",
+        "internal_name": null,
+        "platforms": [
+            "Win16"
+        ],
+        "language": "English",
+        "publisher": "Disney Interactive",
+        "date": "1997",
+        "title_compiler_version": "3.5r5",
+        "engine_version": "1.0/US",
+        "profile_version": "3.3",
+        "support": "Supported",
+        "files": [
+            {
+                "path": "",
+                "md5": ""
+            }
+        ]
+    },
+    {
+        "have_cdrom": false,
+        "source": null,
+        "full_name": "Magic Fairy Tales: Barbie as Rapunzel",
+        "internal_name": null,
+        "platforms": [],
+        "language": "English",
+        "publisher": "Hasbro Interactive",
+        "date": "1997",
+        "title_compiler_version": null,
+        "engine_version": null,
+        "profile_version": null,
+        "support": "Unsupported",
+        "files": [
+            {
+                "path": "",
+                "md5": ""
+            }
+        ]
+    },
+    {
+        "have_cdrom": false,
+        "source": null,
+        "full_name": "Tonka Search & Rescue",
+        "internal_name": null,
+        "platforms": [
+            "Win32"
+        ],
+        "language": "English",
+        "publisher": "Hasbro Interactive",
+        "date": "1997",
+        "title_compiler_version": "3.5r5",
+        "engine_version": "1.0/US",
+        "profile_version": "3.4",
+        "support": "Supported",
+        "files": [
+            {
+                "path": "",
+                "md5": ""
+            }
+        ]
+    },
+    {
+        "have_cdrom": false,
+        "source": null,
+        "full_name": "Tonka Garage",
+        "internal_name": null,
+        "platforms": [
+            "Win32"
+        ],
+        "language": "English",
+        "publisher": "Hasbro Interactive",
+        "date": "1998",
+        "title_compiler_version": "4.0r8",
+        "engine_version": "1.1/US",
+        "profile_version": "3.4",
+        "support": "Supported",
+        "files": [
+            {
+                "path": "",
+                "md5": ""
+            }
+        ]
+    },
+    {
+        "have_cdrom": true,
+        "source": null,
+        "full_name": "D.W. the Picky Eater",
+        "internal_name": null,
+        "platforms": [
+            "Win32"
+        ],
+        "language": "English",
+        "publisher": "Living Books (?)",
+        "date": "1998",
+        "title_compiler_version": "4.0r8",
+        "engine_version": "1.0/US",
+        "profile_version": "3.4",
+        "support": "Supported",
+        "files": [
+            {
+                "path": "",
+                "md5": ""
+            }
+        ]
+    },
+    {
+        "have_cdrom": true,
+        "source": null,
+        "full_name": "Tonka Workshop",
+        "internal_name": null,
+        "platforms": [
+            "Win32"
+        ],
+        "language": "English",
+        "publisher": "Hasbro Interactive",
+        "date": "1998",
+        "title_compiler_version": "4.0r8",
+        "engine_version": "1.0/US",
+        "profile_version": "3.4",
+        "support": "Supported",
+        "files": [
+            {
+                "path": "",
+                "md5": ""
+            }
+        ]
+    },
+    {
+        "have_cdrom": true,
+        "source": null,
+        "full_name": "Tonka Raceway",
+        "internal_name": null,
+        "platforms": [
+            "Win32"
+        ],
+        "language": "English",
+        "publisher": "Hasbro Interactive",
+        "date": "1999",
+        "title_compiler_version": "4.0r8",
+        "engine_version": "1.0/US",
+        "profile_version": "3.4",
+        "support": "Supported",
+        "files": [
+            {
+                "path": "",
+                "md5": ""
+            }
+        ]
+    },
+    {
+        "have_cdrom": false,
+        "source": null,
+        "full_name": "Disney presents Ariel's Story Studio",
+        "internal_name": null,
+        "platforms": [
+            "Win32"
+        ],
+        "language": "English",
+        "publisher": "Disney Interactive",
+        "date": "1999",
+        "title_compiler_version": null,
+        "engine_version": null,
+        "profile_version": null,
+        "support": "Unsupported",
+        "files": [
+            {
+                "path": "",
+                "md5": ""
+            }
+        ]
+    },
+    {
+        "have_cdrom": false,
+        "source": null,
+        "full_name": "Stuart Little: Big City Adventures",
+        "internal_name": null,
+        "platforms": [
+            "Win32"
+        ],
+        "language": "English",
+        "publisher": "Hasbro Interactive",
+        "date": "1999",
+        "title_compiler_version": "4.0r8",
+        "engine_version": "1.0/US",
+        "profile_version": null,
+        "support": "Unsupported",
+        "files": [
+            {
+                "path": "",
+                "md5": ""
+            }
+        ]
+    },
+    {
+        "have_cdrom": false,
+        "source": null,
+        "full_name": "Hot Wheels: Custom Car Designer",
+        "internal_name": null,
+        "platforms": [
+            "Win32"
+        ],
+        "language": "English",
+        "publisher": "Hasbro Interactive",
+        "date": "2000",
+        "title_compiler_version": null,
+        "engine_version": null,
+        "profile_version": null,
+        "support": "Unsupported",
+        "files": [
+            {
+                "path": "",
+                "md5": ""
+            }
+        ]
+    }
+]
