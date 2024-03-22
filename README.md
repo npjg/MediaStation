@@ -1,7 +1,9 @@
 # <img src=".github/favicon.svg" width="32" height="32" alt="Disney's Animated Storybook: The Lion King"> Media Station
 A Python-based asset extractor and very incomplete bytecode decompiler for
 [Media Station, Inc.](https://www.mobygames.com/company/media-station-inc) CD-ROM children's titles. 
-I loved many of these when I was growing up.
+I loved many of these when I was growing up - especially Dalmatians. 
+The ultimate goal of this repo is to create an engine for ScummVM,
+but I've found investigation and reverse-engineering easier to do out-of-tree in Python. 
 
 Please join me in preserving these top-quality children's titles for future generations!
 
