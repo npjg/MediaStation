@@ -54,30 +54,31 @@ class Bitmap(RectangularBitmap):
             assert chunk.read(2) == b'\x00\x00'
             self._pixels = chunk.read(chunk.bytes_remaining_count)
 
+    @property
+    def has_transparency(self):
+        return (len(self.transparency_region) > 0)
+
     # Decompresses the RLE-compressed pixel data for this bitmap.
     # The RLE compression algorithm is almost the Microsoft standard algorithm
     # but with a few twists:
     #  - 
     # NOTE: This is a pure Python and has been reimplemented in C for better performance.
     # However, this remains as a reference and as a fallback in case the C implementation
-    # is not available.
+    # is not available. 
+    #
+    # Any functional changes to one implementation MUST be reflected in the other.
     def decompress_bitmap(self):
-        # TODO: Make this easier to understand.
-        # To ask ChatGPT. I am making a decompression algorithm in Python.
-        # Yes, I know I should probably write it in C instead, but I am using Python
-        # to prototype for now. Anyway, I am creating a bytearray 
         compressed_image_data = io.BytesIO(self._raw)
+
+        # TODO: Should we even return pixels for images with actually no compressed data?
         pixels = bytearray((self.width * self.height) * b'\x00')
-
-        #compressed_data = b'\x01\x02\x03...'  # Provide the compressed data
-        #pixels = bytearray(width * height)  # Prepare the buffer for decompressed pixels
-
-        #bitmap_decompressor.decompress_bitmap(compressed_data, len(compressed_data), pixels, self.width, self.height)
-        #return
-
         if self._compressed_image_data_size <= 2:
             self._pixels = bytes(pixels)
             return
+        
+        # READ PAST JUNK AT THE START OF THE COMPRESSED STREAM.
+        # I don't know exactly why some streams start with zeroes, but they
+        # will mess up the decompression if we don't read past them.
         if compressed_image_data.read(2) == b'\x00\x00':
             pass
         else:
@@ -135,13 +136,18 @@ class Bitmap(RectangularBitmap):
 
                     elif operation >= 0x04: 
                         # READ A RUN OF UNCOMPRESSED PIXELS.
-                        uncompressed_pixels_run = compressed_image_data.read(operation)
+                        run_length = operation
+                        uncompressed_pixels_run = compressed_image_data.read(run_length)
                         vertical_pixel_offset = (row_index * self.width)
                         run_starting_offset = vertical_pixel_offset + horizontal_pixel_offset
-                        pixels[run_starting_offset:run_starting_offset+len(uncompressed_pixels_run)] = uncompressed_pixels_run
+                        run_ending_offset = run_starting_offset + run_length
+                        pixels[run_starting_offset:run_ending_offset] = uncompressed_pixels_run
+                        horizontal_pixel_offset += run_length
 
-                        horizontal_pixel_offset += len(uncompressed_pixels_run)
+                        # MAKE SURE WE ARE ALIGNED ON A 16-BIT BOUNDARY.
                         if compressed_image_data.tell() % 2 == 1:
+                            # TODO: Probably should make sure we aren't 
+                            # throwing away data here, this should be 0x00.
                             compressed_image_data.read(1)
 
                 else:
@@ -150,11 +156,9 @@ class Bitmap(RectangularBitmap):
                     run_starting_offset = vertical_pixel_offset + horizontal_pixel_offset
                     color_index_to_repeat = compressed_image_data.read(1)
                     repetition_count = operation
-
-                    pixels[run_starting_offset:run_starting_offset+operation] = repetition_count * color_index_to_repeat
+                    run_ending_offset = run_starting_offset + repetition_count
+                    pixels[run_starting_offset:run_ending_offset] = repetition_count * color_index_to_repeat
                     horizontal_pixel_offset += repetition_count
-                    #if compressed_image_data.tell() % 2 == 1:
-                    #    compressed_image_data.read(1)
 
                     if reading_transparency_run:
                         # MARK THE END OF THE TRANSPARENCY REGION.
