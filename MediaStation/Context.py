@@ -268,8 +268,12 @@ class Context(DataFile):
                 more_sections_to_read = (not chunk.at_end)
 
             # CHECK IF THERE ARE MORE CHUNKS TO READ.
-            chunk = subfile.get_next_chunk()
+            # TODO: This is a quick fix for 161.CXT in "Pooh - OG - 2.0GB - English - Windows".
+            # Need to figure out what is actually happening there.
             more_chunks_to_read = (not subfile.at_end) and (chunk.is_igod)
+            if more_chunks_to_read:
+                chunk = subfile.get_next_chunk()
+                more_chunks_to_read = (not subfile.at_end) and (chunk.is_igod)
         return chunk
 
     ## Reads new-style header chunks from the current position of this file's binary stream.
