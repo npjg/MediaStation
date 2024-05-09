@@ -6,7 +6,16 @@ from asset_extraction_framework.Asserts import assert_equal
 from asset_extraction_framework.Asset.Image import RectangularBitmap
 
 from ..Primitives.Datum import Datum
-#import bitmap_decompressor
+
+# ATTEMPT TO IMPORT THE C-BASED DECOMPRESSION LIBRARY.
+# We will fall back to the pure Python implementation if it doesn't work, but there is easily a 
+# 10x slowdown with pure Python.
+try:
+    import MediaStationBitmapRle
+    rle_c_loaded = True
+except ImportError:
+    print('WARNING: The C bitmap decompression binary is not available on this installation. Expect decompression to be SLOW.')
+    rle_c_loaded = False
 
 ## A base header for a bitmap.
 class BitmapHeader:
@@ -178,5 +187,8 @@ class Bitmap(RectangularBitmap):
     @property
     def pixels(self) -> bytes:
         if self._pixels is None and self._compressed_image_data_size > 0:
-            self.decompress_bitmap()
+            if rle_c_loaded:
+                self._pixels, self.transparency_region = MediaStationBitmapRle.decompress(self._raw, self._compressed_image_data_size, self.width, self.height)
+            else:
+                self.decompress_bitmap()
         return self._pixels
