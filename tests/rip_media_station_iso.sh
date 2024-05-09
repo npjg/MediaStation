@@ -1,7 +1,7 @@
 #! bash
 
 # This script rips a Media Station ISO to a directory whose name should uniquely
-# identify the edition of the game in a human-readable fashion. It is designed to
+# identify the edition of the title in a human-readable fashion. It is designed to
 # help with cataloging the many Media Station titles that are out there to create 
 # a test dataset.
 #
@@ -18,15 +18,12 @@ set -e
 # so we must trap EXIT instead. 
 trap cleanup EXIT
 cleanup() {
-    # We only want to run the cleanup if an error has occurred.
-    if [ $? -ne 0 ]; then
         echo -e "\nAttempting to clean up mount points and attached disks..."
         # We don't want to show any more errors.
-        umount "$mount_point" > /dev/null
+        umount "$mount_point" > /dev/null || true
         rmdir "$mount_point" > /dev/null
         humount > /dev/null
         diskutil eject "$disk_identifier" > /dev/null
-    fi
 }
 
 # TODO: Verify the command line arguments and provide usage.
@@ -36,7 +33,7 @@ iso_path="$1"
 script_directory="$(dirname "$(readlink -f "$0")")"
 extracted_files_root="$script_directory/test_data/Extracted Folders"
 ISOS_ROOT="$script_directory/test_data/ISOs"
-mount_point=$(mktemp -d)
+mount_point="$(mktemp -d)"
 
 # ATTACH THE DISK IMAGE.
 # When a disk image contains an HFS volume, the disk must
@@ -60,19 +57,34 @@ disk_identifier=$(echo "$partitions_on_attached_iso" | awk '{print $1}' | head -
 echo "CD9660 Portion: $mount_point"
 mount -t cd9660 "$disk_identifier" "$mount_point"
 
-# GET INFO ON THE TITLE.
+# GET BASIC INFO ABOUT THE TITLE.
+# Get the info from BOOT.STM. This also serves as a basic sanity
+# check that we are examining a Media Station title, as the BOOT.STM
+# should always be present.
 echo "BOOT.STM"
-# Get the info from BOOT.STM.
 bootstm_path=$(find "$mount_point" -iname "boot.stm" -print)
+if [ -z "$bootstm_path" ]; then
+  echo "Error: BOOT.STM not found on CD-ROM. This is likely not a Media Sation title, or it uses some format we're not aware of yet."
+  exit 1
+elif [ $(echo "$bootstm_path" | wc -l) -gt 1 ]; then
+  echo "Warning: Multiple BOOT.STMs found: $bootstm_path. Using the first one."
+  bootstm_path=$(echo "$bootstm_path" | head -n 1)
+fi
 xxd -l 256 "$bootstm_path"
+
 # Get the info from PROFILE._ST.
 echo "PROFILE._ST"
 profilest_path=$(find "$mount_point" -iname "profile._st" -print)
 if [ -z "$profilest_path" ]; then 
-  echo "No profile.st found."
+  echo "No profile._st found."
 else
+  if [ $(echo "$profilest_path" | wc -l) -gt 1 ]; then
+    echo "Warning: Multiple PROFILE._STs found: $profilest_path. Using the first one."
+    profilest_path=$(echo "$profilest_path" | head -n 1)
+  fi
   xxd -l 256 "$profilest_path"
 fi
+
 # Get the info from the game EXE.
 # (This is the version number reported in the About screen.)
 # I thought this would report the correct size, 
@@ -169,7 +181,7 @@ else
 fi
 
 # DETATCH THE DISK IMAGE.
-echo -e "\nMoving ISO to the correct location"
+echo -e "\nMoving ISO to the correct location..."
 diskutil eject "$disk_identifier"
 
 # MOVE THE ISO TO MATCH THE NAME.
