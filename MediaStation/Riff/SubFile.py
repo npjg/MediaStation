@@ -94,6 +94,14 @@ class SubFile:
         self.current_chunk = Chunk(self.stream, fourcc_length)
         return self.current_chunk
 
+    ## Skips over the entire subfile. The stream is left pointing to the 
+    ## next subfile, and any bytes in the subfile not yet read are discarded.
+    def skip(self):
+        bytes_remaining_in_subfile = self.root_chunk.end_pointer - self.stream.tell()
+        self.stream.read(bytes_remaining_in_subfile)
+        if not self.at_end:
+            self.stream.read(1)
+
     ## \return False if the stream's current position is before the end
     ## of this subfile; True otherwise.
     @property

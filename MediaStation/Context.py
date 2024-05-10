@@ -467,10 +467,9 @@ class Context(DataFile):
             # INSTALL.CXT case.
             header = global_variables.application.get_asset_by_chunk_id(chunk.fourcc)
             if header is None:
-                raise ValueError(
-                    f'Asset FourCC {chunk.fourcc} was encountered in a subfile, but no asset header read thus far has declared this FourCC.\n\n'
-                    'This is expected if you are trying to extract assets from an INSTALL.CXT without any other contexts, as INSTALL.CXT does not contain any asset headers.\n'
-                    'Try running the extraction again on the entire game directory.')
+                print(f'WARNING: Asset FourCC {chunk.fourcc} was encountered in a subfile, but no asset header read thus far has declared this FourCC. The entire subfile will be skipped.')
+                subfile.skip()
+                return
 
         # READ THE ASSET ACCORDING TO ITS TYPE.
         if header.type == Asset.AssetType.MOVIE:
