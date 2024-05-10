@@ -525,14 +525,23 @@ class Context(DataFile):
     ##            script that invoked this function, so asset exporters can read any 
     ##            necessary formatting options.
     ## \return The subdirectory named after this file created in the provided root.
-    def export(self, root_directory_path: str, command_line_arguments) -> str:
+    def export_assets(self, root_directory_path: str, command_line_arguments) -> str:
         # APPLY THE PALETTE TO ALL IMAGES IN THIS CONTEXT.
         # This is done as a seperate step becuase it is not associated with reading the data
         # but is part of post-processing and preparing for export.
         # TODO: For contexts that have palettes, the palette of the context is generally the palette
         # of all the images in that context. However, some contexts do not have palettes. This occurs
         # in a few known cases:
-        #  - 
         #  - INSTALL.CXT, which contains assets that are declared in other contexts.
         self.apply_palette()
-        super().export(root_directory_path, command_line_arguments)
+
+        # EXPORT THE ASSETS IN THIS CONTEXT.
+        export_directory = self.create_export_directory(root_directory_path)
+        for index, asset in enumerate(self.assets.values()):
+            # SET THE ASSET NAME IF IT IS NOT ALREADY SET.
+            # This ensures every asset has a unique name within this file.
+            if asset.name is None:
+                asset.name = f'{index}'
+
+            # EXPORT THE ASSET.
+            asset.export(export_directory, command_line_arguments)

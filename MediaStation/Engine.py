@@ -15,12 +15,17 @@
 ##  - Multimedia files are exported to BMP or WAV.
 
 from typing import List
+import textwrap
+import os
+import json
+
+import jsons
 
 from asset_extraction_framework.CommandLine import CommandLineArguments
-from asset_extraction_framework.Application import Application, FileDetectionEntry
+from asset_extraction_framework.Application import Application
 
 from MediaStation import global_variables 
-from MediaStation.System import System
+from MediaStation.System import System, FileDeclaration
 from MediaStation.Context import Context
 from MediaStation.Profile import Profile
 
@@ -28,16 +33,10 @@ class MediaStationEngine(Application):
     def __init__(self, application_name: str):
         super().__init__(application_name)
 
-    ## Verifies that the asstes listed in the BOOT.STM file are exactly the ones
-    ## that are actually present in the CXT files.
-    def check_integrity(self):
-        pass
-
     def get_context_by_file_id(self, file_id):
-        for file in self.files:
-            if isinstance(file, Context):
-                if file.parameters.file_number == file_id:
-                    return file
+        for context in self.contexts:
+            if context.parameters.file_number == file_id:
+                return context
 
     ## Gets an asset with associated data chunk(s) by the FourCC for those chunk(s).
     ## Usually assets are defined in the same context that has their data, so this 
@@ -46,20 +45,18 @@ class MediaStationEngine(Application):
     ## and no asset headers. So this application-level lookup is necessary to correctly
     ## link up the data in this file with the asset headers.
     def get_asset_by_chunk_id(self, chunk_id: str):
-        for file in self.files:
-            if isinstance(file, Context):
-                found_asset = file.get_asset_by_chunk_id(chunk_id)
-                if found_asset is not None:
-                    return found_asset
+        for context in self.contexts:
+            found_asset = context.get_asset_by_chunk_id(chunk_id)
+            if found_asset is not None:
+                return found_asset
 
     ## \return The asset whose asset ID matches the provided asset ID.
     ## If no asset in any of the parsed files matches, None is returned.
     def get_asset_by_asset_id(self, asset_id: int):
-        for file in self.files:
-            if isinstance(file, Context):
-                found_asset = file.get_asset_by_asset_id(asset_id)
-                if found_asset is not None:
-                    return found_asset
+        for context in self.contexts:
+            found_asset = context.get_asset_by_asset_id(asset_id)
+            if found_asset is not None:
+                return found_asset
 
     # Uses the mapping in PROFILE._ST to correlate the numeric asset IDs
     # to descriptive asset names. Later titles had the asset names encoded
@@ -67,22 +64,15 @@ class MediaStationEngine(Application):
     # But for earlier titles, the only way to get the names is to read
     # the PROFILE._ST as is done here.
     def correlate_asset_ids_to_names(self):
-        # FIND THE PROFILE.
-        # TODO: Verify there is at most ONE profile.
-        profile = None
-        for file in self.files:
-            if isinstance(file, Profile):
-                profile = file
-
         # MAKE SURE THERE IS A PROFILE.
-        if profile is None:
+        if self.profile is None:
             # Some early titles (like Lion King) don't have a PROFILE._ST,
             # so we're out of luck with finding asset names. Maybe if the 
             # original sources can be found one day, we would know that 
             # information, but it isn't available on the CD-ROMS.
             return
         
-        for asset_entry in profile.asset_declarations.entries:
+        for asset_entry in self.profile.asset_declarations.entries:
             corresponding_asset = self.get_asset_by_asset_id(asset_entry.id)
             if corresponding_asset is not None:
                 # VERIFY THERE IS NO ASSET NAME CONFLICT.
@@ -110,22 +100,79 @@ class MediaStationEngine(Application):
             
             print(f'WARNING: Asset {asset_entry.id} present in PROFILE._ST but not found in parsed assets.')
 
-def main(raw_command_line: List[str] = None):
-    # DEFINE THE FILE TYPES IN THIS APPLICATION.
-    file_detection_entries = [
-        # We want to process the BOOT.STM and PROFILE._ST (if present) becuase these both provide useful debugging
-        # information that we want to show to the user first thing.
-        FileDetectionEntry(filename_regex = r'.*\.stm$', case_sensitive = False, file_processor = System),
-        FileDetectionEntry(filename_regex = r'profile._st$', case_sensitive = False, file_processor = Profile),
-        # All regular context files have only digits in their main file names. 
-        FileDetectionEntry(filename_regex = r'\d+\.cxt$', case_sensitive = False, file_processor = Context),
+    def process(self, input_paths):
+        # READ THE STARTUP FILE (BOOT.STM).
+        matched_boot_stm_files = self.find_matching_files(input_paths, r'boot\.stm$', case_sensitive = False)
+        if len(matched_boot_stm_files) == 0:
+            # TODO: I really wanted to support extracting individual CXTs, but 
+            # I think that will be too complex and the potential use cases are
+            # too small.
+            print("ERROR: BOOT.STM is missing from the input path(s). This file contains vital information for processing Media Station games, and assets cannot be extracted without it. ")
+            exit(1)
+        if len(matched_boot_stm_files) > 1:
+            print('ERROR: Found more than one BOOT.STM file in the given path(s). You are likely trying to process more than one Media Station title at once, which is not supported.')
+            exit(1)
+        system_filepath =  matched_boot_stm_files[0]
+        print(f'INFO: Processing {system_filepath}')
+        self.system = System(system_filepath)
+
+        # READ THE MAIN CONTEXTS.
+        matched_cxt_files = self.find_matching_files(input_paths, r'.*\.cxt$', case_sensitive = False)
+        # And now we need to sort the CXTs based on what is in the system.
         # The INSTALL.CXT, if present, MUST be read after all the other contexts are read. This is because 
         # INSTALL.CXT contains no asset headers; it jumps directly into the asset subfiles. So if the asset
         # headers have not all been read, an error will be thrown. It is much simpler to just force INSTALL.CXT
         # to be read afterward than let asset subfiles be read before the headers.
-        FileDetectionEntry(filename_regex = r'install.cxt$', case_sensitive = False, file_processor = Context),
-    ]
+        cdrom_context_filepaths = []
+        other_context_filepaths = []
+        for matched_cxt_filepath in matched_cxt_files:
+            for file_declaration in self.system.file_declarations:
+                # Windows and Mac back in the day were case insensitive, so we must replicate that behavior.
+                filenames_match = os.path.basename(matched_cxt_filepath).lower() == file_declaration.name.lower()
+                if filenames_match:
+                    if file_declaration.intended_location == FileDeclaration.IntendedFileLocation.CD_ROM:
+                        cdrom_context_filepaths.append(matched_cxt_filepath)
+                    else:
+                        other_context_filepaths.append(matched_cxt_filepath)
+        self.contexts: List[Context] = []
+        assert len([*cdrom_context_filepaths, *other_context_filepaths]) == len(matched_cxt_files)
+        for cxt_filepath in [*cdrom_context_filepaths, *other_context_filepaths]:
+            print(f'INFO: Processing {cxt_filepath}')
+            context = Context(cxt_filepath)
+            self.contexts.append(context)
 
+        # RESOLVE ASSET NAMES.
+        matched_profile_st_files = self.find_matching_files(input_paths, r'profile\._st$', case_sensitive = False)
+        self.profile = None
+        if len(matched_profile_st_files) == 0:
+            print('INFO: A PROFILE._ST is not available for this title, so nice-to-have information like asset names might not be available.')
+        else:
+            profile_filepath = matched_profile_st_files[0]
+            print(f'INFO: Processing {profile_filepath}')
+            self.profile = Profile(profile_filepath)
+            self.correlate_asset_ids_to_names()
+
+    def export_assets(self, command_line_arguments):
+        application_export_subdirectory: str = os.path.join(command_line_arguments.export, self.application_name)
+        for index, context in enumerate(self.contexts):
+            print(f'INFO: Exporting assets in {context.filepath}')
+            context.export_assets(application_export_subdirectory, command_line_arguments)
+
+    # This is in a separate function becuase even on fast computers it 
+    # can take a very long time and often isn't necessary.
+    def export_metadata(self, command_line_arguments):
+        application_export_subdirectory: str = os.path.join(command_line_arguments.export, self.application_name)
+
+        print(f'INFO: Exporting metadata for {self.system.filename}')
+        self.system.export_metadata(application_export_subdirectory)
+        for context in self.contexts:
+            print(f'INFO: Exporting metadata for {context.filename}')
+            context.export_metadata(application_export_subdirectory)
+        if self.profile is not None:
+            print(f'INFO: Exporting metadata for {self.profile.filename}')
+            self.profile.export_metadata(application_export_subdirectory)
+
+def main(raw_command_line: List[str] = None):
     # PARSE THE COMMAND-LINE ARGUMENTS.
     APPLICATION_NAME = 'Media Station'
     APPLICATION_DESCRIPTION = ''
@@ -134,13 +181,12 @@ def main(raw_command_line: List[str] = None):
     # PARSE THE ASSETS.
     media_station_engine = MediaStationEngine(APPLICATION_NAME)
     global_variables.application = media_station_engine
-    # TODO: Display a scary warning if individual files are passed in.
-    media_station_engine.process(command_line_arguments.input, file_detection_entries)
-    media_station_engine.correlate_asset_ids_to_names()
+    media_station_engine.process(command_line_arguments.input)
 
     # EXPORT THE ASSETS, IF REQUESTED.
     if command_line_arguments.export:
-        media_station_engine.export(command_line_arguments)
+        media_station_engine.export_assets(command_line_arguments)
+        media_station_engine.export_metadata(command_line_arguments)
 
 # TODO: Get good documentation here.
 if __name__ == '__main__':
