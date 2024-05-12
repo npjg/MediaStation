@@ -35,8 +35,9 @@ class MediaStationEngine(Application):
 
     def get_context_by_file_id(self, file_id):
         for context in self.contexts:
-            if context.parameters.file_number == file_id:
-                return context
+            if context.parameters is not None:
+                if context.parameters.file_number == file_id:
+                    return context
 
     ## Gets an asset with associated data chunk(s) by the FourCC for those chunk(s).
     ## Usually assets are defined in the same context that has their data, so this 
