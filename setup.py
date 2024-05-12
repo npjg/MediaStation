@@ -7,7 +7,7 @@ import warnings
 # For development work, looks like you would use this to compile the 
 # C-based image decompressor:
 #  python3 setup.py build_ext --inplace
-bitmap_decompression = Extension(name = 'MediaStationBitmapRle', sources = ['MediaStation/Assets/BitmapRle.c'])
+bitmap_decompression = Extension(name = 'MediaStationBitmapRle', sources = ['src/MediaStation/Assets/BitmapRle.c'])
 try:
     # TRY TO COMPILE THE C-BASED IMAGE DECOMPRESSOR.
     setup(
