@@ -1,8 +1,8 @@
 import os
-
 import shutil
 import tempfile
 import subprocess
+import warnings
 
 import pytest
 
@@ -17,10 +17,13 @@ ENABLE_ASSET_EXPORT_IN_TESTS = False
 # The tests MUST be run from the root of the repository.
 GAME_ROOT_DIRECTORY = 'tests/test_data/Extracted Folders'
 game_directories = []
-for filename in os.listdir(os.path.realpath(GAME_ROOT_DIRECTORY)):
-    filepath = os.path.join(GAME_ROOT_DIRECTORY, filename)
-    if os.path.isdir(filepath):
-        game_directories.append(filepath)
+if not os.path.exists(os.path.realpath(GAME_ROOT_DIRECTORY)):
+    warnings.warn('No test data present, game parsing tests will be skipped.')
+else:
+    for filename in os.listdir(os.path.realpath(GAME_ROOT_DIRECTORY)):
+        filepath = os.path.join(GAME_ROOT_DIRECTORY, filename)
+        if os.path.isdir(filepath):
+            game_directories.append(filepath)
 
 def test_script_is_runnable():
     # This package includes a command that can be called from the command line,
