@@ -127,16 +127,20 @@ class MediaStationEngine(Application):
         cdrom_context_filepaths = []
         other_context_filepaths = []
         for matched_cxt_filepath in matched_cxt_files:
+            file_declaration_found = False
             for file_declaration in self.system.file_declarations:
                 # Windows and Mac back in the day were case insensitive, so we must replicate that behavior.
                 filenames_match = os.path.basename(matched_cxt_filepath).lower() == file_declaration.name.lower()
                 if filenames_match:
+                    file_declaration_found = True
                     if file_declaration.intended_location == FileDeclaration.IntendedFileLocation.CD_ROM:
                         cdrom_context_filepaths.append(matched_cxt_filepath)
                     else:
                         other_context_filepaths.append(matched_cxt_filepath)
+
+            if not file_declaration_found:
+                print(f'WARNING: File declaration for {matched_cxt_filepath} not found in BOOT.STM. This file will not be processed or exported.')
         self.contexts: List[Context] = []
-        assert len([*cdrom_context_filepaths, *other_context_filepaths]) == len(matched_cxt_files)
         for cxt_filepath in [*cdrom_context_filepaths, *other_context_filepaths]:
             print(f'INFO: Processing {cxt_filepath}')
             context = Context(cxt_filepath)
