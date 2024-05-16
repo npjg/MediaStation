@@ -229,7 +229,12 @@ class Context(DataFile):
         for index in range(self.subfile_count - 1):
             # UPDATE THE CURRENT SUBFILE.
             subfile = self.get_next_subfile()
-            self.read_asset_from_later_subfile(subfile)
+            try:
+                self.read_asset_from_later_subfile(subfile)
+            except Exception as e: 
+                # TODO: Print a traceback here as well.
+                print('WARNING: Exception while reading assets from subfile. The entire subfile will be skipped.')
+                subfile.skip()
 
     ## Reads old-style header chunks from the current position of this file's binary stream.
     ##
