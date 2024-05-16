@@ -1,9 +1,12 @@
 
-
 import self_documenting_struct as struct
 from asset_extraction_framework.Exceptions import BinaryParsingError
 
 from asset_extraction_framework.Asserts import assert_equal
+
+## DEFINE CHUNK-RELATED ERRORS.
+class ZeroLengthChunkError(Exception):
+    pass
 
 ## Media Station data files are *almost* RIFF files, but not quite. 
 ## Here are the major differences:
@@ -18,7 +21,7 @@ class Chunk:
         self.fourcc = stream.read(fourcc_length).decode('ascii')
         self.length = struct.unpack.uint32_le(stream)
         if self.length == 0:
-            raise ValueError('Encountered zero-length chunk.')
+            raise ZeroLengthChunkError('Encountered a zero-length chunk. This usually indicates corrupted data - maybe a CD-ROM read error.')
         self.data_start_pointer = stream.tell()
 
     ## Reads the given number of bytes from the chunk, or throws an error if there is an attempt
