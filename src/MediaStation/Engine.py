@@ -139,6 +139,9 @@ class MediaStationEngine(Application):
                         other_context_filepaths.append(matched_cxt_filepath)
 
             if not file_declaration_found:
+                # This seems to legitimately happen for 1095.CXT and 1097.CXT in Lion King,
+                # which are both only 16 bytes and don't appear at all in BOOT.STM
+                # TODO: DOn't issue a warning for these files.
                 print(f'WARNING: File declaration for {matched_cxt_filepath} not found in BOOT.STM. This file will not be processed or exported.')
         self.contexts: List[Context] = []
         for cxt_filepath in [*cdrom_context_filepaths, *other_context_filepaths]:
