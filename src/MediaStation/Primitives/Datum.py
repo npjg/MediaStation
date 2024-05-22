@@ -7,8 +7,19 @@ from .Polygon import Polygon
 from .Point import Point
 from .Reference import Reference
 
-## A datum that can be read from a binary stream.
-## Provides the type of the value before the actual value.
+## Except for compressed image data and audio data,
+## nearly all data in Media Station files is encapsulated 
+## in "datums", so called because they generally represent 
+## the smallest units of useful data in Media Station data files. 
+## 
+## A datum provides a 16-bit type code, followed by a variable-
+## length data section, whose length is generally defined 
+## by the type code. 
+## Here is an example, where `xx` represents one byte:
+##  Type code
+##  |     Data
+##  |     | 
+##  xx xx xx xx .. xx xx
 ## TODO: Add type assertions for extra checking.
 class Datum:
     ## The various known datum type codes.
