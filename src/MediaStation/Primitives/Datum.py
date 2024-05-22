@@ -1,6 +1,7 @@
 from enum import IntEnum
 
 import self_documenting_struct as struct
+from asset_extraction_framework.Exceptions import BinaryParsingError
 
 from .BoundingBox import BoundingBox
 from .Polygon import Polygon
@@ -93,4 +94,4 @@ class Datum:
             self.d = Reference(stream)
 
         else:
-            raise ValueError(f'Unknown datum type: 0x{self.t:04x}')
+            raise BinaryParsingError(f'Unknown datum type: 0x{self.t:04x}', stream)
