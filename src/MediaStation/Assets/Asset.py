@@ -10,7 +10,7 @@ from ..Primitives.Polygon import Polygon
 from .BitmapSet import BitmapSet, BitmapSetBitmapDeclaration
 from .Font import Font
 from .Movie import Movie
-from .Script import Script
+from .Script import EventHandler
 from .Sound import Sound
 from .Sprite import Sprite
 from . import Text
@@ -161,7 +161,7 @@ class Asset:
         if Asset.SectionType.BYTECODE_TRIGGER == section_type: # TMR, MOV
             # READ A BYTECODE TRIGGER.
             # TODO: Define what this is.
-            script = Script(stream, in_independent_asset_chunk = False)
+            script = EventHandler(stream)
             self.functions.append(script)
 
         elif Asset.SectionType.STAGE == section_type: # All

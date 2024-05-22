@@ -11,7 +11,7 @@ from . import global_variables
 from .Assets.Bitmap import Bitmap
 from .Assets.BitmapSet import BitmapSet
 from .Assets.Asset import Asset
-from .Assets.Script import Script
+from .Assets.Script import Function, EventHandler
 from .Primitives.Datum import Datum
 from .Riff.DataFile import DataFile
 
@@ -60,8 +60,6 @@ class GlobalParameters:
             type = Datum(stream)
             while type.d != 0x0000:
                 assert_equal(type.d, self.file_number, "file ID")
-                entries = []
-
                 id = Datum(stream)
                 self.entries.update({id.d: self.entity(Datum(stream), stream)})
 
@@ -80,7 +78,8 @@ class GlobalParameters:
             token = Datum(stream)
             self.init = []
             while token.d == 0x0017:
-                self.init.append(Script(stream, in_independent_asset_chunk = False))
+                event_handler = EventHandler(stream)
+                self.init.append(event_handler)
                 token = Datum(stream)
 
     # TODO: Document what this stuff is. My original code had zero documentation.
@@ -93,7 +92,7 @@ class GlobalParameters:
                 entries.append(self.entity(Datum(stream), stream))
         elif token.d == 0x0006: # string
             size = Datum(stream)
-            entries.append(stream.read(size.d).decode("utf-8"))
+            entries.append(stream.read(size.d).decode('latin-1'))
         else: 
             entries.append(Datum(stream).d)
 
@@ -170,7 +169,7 @@ class Context(DataFile):
         # All images in this context use this same palette, if one is provided.
         # There is no facility for palette changes within a context.
         # This makes handling images a lot simpler!
-        self.palette = None
+        self.palette: Optional[RgbPalette] = None
 
         # VERIFY THE FILE IS NOT EMPTY.
         # A few Lion King contexts do not actually have any real; all they have
@@ -377,7 +376,7 @@ class Context(DataFile):
                 return False
 
         elif (Context.SectionType.FUNCTION == section_type):
-            function = Script(chunk, in_independent_asset_chunk = True)
+            function = Function(chunk)
             self.assets.update({function.id: function})
 
         elif (Context.SectionType.END == section_type):
