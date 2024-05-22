@@ -11,7 +11,7 @@ from . import global_variables
 from .Assets.Bitmap import Bitmap
 from .Assets.BitmapSet import BitmapSet
 from .Assets.Asset import Asset
-from .Assets.Script import Script
+from .Assets.Script import Function, EventHandler
 from .Primitives.Datum import Datum
 from .Riff.DataFile import DataFile
 
@@ -78,7 +78,7 @@ class Parameters:
                 self.variables.update({id: variable})
 
             elif section_type == Parameters.SectionType.BYTECODE:
-                init_script = Script(stream, in_independent_asset_chunk = False)
+                init_script = Function(stream)
                 self.scripts.append(init_script)
 
             else:
@@ -205,7 +205,7 @@ class Context(DataFile):
         # All images in this context use this same palette, if one is provided.
         # There is no facility for palette changes within a context.
         # This makes handling images a lot simpler!
-        self.palette = None
+        self.palette: Optional[RgbPalette] = None
 
         # VERIFY THE FILE IS NOT EMPTY.
         # A few Lion King contexts do not actually have any real; all they have
@@ -436,7 +436,7 @@ class Context(DataFile):
 
         elif (Context.SectionType.FUNCTION == section_type):
             try:
-                function = Script(chunk, in_independent_asset_chunk = True)
+                function = Function(chunk)
                 self.assets.update({function.id: function})
             except BinaryParsingError as e:
                 # TODO: This check exists due to an odd bytecode sequence in Barbie 
