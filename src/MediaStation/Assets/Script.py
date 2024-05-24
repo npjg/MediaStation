@@ -38,6 +38,8 @@ class Opcodes(IntEnum):
     # For example, this puts the literal integer 0 in variable 118: 
     #  [203, 118, 4]
     #  [153, 0]
+    # Parameters seem to be stored in the variable slots starting with "1".
+    # For example, function parameter 1 is stored in slot [1]. 
     AssignVariable = 203
     GetValue = 207 # ? Got this from the if statement, not sure if right.
     # Routine calls have this form:
@@ -45,6 +47,7 @@ class Opcodes(IntEnum):
     # Followed by the actual parameters to pass to the function.
     # Functions with low ID numbers are "built-in" functions, and 
     # functions with large ID numbers are user-defined functions.
+    UnkRelatedToVariableAssignment = 214 # Appears when we are referencing variables.
     CallRoutine = 219
     # Method calls are like function calls, but they have an implicit "self"
     # parameter that is always the first. For example:
@@ -54,6 +57,7 @@ class Opcodes(IntEnum):
     #  [156, 123]    - [OperandType.AssetId, 123 (asset ID for self - this is pre-computed)]
     #  [151, 1]      - [OperandType.Literal, 1 (literal for TRUE)]
     CallMethod = 220
+    UnkSomethingWithFunctionCalls = 221
 
 class BuiltInFunction(IntEnum): 
     EffectTransition = 102 # PARAMS: 1
@@ -71,6 +75,15 @@ class OperandType(IntEnum):
     #  [155, 301]
     DollarSignVariable = 155
     AssetId = 156
+
+# TODO: This is a debugging script to help decompile the bytecode 
+# when there are opcodes we have documented but still provide a
+# fall-through when there are undocuemnted opcodes.
+def cast_to_enum(value, enum_class):
+    try:
+        return enum_class(value)
+    except ValueError:
+        return value
 
 ## An abstract compiled script that executes in the Media Station bytecode interpreter.
 class Script:
@@ -163,13 +176,13 @@ class CodeChunk:
         # have different available "addressing modes".
         iteratively_built_statement = []
         if InstructionType.FunctionCall == section_type.d:
-            opcode = Datum(stream).d
+            opcode = Opcodes(Datum(stream).d)
             if Opcodes.TestEquality == opcode:
                 lhs = self.read_statement(stream)
                 rhs = self.read_statement(stream)
                 statement = [opcode, lhs, rhs]
 
-            elif Opcodes.GetValue == opcode:
+            elif (Opcodes.GetValue == opcode) or (Opcodes.UnkRelatedToVariableAssignment == opcode):
                 variable_id = self.read_statement(stream)
                 # TODO: This is the same "4" literal that we see above.
                 unk = self.read_statement(stream)
@@ -179,13 +192,13 @@ class CodeChunk:
                 # These are always immediates.
                 # The scripting language doesn't seem to have
                 # support for virtual functions (thankfully).
-                function_id = Datum(stream).d
+                function_id = cast_to_enum(Datum(stream).d, BuiltInFunction)
                 parameter_count = Datum(stream).d
                 statement = [opcode, function_id, parameter_count]
             iteratively_built_statement.extend(statement)
 
         elif InstructionType.Operand == section_type.d:
-            operand_type = Datum(stream).d
+            operand_type = OperandType(Datum(stream).d)
             if OperandType.String == operand_type:
                 # Note that this is not a datum with a type code 
                 # of string. In this case, the operand type is stored 
@@ -194,16 +207,49 @@ class CodeChunk:
                 # string type.
                 string_length = Datum(stream).d
                 value = stream.read(string_length).decode('latin-1')
+
+            #elif OperandType.AssetId == operand_type:
+            #    value = Datum(stream).d
+
             else:
                 value = self.read_statement(stream)
+                
             statement = [operand_type, value]
             iteratively_built_statement.extend(statement)
 
         elif InstructionType.VariableReference == section_type.d:
-            statement = [Datum(stream).d]
+            s1 = Datum(stream).d
+            s2 = Datum(stream).d
+            statement = [s1, s2]
             iteratively_built_statement.extend(statement)
 
         else:
             iteratively_built_statement = section_type.d
 
         return iteratively_built_statement
+
+    # TODO: Remove this. It is temporarily kept around for debugging purposes,
+    # as it gives a lower-level view into what strings we're seeing.
+    def read_statement_debugging_version(self, stream):
+        iteratively_built_statement = []
+        while not self._at_end:
+            statement = self.read_datum_maybe_string(stream)
+            if isinstance(statement, CodeChunk):
+                statement = statement.statements
+            iteratively_built_statement.append(statement)
+        pprint.pprint(iteratively_built_statement)
+        return iteratively_built_statement
+
+    # TODO: Remove this. It is temporarily kept around for debugging purposes,
+    # as it gives a lower-level view into what strings we're seeing.
+    def read_datum_maybe_string(self, stream):
+        statement = Datum(stream)
+        if (Datum.Type.UINT32_1 == statement.t):
+            return CodeChunk(stream, statement.d)
+        if statement.d == 0x009a:
+            string_length = Datum(stream).d
+            statement = stream.read(string_length).decode('latin-1')
+            print(f'> {statement}')
+            return statement
+        else:
+            return statement.d
