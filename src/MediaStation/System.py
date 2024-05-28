@@ -1,7 +1,6 @@
 
 from enum import IntEnum
 from typing import List, Optional
-import logging
 
 from asset_extraction_framework.Asserts import assert_equal
 from asset_extraction_framework.File import File
@@ -431,7 +430,7 @@ class System(DataFile):
 
             else:
                 # SIGNAL AN UNKNOWN SECTION.
-                logging.warning(f'Detected unknown section 0x{section_type:04x}')
+                print(f'WARNING: Detected unknown section 0x{section_type:04x}')
 
             # READ THE NEXT SECTION TYPE.
             section_type = Datum(chunk).d
