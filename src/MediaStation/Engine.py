@@ -15,11 +15,9 @@
 ##  - Multimedia files are exported to BMP or WAV.
 
 from typing import List
-import textwrap
 import os
-import json
 
-import jsons
+import colorlog
 
 from asset_extraction_framework.CommandLine import CommandLineArguments
 from asset_extraction_framework.Application import Application
@@ -184,7 +182,8 @@ def main(raw_command_line: List[str] = None):
     # PARSE THE COMMAND-LINE ARGUMENTS.
     APPLICATION_NAME = 'Media Station'
     APPLICATION_DESCRIPTION = ''
-    command_line_arguments = CommandLineArguments(APPLICATION_NAME, APPLICATION_DESCRIPTION).parse(raw_command_line)
+    command_line = CommandLineArguments(APPLICATION_NAME, APPLICATION_DESCRIPTION)
+    command_line_arguments = command_line.parse(raw_command_line)
 
     # PARSE THE ASSETS.
     media_station_engine = MediaStationEngine(APPLICATION_NAME)
