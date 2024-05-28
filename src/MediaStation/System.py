@@ -4,6 +4,7 @@ from typing import List, Optional
 
 from asset_extraction_framework.Asserts import assert_equal
 from asset_extraction_framework.File import File
+from asset_extraction_framework.Exceptions import BinaryParsingError
 
 from . import global_variables
 from .Riff.DataFile import DataFile
@@ -71,9 +72,9 @@ class ContextDeclaration:
         FILE_REFERENCE = 0x0006
         CONTEXT_NAME = 0x0bb8
 
-    def __init__(self, stream):
+    def __init__(self, chunk):
         # ENSURE THIS CONTEXT DECLARATION IS NOT EMPTY.
-        section_type = Datum(stream).d
+        section_type = Datum(chunk).d
         if (ContextDeclaration.SectionType.EMPTY == section_type):
             # THIS CONTEXT DECLARATION IS EMPTY.
             # This signals to the holder of this declaration that there
@@ -102,23 +103,23 @@ class ContextDeclaration:
 
         # READ THE FILE REFERENCES.
         while ContextDeclaration.SectionType.FILE_REFERENCE == section_type:
-            file_reference = Datum(stream).d
+            file_reference = Datum(chunk).d
             self.file_references.append(file_reference)
-            section_type = Datum(stream).d
+            section_type = Datum(chunk).d
 
         # READ THE OTHER CONTEXT METADATA.
         if ContextDeclaration.SectionType.PLACEHOLDER == section_type:
             # READ THE FILE NUMBER.
-            section_type = Datum(stream).d
+            section_type = Datum(chunk).d
             assert_equal(section_type, ContextDeclaration.SectionType.FILE_NUMBER_1)
-            self.file_number = Datum(stream).d
+            self.file_number = Datum(chunk).d
 
             # VERIFY THE COPY OF THE FILE NUMBER.
             # I don't know why it's always repeated. Is it just for data integrity,
             # or is there some other reason?
-            section_type = Datum(stream).d
+            section_type = Datum(chunk).d
             assert_equal(section_type, ContextDeclaration.SectionType.FILE_NUMBER_2)
-            repeated_file_number = Datum(stream).d
+            repeated_file_number = Datum(chunk).d
             assert_equal(repeated_file_number, self.file_number)
 
             # READ THE CONTEXT NAME.
@@ -126,11 +127,11 @@ class ContextDeclaration:
             version_has_context_names = (not global_variables.version.is_first_generation_engine) and \
                 (global_variables.version.major_version >= 3) and (global_variables.version.minor_version > 5)
             if version_has_context_names:
-                section_type = Datum(stream).d
+                section_type = Datum(chunk).d
                 if ContextDeclaration.SectionType.CONTEXT_NAME == section_type:
-                    self.context_name = Datum(stream).d
+                    self.context_name = Datum(chunk).d
                 else:
-                    raise ValueError("Context name expected but not present.")
+                    raise BinaryParsingError("Context name expected but not present.", chunk.stream)
         elif ContextDeclaration.SectionType.EMPTY == section_type:
             # INDICATE THIS IS THE LAST CONTEXT DECLARATION.
             # This signals to the holder of this declaration that there
