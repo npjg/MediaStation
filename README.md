@@ -79,3 +79,6 @@ Coming soon! For now, the [Disney's Animated Storybook](https://en.wikipedia.org
 - The bytecode decompiler needs a ton of work.
 - Some script data seems to be stored in the executables. That should be extracted.
 - Write a wikipedia article about the defunct Michigan-based company Media Station, Inc.
+
+## References
+ - ["Media Station Aims for the Limelight"](https://www.thefreelibrary.com/Media+Station+aims+for+limelight-a016377429)
