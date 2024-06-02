@@ -902,6 +902,26 @@
         "files": {
         }
     },
+    {
+        "have_cdrom": true,
+        "full_name": "Disney's Animated Storybook: Winnie the Pooh and the Honey Tree",
+        "platforms": [
+            "Win16"
+        ],
+        // I don't know what "Japan SL" means here, as 
+        // the actual languages on the CD are English & Spanish.
+        // This appears to be a pre-release version of Pooh.
+        "language": "Japan SL",
+        "publisher": "Disney Interactive",
+        "date": "09/07/1995",
+        "internal_version": "1.0",
+        "title_compiler_version": null,
+        "engine_version": "1.0",
+        "profile_version": null,
+        "support": "Unsupported",
+        "files": {
+        }
+    },
 
     // Disney's Animated Storybook: The Hunchback of Notre Dame
     {
@@ -3244,6 +3264,27 @@
         "internal_version": "2.4",
         "title_compiler_version": "3.6r2",
         "engine_version": "1.0/IL",
+        "profile_version": "3.3",
+        "support": "Unsupported",
+        "files": {
+        }
+    },
+    {
+        "have_cdrom": true,
+        "full_name": "Disney's Animated Storybook: Hercules",
+        "platforms": [
+            "Win16",
+            "Mac"
+        ],
+        // TODO: I don't know what LaserLock refers to here. Is
+        // it actually language oriented, or it it the copy 
+        // protection?
+        "language": "Greek LaserLock",
+        "publisher": "Disney Interactive",
+        "date": "11/20/1997",
+        "internal_version": "2.3",
+        "title_compiler_version": "3.6r2",
+        "engine_version": "1.1/GR",
         "profile_version": "3.3",
         "support": "Unsupported",
         "files": {
