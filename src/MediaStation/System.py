@@ -125,7 +125,7 @@ class ContextDeclaration:
             # READ THE CONTEXT NAME.
             # Version 1 titles don't have context names.
             version_has_context_names = (not global_variables.version.is_first_generation_engine) and \
-                (global_variables.version.major_version >= 3) and (global_variables.version.minor_version > 5)
+                (global_variables.version.major_version >= 3) and (global_variables.version.minor_version > 7)
             if version_has_context_names:
                 section_type = Datum(chunk).d
                 if ContextDeclaration.SectionType.CONTEXT_NAME == section_type:
