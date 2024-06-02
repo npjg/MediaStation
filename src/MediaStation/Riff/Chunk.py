@@ -5,6 +5,8 @@ from asset_extraction_framework.Exceptions import BinaryParsingError
 from asset_extraction_framework.Asserts import assert_equal
 
 ## DEFINE CHUNK-RELATED ERRORS.
+# TODO: Should this inherit from BinaryParsingError so we get a nice
+# hexdump when it is raised?
 class ZeroLengthChunkError(Exception):
     pass
 
