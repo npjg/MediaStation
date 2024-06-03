@@ -47,6 +47,12 @@ class Asset:
         FONT  = 0x001b # FON
         CAMERA  = 0x001c # CAM
         CANVAS  = 0x001e # CVS
+        # TODO: Discover how the XSND differs from regular sounds.
+        # Only appears in Ariel.
+        XSND = 0x001f
+        XSND_MIDI = 0x0020
+        # TODO: Figure out what this is. Only appears in Ariel.
+        RECORDER = 0x0021
         FUNCTION  = 0x0069 # FUN
 
     class SectionType(IntEnum):
@@ -72,7 +78,7 @@ class Asset:
         if (Asset.AssetType.IMAGE == self.type):
             self.image.name = self.name
             self.image.export(directory_path, command_line_arguments)
-        elif (Asset.AssetType.SOUND == self.type):
+        elif (Asset.AssetType.SOUND == self.type) or (Asset.AssetType.XSND == self.type):
             self.sound.name = self.name
             self.sound.export(directory_path, command_line_arguments)
         elif (Asset.AssetType.SPRITE == self.type):
@@ -148,7 +154,7 @@ class Asset:
             self.image_set = BitmapSet(self)
         elif (Asset.AssetType.CAMERA == self.type):
             self.camera = None
-        elif (Asset.AssetType.SOUND == self.type):
+        elif (Asset.AssetType.SOUND == self.type) or (Asset.AssetType.XSND == self.type):
             self.sound = Sound(self.audio_encoding)
         elif (Asset.AssetType.SPRITE == self.type):
             self.sprite = Sprite(self)
@@ -393,6 +399,9 @@ class Asset:
         elif section_type == 0x0770: # CAM
             self.unks.append({hex(section_type): Datum(chunk).d})
 
+        elif section_type == 0x0771: # STG
+            self.unks.append({hex(section_type): Datum(chunk).d})
+
         elif section_type == 0x0772: # STG
             self.unks.append({hex(section_type): Datum(chunk).d})
 
@@ -418,6 +427,17 @@ class Asset:
             self.unk_bitmap_set_bounding_box = Datum(chunk).d
 
         elif section_type >= 0x0773 and section_type <= 0x0780:
+            self.unks.append({hex(section_type): Datum(chunk).d})
+
+        elif section_type == 0x7d2: # XSND_MIDI (Ariel)
+            self.midi_filename = Datum(chunk).d
+
+        elif section_type == 0x7d3:
+            probably_asset_id = Datum(chunk).d
+            if probably_asset_id != self.id:
+                print(f'WARNING: In XSND_MIDI asset, probable asset ID field "{probably_asset_id}" does not match actual asset ID "{self.id}"')
+
+        elif section_type >= 0x07d4 and section_type <= 0x07df: # Ariel
             self.unks.append({hex(section_type): Datum(chunk).d})
 
         elif section_type >= 0x2734 and section_type <= 0x2800:

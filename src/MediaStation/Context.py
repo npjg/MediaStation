@@ -435,7 +435,7 @@ class Context(DataFile):
         elif (header.type == Asset.AssetType.IMAGE_SET):
             header.image_set.read_chunk(chunk)
 
-        elif (header.type == Asset.AssetType.SOUND):
+        elif (header.type == Asset.AssetType.SOUND) or (header.type == Asset.AssetType.XSND):
             header.sound.read_chunk(chunk)
 
         elif (header.type == Asset.AssetType.SPRITE):
