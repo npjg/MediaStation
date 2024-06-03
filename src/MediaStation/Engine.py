@@ -95,7 +95,7 @@ class MediaStationEngine(Application):
                 corresponding_context.parameters.name = asset_entry.name
                 continue
             
-            print(f'WARNING: Asset {asset_entry.id} present in PROFILE._ST but not found in parsed assets.')
+            print(f'WARNING: Asset {asset_entry.id} present in PROFILE._ST but not found in parsed assets: {asset_entry._raw_entry}')
 
     def process(self, input_paths):
         # READ THE STARTUP FILE (BOOT.STM).
