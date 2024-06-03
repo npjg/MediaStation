@@ -17,8 +17,6 @@
 from typing import List
 import os
 
-import colorlog
-
 from asset_extraction_framework.CommandLine import CommandLineArguments
 from asset_extraction_framework.Application import Application
 
