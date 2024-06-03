@@ -123,20 +123,27 @@ class ContextDeclaration:
             assert_equal(repeated_file_number, self.file_number)
 
             # READ THE CONTEXT NAME.
-            # Version 1 titles don't have context names.
-            version_has_context_names = (not global_variables.version.is_first_generation_engine) and \
-                (global_variables.version.major_version >= 3) and (global_variables.version.minor_version > 7)
-            if version_has_context_names:
-                section_type = Datum(chunk).d
-                if ContextDeclaration.SectionType.CONTEXT_NAME == section_type:
-                    self.context_name = Datum(chunk).d
-                else:
-                    raise BinaryParsingError("Context name expected but not present.", chunk.stream)
+            # Only some titles have context names, and unfortunately we can't
+            # determine which just by relying on the title compiler version
+            # number. 
+            # TODO: Find a better way to read the context name without relying
+            # on reading and rewinding.
+            rewind_pointer = chunk.stream.tell()
+            section_type = Datum(chunk).d
+            if ContextDeclaration.SectionType.CONTEXT_NAME == section_type:
+                # READ THE CONTEXT NAME.
+                self.context_name = Datum(chunk).d
+            else:
+                # THERE IS NO CONTEXT NAME.
+                # We have instead read into the next declaration, so let's undo that.
+                chunk.stream.seek(rewind_pointer)
+                
         elif ContextDeclaration.SectionType.EMPTY == section_type:
             # INDICATE THIS IS THE LAST CONTEXT DECLARATION.
             # This signals to the holder of this declaration that there
             # are no more declarations in the stream.
             self._is_empty = True
+
         else:
             # INDICATE AN ERROR.
             raise ValueError(f'Received unexpected section type: 0x{section_type:04x}')
