@@ -26,6 +26,12 @@ class Chunk:
             raise ZeroLengthChunkError('Encountered a zero-length chunk. This usually indicates corrupted data - maybe a CD-ROM read error.')
         self.data_start_pointer = stream.tell()
 
+    ## Skips over the entire chunk. The stream is left pointing to the 
+    ## next chunk/subfile, and any bytes in the chunk not yet read are discarded.
+    def skip(self):
+        bytes_remaining_in_chunk = self.end_pointer - self.stream.tell()
+        self.stream.read(bytes_remaining_in_chunk)
+
     ## Reads the given number of bytes from the chunk, or throws an error if there is an attempt
     ## to read past the end of the chunk. Generally this is the only byte reading method that should
     ## be called directly because it includes this protection.

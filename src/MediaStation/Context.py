@@ -377,8 +377,41 @@ class Context(DataFile):
                 return False
 
         elif (Context.SectionType.FUNCTION == section_type):
-            function = Script(chunk, in_independent_asset_chunk = True)
-            self.assets.update({function.id: function})
+            try:
+                function = Script(chunk, in_independent_asset_chunk = True)
+                self.assets.update({function.id: function})
+            except BinaryParsingError as e:
+                # TODO: This check exists due to an odd bytecode sequence in Barbie 
+                # (117.CXT), around 0x188d and 0x18d9 in "function_5ps1_GetSavedGames".
+                # Seemingly nonsensical datums of type 0x0230 are provided right in
+                # the middle of otherwise normal bytecode.
+                # 
+                # Here is an example of what happens, where the datum
+                # type is indicated by `^` and the value is indicated by `-`.
+                # The offending sequence is indicated by `!`.
+                #  0300 0A00 0200 0603 0001 0030 0200 0603 0001 00
+                #  ^    -    ^    - ^    -    !! !!!! !!^    -   
+                #                             30 0200 0603 0001 00
+                #                             !! !!!! !!^    -    
+                #                             30 0200 0603 0001 00
+                #                             !! !!!! !!^    -
+                #                             30 0200 0603 0001 00
+                #                             !! !!!! !!^    -
+                #                             30 0200 0603 0001 00
+                #                             !! !!!! !!^    -
+                #                             30 0200 0603 0001 00 
+                #                             !! !!!! !!^    -
+                #                             30 0200 0603 0001 00
+                #                             !! !!!! !!^    -
+                #           02 0006 0300 0100 3002 0006 0300 0100 3003 0067 0003 00DB 0003 00BA 00                          
+                #           ^    -  ^    -    !!!! !!!! ^    -    !!^    -    ^    -    ^    -
+                # It is perfectly acceptable for single-byte datums to throw
+                # off the alignment until the end of the chunk, so that's not
+                # the problem. I haven't been able to figure out what it is, so
+                # to allow extraction to proceed we will just skip the bytecode
+                # for now.
+                print(f'WARNING: Parsing error in bytecode. The entire bytecode chunk will be skipped. {e}')
+                chunk.skip()
 
         elif (Context.SectionType.END == section_type):
             # TODO: Figure out what these are.
