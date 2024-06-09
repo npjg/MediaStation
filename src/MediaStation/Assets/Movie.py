@@ -206,7 +206,7 @@ class Movie(Animation):
                 assert_equal(chunk.length, 0x04, "frameset delimiter size")
                 chunk.read(chunk.length)
             else:
-                raise ValueError(f'Unknown delimiter at end of movie frameset: {subfile.current_chunk.fourcc}')
+                raise BinaryParsingError(f'Unknown delimiter at end of movie frameset: {subfile.current_chunk.fourcc}', chunk.stream)
             
             # SET THE REQUIRED FOOTERS.
             # Most keyframes don't have any different metadata from regular frames (aside from duration).

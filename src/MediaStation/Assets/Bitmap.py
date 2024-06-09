@@ -4,6 +4,7 @@ import io
 import self_documenting_struct as struct
 from asset_extraction_framework.Asserts import assert_equal
 from asset_extraction_framework.Asset.Image import RectangularBitmap
+from asset_extraction_framework.Exceptions import BinaryParsingError
 
 from ..Primitives.Datum import Datum
 
@@ -60,7 +61,9 @@ class Bitmap(RectangularBitmap):
             self._raw = chunk.read(chunk.bytes_remaining_count)
         else:
             # READ THE UNCOMPRESSED IMAGE DIRECTLY.
-            assert chunk.read(2) == b'\x00\x00'
+            first_bitmap_bytes = chunk.read(2)
+            if first_bitmap_bytes != b'\x00\x00':
+                raise BinaryParsingError(f'First two bitmap bytes were {first_bitmap_bytes}, not 00 00', chunk.stream)
             self._pixels = chunk.read(chunk.bytes_remaining_count)
 
     @property
