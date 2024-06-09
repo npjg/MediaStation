@@ -117,7 +117,7 @@ class Movie(Animation):
     def __init__(self, header):
         super().__init__()
         self.name = header.name
-        self._audio_encoding = header.audio_encoding
+        self._sound_encoding = header.sound_encoding
         self._alpha_color = 0x00
         self._width = header.bounding_box.dimensions.x
         self._height = header.bounding_box.dimensions.y
@@ -194,7 +194,7 @@ class Movie(Animation):
             audio = None
             is_audio_chunk = (subfile.current_chunk.chunk_integer == audio_chunk_integer)
             if is_audio_chunk:
-                audio = Sound(self._audio_encoding)
+                audio = Sound(self._sound_encoding)
                 audio.read_chunk(chunk)
                 chunk = subfile.get_next_chunk()
 

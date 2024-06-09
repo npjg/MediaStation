@@ -155,7 +155,7 @@ class Asset:
         elif (Asset.AssetType.CAMERA == self.type):
             self.camera = None
         elif (Asset.AssetType.SOUND == self.type) or (Asset.AssetType.XSND == self.type):
-            self.sound = Sound(self.audio_encoding)
+            self.sound = Sound(self.sound_encoding)
         elif (Asset.AssetType.SPRITE == self.type):
             self.sprite = Sprite(self)
         elif (Asset.AssetType.FONT == self.type):
@@ -447,13 +447,13 @@ class Asset:
             # READ THE ASSET NAME.
             self.name = Datum(chunk).d
 
-        elif section_type == 0x0001: # SND
-            self.audio_encoding = Datum(chunk).d
-
-        elif section_type == 0x0002: # SND
-            # TODO: Determine what the dfference is between the previous
-            # audio encoding section type and this one.
-            self.audio_encoding = Datum(chunk).d
+        elif (section_type == 0x0001) or (section_type == 0x0002): # SND
+            # TODO: Determine what the dfference is between 0x0001 and 0x0002.
+            raw_sound_encoding = Datum(chunk).d
+            try:
+                self.sound_encoding = Sound.Encoding(raw_sound_encoding)
+            except:
+                raise ValueError(f'Received unknown sound encoding specifier: 0x{raw_sound_encoding:04x}')
 
         else:
             raise BinaryParsingError(f'Unknown section type: 0x{section_type:0>4x}', chunk.stream)
