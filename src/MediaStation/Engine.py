@@ -137,7 +137,7 @@ class MediaStationEngine(Application):
             if not file_declaration_found:
                 # This seems to legitimately happen for 1095.CXT and 1097.CXT in Lion King,
                 # which are both only 16 bytes and don't appear at all in BOOT.STM
-                # TODO: DOn't issue a warning for these files.
+                # TODO: Don't issue a warning for these files.
                 print(f'WARNING: File declaration for {matched_cxt_filepath} not found in BOOT.STM. This file will not be processed or exported.')
         self.contexts: List[Context] = []
         for cxt_filepath in [*cdrom_context_filepaths, *other_context_filepaths]:
@@ -176,11 +176,18 @@ class MediaStationEngine(Application):
             print(f'INFO: Exporting metadata for {self.profile.filename}')
             self.profile.export_metadata(application_export_subdirectory)
 
+class MediaStationCommandLineArguments(CommandLineArguments):
+    def __init__(self, application_name: str, application_description: str):
+        # ADD COMMAND-LINE ARGUMENTS FOR SKIPPING METADATA EXPORT.
+        super().__init__(application_name, application_description)
+        metadata_export_help = "Skip metadata (JSON) export; only write assets. This option is provided because metadata export is currently SLOW."
+        self.argument_parser.add_argument('--skip-metadata-export', action = "store_true", default = False, help = metadata_export_help)
+
 def main(raw_command_line: List[str] = None):
     # PARSE THE COMMAND-LINE ARGUMENTS.
     APPLICATION_NAME = 'Media Station'
     APPLICATION_DESCRIPTION = ''
-    command_line = CommandLineArguments(APPLICATION_NAME, APPLICATION_DESCRIPTION)
+    command_line = MediaStationCommandLineArguments(APPLICATION_NAME, APPLICATION_DESCRIPTION)
     command_line_arguments = command_line.parse(raw_command_line)
 
     # PARSE THE ASSETS.
@@ -191,7 +198,8 @@ def main(raw_command_line: List[str] = None):
     # EXPORT THE ASSETS, IF REQUESTED.
     if command_line_arguments.export:
         media_station_engine.export_assets(command_line_arguments)
-        media_station_engine.export_metadata(command_line_arguments)
+        if not command_line_arguments.skip_metadata_export:
+            media_station_engine.export_metadata(command_line_arguments)
 
 # TODO: Get good documentation here.
 if __name__ == '__main__':
