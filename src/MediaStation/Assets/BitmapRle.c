@@ -164,12 +164,14 @@ static PyObject *method_decompress_media_station_rle(PyObject *self, PyObject *a
     }
 
     // RETURN THE DECOMPRESSED PIXELS TO PYTHON.
+    // TODO: Can we use `PyBytes_FromStringAndSize` to be more self-documenting?
     PyObject *return_value = Py_BuildValue("(y#O)", uncompressed_image_data, uncompressed_image_data_size, transparency_regions_list);
     if (return_value == NULL) {
         return NULL;
     }
 
     // FREE THE DECOMPRESSED PIXELS.
+    // TODO: Is it correct to free the raw buffer before returning?
     free(uncompressed_image_data);
     return return_value;
 }
