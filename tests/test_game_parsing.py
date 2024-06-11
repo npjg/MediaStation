@@ -23,7 +23,10 @@ else:
     for filename in os.listdir(os.path.realpath(GAME_ROOT_DIRECTORY)):
         filepath = os.path.join(GAME_ROOT_DIRECTORY, filename)
         if os.path.isdir(filepath):
-            game_directories.append(filepath)
+            folder_name = os.path.basename(filepath)
+            folder_is_ignored = folder_name.startswith('ignore_')
+            if not folder_is_ignored:
+                game_directories.append(filepath)
 
 def test_script_is_runnable():
     # This package includes a command that can be called from the command line,
