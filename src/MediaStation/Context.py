@@ -209,9 +209,12 @@ class Context(DataFile):
 
         # VERIFY WE HAVE A PALETTE.
         # A palette is not expected for all contexts, but most of them have it.
+        # A context can have an images but still have no palette, in which case
+        # the palette is inferred at runtime somehow. I don't understand how
+        # this works yet.
         # TODO: Figure out when contexts validly don't have a palette.
         if self.palette is None:
-            print('WARNING: No palette provided for this context.')
+            print('WARNING: No palette provided for this context. Any exported images will use a default palette and might not look right.')
 
         # READ THE CHUNK-ONLY ASSETS.
         # These are assets stored in the first subfile only.
