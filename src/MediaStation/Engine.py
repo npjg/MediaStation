@@ -158,6 +158,12 @@ class MediaStationEngine(Application):
 
     def export_assets(self, command_line_arguments):
         application_export_subdirectory: str = os.path.join(command_line_arguments.export, self.application_name)
+        # TODO: Check if the directory already exists, and issue a warning if
+        # so. I would like to introduce a command-line argument `--force` to
+        # force writing to a directory that already exists.
+        # Or we could also make it such that the subdirectory is named after the
+        # title itself!
+        # os.path.exists(application_export_subdirectory)
         for index, context in enumerate(self.contexts):
             print(f'INFO: Exporting assets in {context.filepath}')
             context.export_assets(application_export_subdirectory, command_line_arguments)
