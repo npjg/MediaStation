@@ -70,6 +70,8 @@ static PyObject* decode(PyObject* self, PyObject* args) {
     adpcm_t adpcm;
     lsx_adpcm_init(&adpcm, 0);
 
+    // TODO: Document why we need to multiply by 4. That's because
+    // each ADPCM sample (4 bits) expands to one 16-bit PCM sample.
     PyObject *output = PyBytes_FromStringAndSize(NULL, input_length * 4);
     int16_t *output_buffer = (int16_t *)PyBytes_AS_STRING(output);
 

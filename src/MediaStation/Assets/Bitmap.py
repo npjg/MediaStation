@@ -26,6 +26,9 @@ class BitmapHeader:
         self._header_size_in_bytes = Datum(stream).d
         self.dimensions = Datum(stream).d
         self.compression_type = Datum(stream).d
+        # TODO: Figure out what this is.
+        # This has something to do with the width of the bitmap but is always
+        # a few pixels off from the width.
         self.unk2 = Datum(stream).d
 
     # TODO: Figure out what all these compression types are.
