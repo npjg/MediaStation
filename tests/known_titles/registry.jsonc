@@ -3009,23 +3009,6 @@
         "files": {
         }
     },
-    // TODO: I think this was confused with Haunted House and can be removed?
-    {
-        "have_cdrom": false,
-        "full_name": "Haunted Hotel",
-        "platforms": [
-            "Win16"
-        ],
-        "language": "English",
-        "publisher": null,
-        "date": "1995",
-        "title_compiler_version": null,
-        "engine_version": null,
-        "profile_version": null,
-        "support": "Unsupported",
-        "files": {
-        }
-    },
 
     // Extreme Tactics
     {
