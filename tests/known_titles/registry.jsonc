@@ -139,7 +139,7 @@
 
     // If You Give a Mouse a Cookie Interactive Storybook
     {
-        "have_cdrom": false,
+        "have_cdrom": true,
         "full_name": "If You Give a Mouse a Cookie Interactive Storybook",
         "platforms": [
             "Win16"
@@ -190,7 +190,7 @@
 
     // Lambchop Loves Music
     {
-        "have_cdrom": false,
+        "have_cdrom": true,
         "full_name": "Lambchop Loves Music",
         "platforms": [
             "Win16"
@@ -623,7 +623,7 @@
     
     // Fractured Fairy Tales: The Frog Prince
     {
-        "have_cdrom": false,
+        "have_cdrom": true,
         "full_name": "Fractured Fairy Tales: The Frog Prince",
         "platforms": [
             "Win16"
@@ -3556,7 +3556,7 @@
 
     // Magic Fairy Tales: Barbie as Rapunzel
     {
-        "have_cdrom": false,
+        "have_cdrom": true,
         "full_name": "Magic Fairy Tales: Barbie as Rapunzel",
         "platforms": [],
         "language": "English",
@@ -6566,7 +6566,7 @@
     // Disney presents Ariel's Story Studio
     // TODO: Find the proper name for this title.
     {
-        "have_cdrom": false,
+        "have_cdrom": true,
         "full_name": "Disney presents Ariel's Story Studio",
         "platforms": [
             "Win32"
