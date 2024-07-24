@@ -6,7 +6,14 @@ import warnings
 # For development work, looks like you would use this to compile the 
 # C-based image decompressor:
 #  python3 setup.py build_ext --inplace
-bitmap_decompression = Extension(name = 'MediaStationBitmapRle', sources = ['src/MediaStation/Assets/BitmapRle.c'])
+bitmap_decompression = Extension(
+    name = 'MediaStationBitmapRle', 
+    sources = ['src/MediaStation/Assets/BitmapRle.c'],
+    # TODO: Create a separate build type for ASan?
+    # If you want to use Address Sanitizer (ASan), you can enable these temporarily.
+    # extra_compile_args = ['-fsanitize=address', '-O1', '-fno-omit-frame-pointer', '-g'],
+    # extra_link_args=['-fsanitize=address']
+)
 ima_adpcm_decompression = Extension(name = 'MediaStationImaAdpcm', sources = ['src/MediaStation/Assets/ImaAdpcm.c'])
 try:
     # TRY TO COMPILE THE C-BASED IMAGE DECOMPRESSOR.
