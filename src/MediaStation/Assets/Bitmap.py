@@ -1,5 +1,6 @@
 
 import io
+from enum import IntEnum
 
 import self_documenting_struct as struct
 from asset_extraction_framework.Asserts import assert_equal
@@ -25,22 +26,25 @@ class BitmapHeader:
     def __init__(self, stream):
         self._header_size_in_bytes = Datum(stream).d
         self.dimensions = Datum(stream).d
-        self.compression_type = Datum(stream).d
+        self.compression_type = Bitmap.CompressionType(Datum(stream).d)
         # TODO: Figure out what this is.
         # This has something to do with the width of the bitmap but is always
         # a few pixels off from the width.
         self.unk2 = Datum(stream).d
 
-    # TODO: Figure out what all these compression types are.
-    # A compression type of 1 seems to indicate there IS RLE
-    # compression, and these types seem to indicate there is NOT
-    # RLE compression.
     @property
     def _is_compressed(self) -> bool:
-        return (self.compression_type != 0) and (self.compression_type != 7)
+        return (self.compression_type != Bitmap.CompressionType.UNCOMPRESSED) and \
+            (self.compression_type != Bitmap.CompressionType.UNCOMPRESSED_2)
 
 ## A single, still bitmap.
 class Bitmap(RectangularBitmap):
+    class CompressionType(IntEnum):
+        UNCOMPRESSED = 0
+        RLE_COMPRESSED = 1
+        UNCOMPRESSED_2 = 7
+        UNK1 = 6
+
     ## Reads a bitmap from the binary stream at its current position.
     ## \param[in] stream - A binary stream that supports the read method.
     ## \param[in] dimensions - The dimensions of the image, if they are known beforehand
@@ -48,15 +52,18 @@ class Bitmap(RectangularBitmap):
     ##            from the image.
     def __init__(self, chunk, header_class = BitmapHeader):
         super().__init__()
+        self.name = None
         self.header = header_class(chunk)
         self._width = self.header.dimensions.x
         self._height = self.header.dimensions.y
+        self.should_export = True
 
         # Only nonempty for images that have keyframes that need to 
         # intersect 
         self.transparency_region = []
 
         # READ THE RAW IMAGE DATA.
+        self._data_start_pointer = chunk.stream.tell()
         if self.header._is_compressed:
             # READ THE COMPRESSED IMAGE DATA.
             # That will be decompressed later on request.
@@ -72,6 +79,12 @@ class Bitmap(RectangularBitmap):
     @property
     def has_transparency(self):
         return (len(self.transparency_region) > 0)
+
+    ## Calculates the total number of bytes the uncompressed image
+    ## (pixels) should occupy, rounded up to the closest whole byte.
+    @property
+    def _expected_bitmap_length_in_bytes(self) -> int:
+        return self.width * self.height
 
     # Decompresses the RLE-compressed pixel data for this bitmap.
     # The RLE compression algorithm is almost the Microsoft standard algorithm
@@ -188,13 +201,33 @@ class Bitmap(RectangularBitmap):
 
         self._pixels = bytes(pixels)
 
+    def export(self, root_directory_path: str, command_line_arguments):
+        if self.pixels is not None:
+            # VERIFY THE SIZE.
+            has_expected_length = (len(self.pixels) == self._expected_bitmap_length_in_bytes)
+            if not has_expected_length:
+                print(f'WARNING: [{self.name} - Compression Type: {self.header.compression_type}] Expected pixels length in bytes 0x{len(self.pixels):02x}, got 0x{self._expected_bitmap_length_in_bytes:02x}')
+
+            # DO THE EXPORT.
+            super().export(root_directory_path, command_line_arguments)
+
     ## \return The decompressed pixels that represent this image.
     ## The number of bytes is the same as the product of the width and the height.
     @property
     def pixels(self) -> bytes:
-        if self._pixels is None and self._compressed_image_data_size > 0:
-            if rle_c_loaded:
-                self._pixels, self.transparency_region = MediaStationBitmapRle.decompress(self._raw, self._compressed_image_data_size, self.width, self.height)
-            else:
-                self.decompress_bitmap()
+        if self._pixels is None:
+            if self._compressed_image_data_size > 0:
+                if self.header.compression_type == Bitmap.CompressionType.RLE_COMPRESSED:
+                    # DECOMPRESS THE BITMAP.
+                    if rle_c_loaded:
+                        self._pixels, self.transparency_region = MediaStationBitmapRle.decompress(self._raw, self._compressed_image_data_size, self.width, self.height)
+                    else:
+                        self.decompress_bitmap()
+
+                else:
+                    # ISSUE A WARNING.
+                    # We can't handle this other compression type yet.
+                    print(f'WARNING: ({self.name}) Encountered unhandled bitmap compression type: {self.header.compression_type}. This bitmap will be skipped.')
+                    self.should_export = False
+
         return self._pixels
