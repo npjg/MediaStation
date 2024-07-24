@@ -12,16 +12,17 @@ static PyObject *method_decompress_media_station_rle(PyObject *self, PyObject *a
     #endif
 
     // READ THE PARAMETERS FROM PYTHON.
-    PyBytesObject *compressed_image_data_object = NULL;
-    unsigned int compressed_image_data_size = 0;
+    char *compressed_image_data = NULL;
+    Py_ssize_t compressed_image_data_size = 0;
     unsigned int width = 0;
     unsigned int height = 0;
     // `S`: This format unit expects a Python bytes-like object (bytes in Python 3). 
     // Unlike the `s` format unit, which expects a C string (char*), the S format unit 
     // does not allow NULL values and does not handle embedded null bytes. It returns 
     // a new reference to the bytes-like object. 
-    if(!PyArg_ParseTuple(args, "SIII", &compressed_image_data_object, &compressed_image_data_size, &width, &height)) {
+    if(!PyArg_ParseTuple(args, "y#III", &compressed_image_data, &compressed_image_data_size, &width, &height, &compressed_image_data_start_offset_in_file)) {
         // TODO: Need to include errors for all of these returning NULL.
+        PyErr_Format(PyExc_RuntimeError, "BitmapRle.c: Failed to parse arguments.");
         return NULL;
     }
 
@@ -43,10 +44,12 @@ static PyObject *method_decompress_media_station_rle(PyObject *self, PyObject *a
 
     // ALLOCATE THE DECOMPRESSED PIXELS BUFFER.
     unsigned int uncompressed_image_data_size = width * height;
-    char *uncompressed_image_data = calloc(uncompressed_image_data_size + 1, 1);
-    if (uncompressed_image_data == NULL) {
+    PyObject *uncompressed_image_data_object = PyBytes_FromStringAndSize(NULL, uncompressed_image_data_size);
+    if (uncompressed_image_data_object == NULL) {
+        PyErr_Format(PyExc_RuntimeError, "BitmapRle.c: Failed to allocate uncompressed bitmap buffer..");
         return NULL;
     }
+    char *uncompressed_image_data = PyBytes_AS_STRING(uncompressed_image_data_object);
 
     // CREATE THE LIST TO HOLD THE TRANSPARENCY REGIONS.
     // This would be better to do in Python, but since it's part of the compressed stream 
@@ -60,8 +63,11 @@ static PyObject *method_decompress_media_station_rle(PyObject *self, PyObject *a
     // CHECK FOR AN EMPTY COMPRESSED IMAGE.
     if (compressed_image_data_size <= 2) {
         // RETURN A BLANK IMAGE TO PYTHON.
-        PyObject *return_value = Py_BuildValue("(y#O)", uncompressed_image_data, uncompressed_image_data_size, transparency_regions_list);
-        free(uncompressed_image_data);
+        PyObject *return_value = PyTuple_Pack(2, uncompressed_image_data_object, transparency_regions_list);
+        if (return_value == NULL) {
+            PyErr_Format(PyExc_RuntimeError, "BitmapRle.c: Failed to construct return value.");
+            return NULL;
+        }
         return return_value;
     }
 
@@ -198,9 +204,9 @@ static PyObject *method_decompress_media_station_rle(PyObject *self, PyObject *a
 
 
     // RETURN THE DECOMPRESSED PIXELS TO PYTHON.
-    // TODO: Can we use `PyBytes_FromStringAndSize` to be more self-documenting?
-    PyObject *return_value = Py_BuildValue("(y#O)", uncompressed_image_data, uncompressed_image_data_size, transparency_regions_list);
+    PyObject *return_value = PyTuple_Pack(2, uncompressed_image_data_object, transparency_regions_list);
     if (return_value == NULL) {
+        PyErr_Format(PyExc_RuntimeError, "BitmapRle.c: Failed to construct return value.");
         return NULL;
     }
 
