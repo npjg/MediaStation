@@ -1,9 +1,16 @@
 #define PY_SSIZE_T_CLEAN
 #include <Python.h>
 
+// Uncomment this to enable VERY VERBOSE debugging output!
+// #define DEBUG
+
 /// Actually decompresses the Media Station RLE stream, and easily provides a 10x performance improvement
 /// over the pure Python implementation.
 static PyObject *method_decompress_media_station_rle(PyObject *self, PyObject *args) {
+    #ifdef DEBUG
+        printf("DEBUG: BitmapRle.c: *** START BITMAP DECOMPRESSION ***.\n");
+    #endif
+
     // READ THE PARAMETERS FROM PYTHON.
     PyBytesObject *compressed_image_data_object = NULL;
     unsigned int compressed_image_data_size = 0;
@@ -72,14 +79,26 @@ static PyObject *method_decompress_media_station_rle(PyObject *self, PyObject *a
                 // ENTER CONTROL MODE.
                 operation = *compressed_image_data++;
                 if (operation == 0x00) {
+                    #ifdef DEBUG
+                        printf("DEBUG: BitmapRle.c: Forced end of line.\n");
+                    #endif
+
                     // MARK THE END OF THE LINE.
                     break;
                 } else if (operation == 0x01) {
+                    #ifdef DEBUG
+                        printf("DEBUG: BitmapRle.c: End of image.\n");
+                    #endif
+
                     // MARK THE END OF THE IMAGE.
                     // TODO: When is this actually used?
                     image_fully_read = 1;
                     break;
                 } else if (operation == 0x02) {
+                    #ifdef DEBUG
+                        printf("DEBUG: BitmapRle.c: Start of Keyframe transparency region.\n");
+                    #endif
+
                     // MARK THE START OF A KEYFRAME TRANSPARENCY REGION.
                     // Until a color index other than 0x00 (usually white) is read on this line,
                     // all pixels on this line will be marked transparent.
@@ -132,6 +151,10 @@ static PyObject *method_decompress_media_station_rle(PyObject *self, PyObject *a
                 horizontal_pixel_offset += repetition_count;
 
                 if (reading_transparency_run) {
+                    #ifdef DEBUG
+                        printf("DEBUG: BitmapRle.c: Closing keyframe transparency region.");
+                    #endif
+
                     // MARK THIS PART OF THE TRANSPARENCY REGION.
                     // At first, I tried to create a bitmap mask using code like the following:
                     //
@@ -157,11 +180,22 @@ static PyObject *method_decompress_media_station_rle(PyObject *self, PyObject *a
             }
         }
 
+        #ifdef DEBUG
+            printf("DEBUG: BitmapRle.c: Reached end of line.\n");
+        #endif
         row_index++;
-        if (image_fully_read) {
+            #ifdef DEBUG
+                printf("DEBUG: BitmapRle.c: Exiting due to end of image reached.\n");
+            #endif
+
             break;
         }
     }
+
+    #ifdef DEBUG
+        printf("DEBUG: BitmapRle.c: *** FINISH BITMAP DECOMPRESSION ***.\n");
+    #endif
+
 
     // RETURN THE DECOMPRESSED PIXELS TO PYTHON.
     // TODO: Can we use `PyBytes_FromStringAndSize` to be more self-documenting?
