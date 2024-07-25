@@ -6,7 +6,7 @@
 # a test dataset.
 #
 # In addition, mounting hybrid Windows/HFS CD-ROM images is difficult on modern
-# macOS, as even the Windows portion will just refuse to mount with the typical
+# macOS, as even the Windows partition will just refuse to mount with the typical
 # double-click. This script encapsulates the complexity required to mount these
 # hybrid CD-ROMs on macOS.
 #
@@ -52,9 +52,9 @@ mount_point="$(mktemp -d)"
 partitions_on_attached_iso=$(hdiutil attach -nomount "$iso_path")
 echo $partitions_on_attached_iso
 
-# MOUNT THE WINDOWS (CD9660) PORTION.
+# MOUNT THE WINDOWS (CD9660) PARTITION.
 disk_identifier=$(echo "$partitions_on_attached_iso" | awk '{print $1}' | head -n 1)
-echo "CD9660 Portion: $mount_point"
+echo "CD9660 Partition: $mount_point"
 mount -t cd9660 "$disk_identifier" "$mount_point"
 
 # GET BASIC INFO ABOUT THE TITLE.
@@ -99,7 +99,7 @@ for exe in $(find "$mount_point" -iname "*.exe" -print); do
     strings -e l $exe  | grep -E ".+/[A-Z][A-Z]$" || true
 done
 
-# COPY THE PC PORTION TO THE CORRECT DIRECTORY.
+# COPY THE PC PARTITION TO THE CORRECT DIRECTORY.
 #  - Game Title (DW, Dalmatians, etc.)
 #  - Title Compiler Version from BOOT.STM (4.0r8, T3.5r5, etc.) 
 #  - Engine Version from player EXE (2.0/GB, 1.0/US, etc.)
@@ -124,14 +124,14 @@ cp -rv "$mount_point"/* "$pc_folder_path"
 umount "$mount_point"
 rmdir "$mount_point"
 
-# MOUNT THE HFS (Macintosh) PORTION.
-# TODO: Make sure there is indeed an HFS portion.
-echo -e "\nAttempting to mount HFS (Macintosh) portion with hmount..."
+# MOUNT THE HFS (Macintosh) PARTITION.
+# TODO: Make sure there is indeed an HFS partition.
+echo -e "\nAttempting to mount HFS (Macintosh) partition with hmount..."
 hfs_partition=$(echo "$partitions_on_attached_iso" | grep "Apple_HFS" | awk '{print $1}')
 if [ -n "$hfs_partition" ]; then
   hmount $hfs_partition
 
-  # COPY THE MAC PORTION TO THE CORRECT DIRECTORY.
+  # COPY THE MAC PARTITION TO THE CORRECT DIRECTORY.
   # We will assume that the versions are all the same as the PC one... though maybe this should be checked.
   # It is easier to just check the PC version since hfstools doesn't provide direct access to the files; they
   # must be copied out first.
@@ -177,7 +177,7 @@ if [ -n "$hfs_partition" ]; then
   fi
   # rm $pc_hashes $mac_hashes
 else
-  echo "No HFS partition found, so skipping Mac portion."
+  echo "No HFS partition found, so skipping Mac partition."
 fi
 
 # DETATCH THE DISK IMAGE.
