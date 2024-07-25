@@ -29,7 +29,8 @@ class BitmapHeader:
         self.compression_type = Bitmap.CompressionType(Datum(stream).d)
         # TODO: Figure out what this is.
         # This has something to do with the width of the bitmap but is always
-        # a few pixels off from the width.
+        # a few pixels off from the width. And in rare cases it seems to be 
+        # the true width!
         self.unk2 = Datum(stream).d
 
     @property
@@ -75,6 +76,20 @@ class Bitmap(RectangularBitmap):
             if first_bitmap_bytes != b'\x00\x00':
                 raise BinaryParsingError(f'First two bitmap bytes were {first_bitmap_bytes}, not 00 00', chunk.stream)
             self._pixels = chunk.read(chunk.bytes_remaining_count)
+
+            # VERIFY THAT THE WIDTH IS CORRECT.
+            if len(self._pixels) != (self._width * self._height):
+               # TODO: This was to enable
+               # Hunchback:346.CXT:img_q13_BackgroundPanelA to export
+               # properly. It turns out the true width was in fact 
+               # what's in the header rather than what's actually stored
+               # in the width. I don't know the other cases where this might
+               # happen, or what regressions might be caused. 
+               if len(self._pixels) == (self.header.unk2 * self._height):
+                   self._width = self.header.unk2
+                   print(f'WARNING: Found and corrected mismatched width in uncompressed bitmap. Header: {self.header.unk2}. Width: {self._width}. Resetting width to header.')
+               else:
+                   print(f'WARNING: Found mismatched width in uncompressed bitmap. Header: {self.header.unk2}. Width: {self._width}. This image might not be exported correctly.')
 
     @property
     def has_transparency(self):
