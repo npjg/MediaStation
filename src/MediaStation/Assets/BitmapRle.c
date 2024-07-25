@@ -14,7 +14,7 @@ static PyObject *method_decompress_media_station_rle(PyObject *self, PyObject *a
     // does not allow NULL values and does not handle embedded null bytes. It returns 
     // a new reference to the bytes-like object. 
     if(!PyArg_ParseTuple(args, "SIII", &compressed_image_data_object, &compressed_image_data_size, &width, &height)) {
-        // TODO: Need to include errors for all of these returning NULL.
+        PyErr_Format(PyExc_RuntimeError, "BitmapRle.c: Failed to parse arguments.");
         return NULL;
     }
 
@@ -22,6 +22,7 @@ static PyObject *method_decompress_media_station_rle(PyObject *self, PyObject *a
     char *compressed_image_data = NULL;
     compressed_image_data = PyBytes_AsString(compressed_image_data_object);
     if (compressed_image_data == NULL) {
+        PyErr_Format(PyExc_RuntimeError, "BitmapRle.c: Failed to read compressed image data from Python.");
         return NULL;
     }
 
@@ -38,6 +39,7 @@ static PyObject *method_decompress_media_station_rle(PyObject *self, PyObject *a
     unsigned int uncompressed_image_data_size = width * height;
     char *uncompressed_image_data = calloc(uncompressed_image_data_size + 1, 1);
     if (uncompressed_image_data == NULL) {
+        PyErr_Format(PyExc_RuntimeError, "BitmapRle.c: Failed to allocate uncompressed image data buffer.");
         return NULL;
     }
 
@@ -47,6 +49,7 @@ static PyObject *method_decompress_media_station_rle(PyObject *self, PyObject *a
     PyObject *transparency_regions_list;
     transparency_regions_list = PyList_New(0);
     if (transparency_regions_list == NULL) {
+        PyErr_Format(PyExc_RuntimeError, "BitmapRle.c: Failed to allocate transparency regions list.");
         return NULL;
     }
 
@@ -170,6 +173,7 @@ static PyObject *method_decompress_media_station_rle(PyObject *self, PyObject *a
     // TODO: Can we use `PyBytes_FromStringAndSize` to be more self-documenting?
     PyObject *return_value = Py_BuildValue("(y#O)", uncompressed_image_data, uncompressed_image_data_size, transparency_regions_list);
     if (return_value == NULL) {
+        PyErr_Format(PyExc_RuntimeError, "BitmapRle.c: Failed to build return value.");
         return NULL;
     }
 

@@ -64,8 +64,10 @@ int lsx_adpcm_decode(int code, adpcm_t *p)
 static PyObject* decode(PyObject* self, PyObject* args) {
     const char *input;
     Py_ssize_t input_length;
-    if (!PyArg_ParseTuple(args, "y#", &input, &input_length))
+    if (!PyArg_ParseTuple(args, "y#", &input, &input_length)) {
+        PyErr_Format(PyExc_RuntimeError, "ImaAdpcm.c: Failed to parse arguments.");
         return NULL;
+    }
 
     adpcm_t adpcm;
     lsx_adpcm_init(&adpcm, 0);
