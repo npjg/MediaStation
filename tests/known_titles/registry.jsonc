@@ -1389,7 +1389,7 @@
         "have_cdrom": true,
         "full_name": "IBM/Crayola Print Factory",
         "platforms": [
-            "Win32",
+            "Win16",
             "Mac"
         ],
         "language": "English",
@@ -3575,7 +3575,7 @@
         "have_cdrom": true,
         "full_name": "Tonka Search & Rescue",
         "platforms": [
-            "Win32",
+            "Win16",
             "Mac"
         ],
         "language": "American English",
@@ -3655,7 +3655,7 @@
         "have_cdrom": true,
         "full_name": "Tonka Search & Rescue",
         "platforms": [
-            "Win32",
+            "Win16",
             "Mac"
         ],
         "language": "British English",
@@ -3831,6 +3831,7 @@
         "have_cdrom": true,
         "full_name": "D.W. the Picky Eater",
         "platforms": [
+            "Win16",
             "Win32",
             "Mac"
         ],
@@ -6569,11 +6570,11 @@
         "have_cdrom": true,
         "full_name": "Disney presents Ariel's Story Studio",
         "platforms": [
-            "Win32"
+            "Win16"
         ],
         "language": "English",
         "publisher": "Disney Interactive",
-        "date": "1999",
+        "date": "1997",
         "title_compiler_version": null,
         "engine_version": null,
         "profile_version": null,
