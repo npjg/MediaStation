@@ -62,6 +62,7 @@ int lsx_adpcm_decode(int code, adpcm_t *p)
 }
  
 static PyObject* decode(PyObject* self, PyObject* args) {
+    // PARSE THE ARGUMENTS.
     const char *input;
     Py_ssize_t input_length;
     if (!PyArg_ParseTuple(args, "y#", &input, &input_length)) {
@@ -69,20 +70,32 @@ static PyObject* decode(PyObject* self, PyObject* args) {
         return NULL;
     }
 
-    adpcm_t adpcm;
-    lsx_adpcm_init(&adpcm, 0);
-
+    // CREATE THE DECODED AUDIO BUFFER.
     // TODO: Document why we need to multiply by 4. That's because
     // each ADPCM sample (4 bits) expands to one 16-bit PCM sample.
     PyObject *output = PyBytes_FromStringAndSize(NULL, input_length * 4);
+    if (output == NULL) {
+        PyErr_Format(PyExc_RuntimeError, "ImaAdpcm.c: Failed to allocate decoded audio object.");
+        return NULL;
+    }
     int16_t *output_buffer = (int16_t *)PyBytes_AS_STRING(output);
+    if (output_buffer == NULL) {
+        // Failure here is uncommon after a successful allocation.
+        Py_DECREF(output);
+        PyErr_Format(PyExc_RuntimeError, "ImaAdpcm.c: Failed to access aecoded audio buffer.");
+        return NULL;
+    }
 
+    // DECODE ADPCM.
+    adpcm_t adpcm;
+    lsx_adpcm_init(&adpcm, 0);
     for (Py_ssize_t i = 0; i < input_length; ++i) {
         int byte = input[i];
         *output_buffer++ = lsx_adpcm_decode(byte >> 4, &adpcm);
         *output_buffer++ = lsx_adpcm_decode(byte & 0xF, &adpcm);
     }
 
+    // No Py_DECREF is needed here, as the reference is being passed to the caller.
     return output;
 }
  
