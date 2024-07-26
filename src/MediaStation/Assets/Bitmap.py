@@ -235,7 +235,7 @@ class Bitmap(RectangularBitmap):
                 if self.header.compression_type == Bitmap.CompressionType.RLE_COMPRESSED:
                     # DECOMPRESS THE BITMAP.
                     if rle_c_loaded:
-                        self._pixels, self.transparency_region = MediaStationBitmapRle.decompress(self._raw, self._compressed_image_data_size, self.width, self.height)
+                        self._pixels, self.transparency_region = MediaStationBitmapRle.decompress(self._raw, self.width, self.height)
                     else:
                         self.decompress_bitmap()
 
