@@ -37,12 +37,12 @@ cwd="$(pwd)"
 partitions_on_attached_iso=$(hdiutil attach -nomount "$iso_path")
 echo $partitions_on_attached_iso
 
-# MOUNT THE WINDOWS (CD9660) PORTION.
+# MOUNT THE WINDOWS (CD9660) PARTITION.
 disk_identifier=$(echo "$partitions_on_attached_iso" | awk '{print $1}' | head -n 1)
-echo "CD9660 Portion: $mount_point"
+echo "CD9660 Partition: $mount_point"
 mount -t cd9660 "$disk_identifier" "$mount_point"
 
-# PRINT THE HASHES OF EACH FILE IN THE WINDODWS PORTION.
+# PRINT THE HASHES OF EACH FILE IN THE WINDODWS PARTITION.
 # This gets the hashes of all files in the root directory.
 for file in "$mount_point"/*; do 
     md5sum "$file" 2> /dev/null
