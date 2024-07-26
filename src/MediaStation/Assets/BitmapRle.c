@@ -31,10 +31,14 @@ static PyObject *method_decompress_media_station_rle(PyObject *self, PyObject *a
     unsigned int uncompressed_image_data_size = width * height;
     PyObject *uncompressed_image_data_object = PyBytes_FromStringAndSize(NULL, uncompressed_image_data_size);
     if (uncompressed_image_data_object == NULL) {
+        // TODO: We really should use Py_DECREF here I think, but since the
+        // program will currently just quit it isn't a big deal.
         PyErr_Format(PyExc_RuntimeError, "BitmapRle.c: Failed to allocate uncompressed image data buffer.");
         return NULL;
     }
     char *uncompressed_image_data = PyBytes_AS_STRING(uncompressed_image_data_object);
+    // Clear the bitmap canvas, so there's no random data in 
+    // places we don't actually write pixels to.
     memset(uncompressed_image_data, 0x00, uncompressed_image_data_size);
     
     // CREATE THE LIST TO HOLD THE TRANSPARENCY REGIONS.
@@ -51,6 +55,9 @@ static PyObject *method_decompress_media_station_rle(PyObject *self, PyObject *a
     if (compressed_image_data_size <= 2) {
         // RETURN A BLANK IMAGE TO PYTHON.
         PyObject *return_value = Py_BuildValue("(OO)", uncompressed_image_data_object, transparency_regions_list);
+        // Decrease the reference counts, as Py_BuildValue increments them.
+        Py_DECREF(uncompressed_image_data_object);
+        Py_DECREF(transparency_regions_list);
         if (return_value == NULL) {
             PyErr_Format(PyExc_RuntimeError, "BitmapRle.c: Failed to build return value.");
             return NULL;
@@ -169,6 +176,9 @@ static PyObject *method_decompress_media_station_rle(PyObject *self, PyObject *a
     // RETURN THE DECOMPRESSED PIXELS TO PYTHON.
     // TODO: Can we use `PyBytes_FromStringAndSize` to be more self-documenting?
     PyObject *return_value = Py_BuildValue("(OO)", uncompressed_image_data_object, transparency_regions_list);
+    // Decrease the reference counts, as Py_BuildValue increments them.
+    Py_DECREF(uncompressed_image_data_object);
+    Py_DECREF(transparency_regions_list);
     if (return_value == NULL) {
         PyErr_Format(PyExc_RuntimeError, "BitmapRle.c: Failed to build return value.");
         return NULL;
