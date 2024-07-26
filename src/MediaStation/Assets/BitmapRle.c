@@ -135,7 +135,32 @@ static PyObject *method_decompress_media_station_rle(PyObject *self, PyObject *a
 
                 if (reading_transparency_run) {
                     // MARK THIS PART OF THE TRANSPARENCY REGION.
-                    // At first, I tried to create a bitmap mask using code like the following:
+                    // TODO: Actually return the transparency in a region we can
+                    // use. Or maybe the transparency can actually be applied
+                    // right here?
+                    // At first, I tried to create a bitmap mask for
+                    // transparency, like this:
+                    //     if (reading_transparency_run) {
+                    //     // MARK THE TRANSPARENCY REGION.
+                    //     // The "interior" of transparency regions is always encoded by a single run of
+                    //     // pixels, usually 0x00 (white).
+                        
+                    //     // GET THE TRANSPARENCY RUN STARTING OFFSET.
+                    //     size_t transparency_run_start_vertical_pixel_offset = transparency_run_row_index * width;
+                    //     size_t transparency_run_starting_offset = transparency_run_start_vertical_pixel_offset + transparency_run_start_horizontal_pixel_offset;
+
+                    //     // GET THE TRANSPARENCY RUN ENDING OFFSET.
+                    //     size_t vertical_pixel_offset = row_index * width;
+                    //     // This is where we are right now.
+                    //     size_t transparency_run_ending_offset = vertical_pixel_offset + horizontal_pixel_offset;
+
+                    //     // GET THE NUMBER OF PIXELS (BYTES) IN THE TRANSPARENCY RUN.
+                    //     // This could be optimized using a bitfield, since the transparency mask is monochrome, but that isn't
+                    //     // worth it right now.
+                    //     size_t transparency_run_length = transparency_run_ending_offset - transparency_run_starting_offset;
+                    //     memset(transparency_mask + run_starting_offset, 0xff, transparency_run_length);
+                    //     reading_transparency_run = 0;
+                    // }
                     //
                     // I did this becuase it would be more straightforward to apply the transparency
                     // rather than using this list of transparency regions. This fell apart when I 
