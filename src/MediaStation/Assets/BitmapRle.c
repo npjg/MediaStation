@@ -130,15 +130,7 @@ static PyObject *method_decompress_media_station_rle(PyObject *self, PyObject *a
                 size_t run_starting_offset = vertical_pixel_offset + horizontal_pixel_offset;
                 uint8_t color_index_to_repeat = *compressed_image_data++;
                 uint8_t repetition_count = operation;
-
-                // TODO: Can we use memset for this instead?
-                // Not doing it right now so I can focus on changing one thing
-                // at a time.
-                //  memset(uncompressed_image_data + run_starting_offset, color_index_to_repeat, repetition_count);
-                for (size_t i = 0; i < repetition_count; i++) {
-                    uncompressed_image_data[run_starting_offset + i] = color_index_to_repeat;
-                }
-
+                memset(uncompressed_image_data + run_starting_offset, color_index_to_repeat, repetition_count);
                 horizontal_pixel_offset += repetition_count;
 
                 if (reading_transparency_run) {
