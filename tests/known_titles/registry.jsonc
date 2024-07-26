@@ -6906,24 +6906,5 @@
         "support": "Unsupported",
         "files": {
         }
-    },
-
-    // Hot Wheels: Custom Car Designer
-    {
-        "have_cdrom": false,
-        "full_name": "Hot Wheels: Custom Car Designer",
-        "platforms": [
-            "Win32",
-            "Mac"
-        ],
-        "language": "English",
-        "publisher": "Hasbro Interactive",
-        "date": "2000",
-        "title_compiler_version": null,
-        "engine_version": null,
-        "profile_version": null,
-        "support": "Unsupported",
-        "files": {
-        }
     }
 ]
