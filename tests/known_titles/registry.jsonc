@@ -837,24 +837,6 @@
             "Win16",
             "Mac"
         ],
-        "language": "French",
-        "publisher": "Disney Interactive",
-        "date": null,
-        "internal_version": "2.3",
-        "title_compiler_version": "3.3r16",
-        "engine_version": "2.0/FR",
-        "profile_version": null,
-        "support": "Supported",
-        "files": {
-        }
-    },
-    {
-        "have_cdrom": true,
-        "full_name": "Disney's Animated Storybook: Winnie the Pooh and the Honey Tree",
-        "platforms": [
-            "Win16",
-            "Mac"
-        ],
         "language": "Dutch",
         "publisher": "Disney Interactive",
         "date": "08/22/1996",
