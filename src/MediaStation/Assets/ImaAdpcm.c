@@ -4,7 +4,7 @@
 
 // Most of the code in this file is borrowed from SoX,
 // specifically sox/src/adpcms.c, which is licensed
-// under the GPL.
+// under the GPLv3.
 
  static int const ima_steps[89] = {
     7, 8, 9, 10, 11, 12, 13, 14, 16, 17, 19, 21, 23, 25, 28, 31, 34, 37, 41, 45,
