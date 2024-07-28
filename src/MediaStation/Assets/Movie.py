@@ -236,43 +236,76 @@ class Movie(Animation):
         bounding_box = self._minimal_bounding_box
         # TODO: Need to determine why some movies aren't exported.
         for index, frame in enumerate(self.frames):
+            # CHECK IF WE SHOULD REGISTER THE NEXT KEYFRAME.
             if frame.header.keyframe_end_in_milliseconds > timestamp:
                 timestamp = frame.header.keyframe_end_in_milliseconds
                 if current_keyframe is None or current_keyframe.header.index != frame.header.index:
+                    # REGISTER THE NEXT KEYFRAME.
                     # The keyframe is not intended to be included in the export.
                     # Though maybe we could include them as some sort of "K1.bmp" filename.
                     current_keyframe = frame
                     current_keyframe._include_in_export = False
                     continue
 
+            # MAKE SURE THIS FRAME CAN BE EXPORTED.
             if frame._exportable_image is None or current_keyframe._exportable_image is None:
                 continue
-            composite_frame = np.array(current_keyframe._exportable_image)
+
+            # CREATE THE TRANSPARENCY MASK FOR THIS FRAME.
+            # We will replace the areas of this frame marked "transparent" with
+            # the corresponding areas of the current keyframe.
+            # TODO: This whole business is rather inefficient since we have to
+            # go to a numpy array and back. Might be better to have a C
+            # extension that handles this.
+            keyframe = np.array(current_keyframe._exportable_image)
             original_frame = np.array(frame._exportable_image)
-            
             if len(frame.transparency_region) == 0:
+                # CREATE A MASK FOR THE 0x00 REGIONS OF THIS FRAME.
+                # The "transparent" regions are the places where this frame has
+                # a color index of 0x00 (typically appears as white in most palettes).
                 mask = (original_frame == 0)
             else:
+                # CREATE A MASK FOR THE TRANSPARENT REGIONS OF THIS FRAME.
                 mask = np.zeros(original_frame.shape, dtype=bool)
-            for transparency_region in frame.transparency_region:
-                x = transparency_region[0] + frame.left - bounding_box.left
-                y = transparency_region[1] + frame.top - bounding_box.top
-                if len(transparency_region) != 3:
-                    x_offset = 10
-                else:
-                    x_offset = transparency_region[2]
-                mask[y, x : x + x_offset] = True
+                for transparency_region in frame.transparency_region:
+                    # GET THE STARTING X COORDINATE.
+                    x_relative_to_this_frame = transparency_region[0]
+                    x = x_relative_to_this_frame + (frame.left - bounding_box.left)
 
-            original_frame[mask] = composite_frame[mask]
-            composite_image = Image.fromarray(original_frame)
-            composite_image.putpalette(current_keyframe._exportable_image.palette)
-            frame._exportable_image = composite_image
+                    # GET THE STARTING Y COORDINATE.
+                    y_relative_to_this_frame = transparency_region[1]
+                    y = y_relative_to_this_frame + (frame.top - bounding_box.top)
+
+                    # GET THE ENDING X COORDINATE.
+                    # The transparency regions aren't supposed to span more than
+                    # a single line, so there isn't a corresponding y coordinate.
+                    if len(transparency_region) == 3:
+                        x_offset = transparency_region[2]
+                    else:
+                        # This mean the transparency region was never
+                        # closed, since an ending point was never specified.
+                        # So we will just assume a sane cutoff for now.
+                        # TODO: Verify how often this actually happens.
+                        x_offset = 10
+                    
+                    # MARK THIS TRANSPARENCY REGION IN THE MASK.
+                    mask[y, x : x + x_offset] = True
+
+            # APPLY THE MASK TO CREATE THE COMPLETE FRAME.
+            original_frame[mask] = keyframe[mask]
+            composite_frame = Image.fromarray(original_frame)
+            composite_frame.putpalette(current_keyframe._exportable_image.palette)
+            frame._exportable_image = composite_frame
 
     def export(self, root_directory_path, command_line_arguments):
         # TODO: Should the stills be exported like everything else? They look like they might be regular frames.
         self._fix_keyframe_coordinates()
         #self._reframe_to_animation_size(command_line_arguments)
+        #
         # TODO: Provide an option to check for a request to not apply keyframes. 
+        # TODO: Keyframe application is currently disabled becuase it is
+        # horribly inefficient and doesn't even work very well. It needs to be reworked.
         #self._apply_keyframes()
+        #
         self.frames.sort(key = lambda x: x.footer.end_in_milliseconds if x.footer else x.header.keyframe_end_in_milliseconds)
         super().export(root_directory_path, command_line_arguments)
