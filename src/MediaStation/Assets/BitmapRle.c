@@ -5,42 +5,43 @@
 /// over the pure Python implementation.
 static PyObject *method_decompress_media_station_rle(PyObject *self, PyObject *args) {
     // READ THE PARAMETERS FROM PYTHON.
-    char *compressed_image_data;
-    Py_ssize_t compressed_image_data_size;
+    char *compressed_image;
+    Py_ssize_t compressed_image_data_size_in_bytes;
     unsigned int width = 0;
     unsigned int height = 0;
     // `S`: This format unit expects a Python bytes-like object (bytes in Python 3). 
     // Unlike the `s` format unit, which expects a C string (char*), the S format unit 
     // does not allow NULL values and does not handle embedded null bytes. It returns 
     // a new reference to the bytes-like object. 
-    if(!PyArg_ParseTuple(args, "y#II", &compressed_image_data, &compressed_image_data_size, &width, &height)) {
+    if(!PyArg_ParseTuple(args, "y#II", &compressed_image, &compressed_image_data_size_in_bytes, &width, &height)) {
         PyErr_Format(PyExc_RuntimeError, "BitmapRle.c::PyArg_ParseTuple(): Failed to parse arguments.");
         return NULL;
     }
 
     // MAKE SURE WE READ PAST THE FIRST 2 BYTES.
-    char *compressed_image_data_start = compressed_image_data;
-    if ((*compressed_image_data++ == 0) && (*compressed_image_data++ == 0)) {
+    char *compressed_image_data_start = compressed_image;
+    if ((*compressed_image++ == 0) && (*compressed_image++ == 0)) {
         // This condition is empty, we just put it first since this is the expected case
         // and the negated logic would be not as readable.
     } else {
-        compressed_image_data = compressed_image_data_start;
+        compressed_image = compressed_image_data_start;
     }
 
     // ALLOCATE THE DECOMPRESSED PIXELS BUFFER.
-    unsigned int uncompressed_image_data_size = width * height;
-    PyObject *uncompressed_image_data_object = PyBytes_FromStringAndSize(NULL, uncompressed_image_data_size);
-    if (uncompressed_image_data_object == NULL) {
+    // Media Station has 8 bits per pixel, so the decompression buffer is simple.
+    unsigned int uncompressed_image_data_size_in_bytes = width * height;
+    PyObject *decompressed_image_object = PyBytes_FromStringAndSize(NULL, uncompressed_image_data_size_in_bytes);
+    if (decompressed_image_object == NULL) {
         // TODO: We really should use Py_DECREF here I think, but since the
         // program will currently just quit it isn't a big deal.
-        PyErr_Format(PyExc_RuntimeError, "BitmapRle.c::PyBytes_FromStringAndSize(): Failed to allocate uncompressed image data buffer.");
+        PyErr_Format(PyExc_RuntimeError, "BitmapRle.c: Failed to allocate decompressed image data buffer.");
         return NULL;
     }
-    char *uncompressed_image_data = PyBytes_AS_STRING(uncompressed_image_data_object);
+    char *decompressed_image = PyBytes_AS_STRING(decompressed_image_object);
     // Clear the bitmap canvas, so there's no random data in 
     // places we don't actually write pixels to.
-    memset(uncompressed_image_data, 0x00, uncompressed_image_data_size);
-    
+    memset(decompressed_image, 0x00, uncompressed_image_data_size_in_bytes);
+
     // CREATE THE LIST TO HOLD THE TRANSPARENCY REGIONS.
     // This would be better to do in Python, but since it's part of the compressed stream 
     // we'll just do it here. It's a good learning experience anyway.
@@ -52,11 +53,11 @@ static PyObject *method_decompress_media_station_rle(PyObject *self, PyObject *a
     }
 
     // CHECK FOR AN EMPTY COMPRESSED IMAGE.
-    if (compressed_image_data_size <= 2) {
+    if (compressed_image_data_size_in_bytes <= 2) {
         // RETURN A BLANK IMAGE TO PYTHON.
-        PyObject *return_value = Py_BuildValue("(OO)", uncompressed_image_data_object, transparency_regions_list);
+        PyObject *return_value = Py_BuildValue("(OO)", decompressed_image_object, transparency_regions_list);
         // Decrease the reference counts, as Py_BuildValue increments them.
-        Py_DECREF(uncompressed_image_data_object);
+        Py_DECREF(decompressed_image_object);
         Py_DECREF(transparency_regions_list);
         if (return_value == NULL) {
             PyErr_Format(PyExc_RuntimeError, "BitmapRle.c::Py_BuildValue(): Failed to build return value.");
@@ -74,10 +75,10 @@ static PyObject *method_decompress_media_station_rle(PyObject *self, PyObject *a
         size_t horizontal_pixel_offset = 0;
         int reading_transparency_run = 0;
         while (1) {
-            uint8_t operation = *compressed_image_data++;
+            uint8_t operation = *compressed_image++;
             if (operation == 0x00) {
                 // ENTER CONTROL MODE.
-                operation = *compressed_image_data++;
+                operation = *compressed_image++;
                 if (operation == 0x00) {
                     // MARK THE END OF THE LINE.
                     break;
@@ -107,30 +108,30 @@ static PyObject *method_decompress_media_station_rle(PyObject *self, PyObject *a
                     // So to skip 10 pixels using this approach, you would encode 00 03 0a 00.
                     // But to "skip" 10 pixels by encoding them as blank (0xff), you would encode 0a ff.
                     // What gives? I'm not sure.
-                    uint8_t x_change = *compressed_image_data++;
+                    uint8_t x_change = *compressed_image++;
                     horizontal_pixel_offset += x_change;
-                    uint8_t y_change = *compressed_image_data++;
+                    uint8_t y_change = *compressed_image++;
                     row_index += y_change;
                 } else if (operation >= 0x04) {
                     // READ A RUN OF UNCOMPRESSED PIXELS.
                     size_t vertical_pixel_offset = row_index * width;
                     size_t run_starting_offset = vertical_pixel_offset + horizontal_pixel_offset;
-                    memcpy(uncompressed_image_data + run_starting_offset, compressed_image_data, operation);
+                    memcpy(decompressed_image + run_starting_offset, compressed_image, operation);
 
-                    compressed_image_data += operation;
+                    compressed_image += operation;
                     horizontal_pixel_offset += operation;
 
-                    if (((uintptr_t)compressed_image_data) % 2 == 1) {
-                        compressed_image_data++;
+                    if (((uintptr_t)compressed_image) % 2 == 1) {
+                        compressed_image++;
                     }
                 }
             } else {
                 // READ A RUN OF LENGTH ENCODED PIXELS.
                 size_t vertical_pixel_offset = row_index * width;
                 size_t run_starting_offset = vertical_pixel_offset + horizontal_pixel_offset;
-                uint8_t color_index_to_repeat = *compressed_image_data++;
+                uint8_t color_index_to_repeat = *compressed_image++;
                 uint8_t repetition_count = operation;
-                memset(uncompressed_image_data + run_starting_offset, color_index_to_repeat, repetition_count);
+                memset(decompressed_image + run_starting_offset, color_index_to_repeat, repetition_count);
                 horizontal_pixel_offset += repetition_count;
 
                 if (reading_transparency_run) {
@@ -171,7 +172,7 @@ static PyObject *method_decompress_media_station_rle(PyObject *self, PyObject *a
                     //
                     // The "interior" of transparency regions is always encoded by a single run of
                     // pixels, usually 0x00 (white).
-                    PyObject *transparency_run_tuple = Py_BuildValue("(nnn)", transparency_run_row_index, transparency_run_start_horizontal_pixel_offset, operation);
+                    PyObject *transparency_run_tuple = Py_BuildValue("(nnn)", transparency_run_start_horizontal_pixel_offset, transparency_run_row_index, operation);
                     if (transparency_run_tuple == NULL) {
                         return NULL;
                     }
@@ -192,9 +193,9 @@ static PyObject *method_decompress_media_station_rle(PyObject *self, PyObject *a
 
     // RETURN THE DECOMPRESSED PIXELS TO PYTHON.
     // TODO: Can we use `PyBytes_FromStringAndSize` to be more self-documenting?
-    PyObject *return_value = Py_BuildValue("(OO)", uncompressed_image_data_object, transparency_regions_list);
+    PyObject *return_value = Py_BuildValue("(OO)", decompressed_image_object, transparency_regions_list);
     // Decrease the reference counts, as Py_BuildValue increments them.
-    Py_DECREF(uncompressed_image_data_object);
+    Py_DECREF(decompressed_image_object);
     Py_DECREF(transparency_regions_list);
     if (return_value == NULL) {
         PyErr_Format(PyExc_RuntimeError, "BitmapRle.c::Py_BuildValue(): Failed to build return value.");
