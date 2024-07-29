@@ -7,14 +7,11 @@ static PyObject *method_decompress_media_station_rle(PyObject *self, PyObject *a
     // READ THE PARAMETERS FROM PYTHON.
     char *compressed_image;
     Py_ssize_t compressed_image_data_size_in_bytes;
-    unsigned int width = 0;
-    unsigned int height = 0;
-    // `S`: This format unit expects a Python bytes-like object (bytes in Python 3). 
-    // Unlike the `s` format unit, which expects a C string (char*), the S format unit 
-    // does not allow NULL values and does not handle embedded null bytes. It returns 
-    // a new reference to the bytes-like object. 
-    if(!PyArg_ParseTuple(args, "y#II", &compressed_image, &compressed_image_data_size_in_bytes, &width, &height)) {
-        PyErr_Format(PyExc_RuntimeError, "BitmapRle.c::PyArg_ParseTuple(): Failed to parse arguments.");
+    // The width and height of this particular frame.
+    unsigned int frame_width = 0;
+    unsigned int frame_height = 0;
+    if(!PyArg_ParseTuple(args, "y#II", &compressed_image, &compressed_image_data_size_in_bytes, &frame_width, &frame_height)) {
+        PyErr_Format(PyExc_RuntimeError, "BitmapRle.c::PyArg_ParseTuple() Failed to parse arguments.");
         return NULL;
     }
 
@@ -29,7 +26,7 @@ static PyObject *method_decompress_media_station_rle(PyObject *self, PyObject *a
 
     // ALLOCATE THE DECOMPRESSED PIXELS BUFFER.
     // Media Station has 8 bits per pixel, so the decompression buffer is simple.
-    unsigned int uncompressed_image_data_size_in_bytes = width * height;
+    unsigned int uncompressed_image_data_size_in_bytes = frame_width * frame_height;
     PyObject *decompressed_image_object = PyBytes_FromStringAndSize(NULL, uncompressed_image_data_size_in_bytes);
     if (decompressed_image_object == NULL) {
         // TODO: We really should use Py_DECREF here I think, but since the
@@ -71,7 +68,7 @@ static PyObject *method_decompress_media_station_rle(PyObject *self, PyObject *a
     size_t transparency_run_start_horizontal_pixel_offset = 0;
     int image_fully_read = 0;
     size_t row_index = 0;
-    while (row_index < height) {
+    while (row_index < frame_height) {
         size_t horizontal_pixel_offset = 0;
         int reading_transparency_run = 0;
         while (1) {
@@ -114,10 +111,10 @@ static PyObject *method_decompress_media_station_rle(PyObject *self, PyObject *a
                     row_index += y_change;
                 } else if (operation >= 0x04) {
                     // READ A RUN OF UNCOMPRESSED PIXELS.
-                    size_t vertical_pixel_offset = row_index * width;
+                    size_t vertical_pixel_offset = row_index * frame_width;
                     size_t run_starting_offset = vertical_pixel_offset + horizontal_pixel_offset;
-                    memcpy(decompressed_image + run_starting_offset, compressed_image, operation);
-
+                    char* run_starting_pointer = decompressed_image + run_starting_offset;
+                    memcpy(run_starting_pointer, compressed_image, operation);
                     compressed_image += operation;
                     horizontal_pixel_offset += operation;
 
@@ -127,11 +124,12 @@ static PyObject *method_decompress_media_station_rle(PyObject *self, PyObject *a
                 }
             } else {
                 // READ A RUN OF LENGTH ENCODED PIXELS.
-                size_t vertical_pixel_offset = row_index * width;
+                size_t vertical_pixel_offset = row_index * frame_width;
                 size_t run_starting_offset = vertical_pixel_offset + horizontal_pixel_offset;
                 uint8_t color_index_to_repeat = *compressed_image++;
                 uint8_t repetition_count = operation;
-                memset(decompressed_image + run_starting_offset, color_index_to_repeat, repetition_count);
+                char *run_starting_pointer = decompressed_image + run_starting_offset;
+                memset(run_starting_pointer, color_index_to_repeat, repetition_count);
                 horizontal_pixel_offset += repetition_count;
 
                 if (reading_transparency_run) {
