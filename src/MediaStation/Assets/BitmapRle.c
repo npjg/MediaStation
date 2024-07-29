@@ -10,10 +10,21 @@ static PyObject *method_decompress_media_station_rle(PyObject *self, PyObject *a
     // The width and height of this particular frame.
     unsigned int frame_width = 0;
     unsigned int frame_height = 0;
+    // The width and height of the animation that this frame is part of (if
+    // applicable).
+    unsigned int full_width = 0;
+    unsigned int full_height = 0;
+    // The X and Y coordinates of the frame inside the animation width and
+    // height (if applicable).
+    unsigned int frame_left_x_coordinate = 0;
+    unsigned int frame_top_y_coordinate = 0;
     if(!PyArg_ParseTuple(args, "y#II", &compressed_image, &compressed_image_data_size_in_bytes, &frame_width, &frame_height)) {
         PyErr_Format(PyExc_RuntimeError, "BitmapRle.c::PyArg_ParseTuple() Failed to parse arguments.");
         return NULL;
     }
+    // TODO: These aren't used yet, but they're here for use in the future.
+    full_width = frame_width;
+    full_height = frame_height;
 
     // MAKE SURE WE READ PAST THE FIRST 2 BYTES.
     char *compressed_image_data_start = compressed_image;
@@ -26,7 +37,7 @@ static PyObject *method_decompress_media_station_rle(PyObject *self, PyObject *a
 
     // ALLOCATE THE DECOMPRESSED PIXELS BUFFER.
     // Media Station has 8 bits per pixel, so the decompression buffer is simple.
-    unsigned int uncompressed_image_data_size_in_bytes = frame_width * frame_height;
+    unsigned int uncompressed_image_data_size_in_bytes = full_width * full_height;
     PyObject *decompressed_image_object = PyBytes_FromStringAndSize(NULL, uncompressed_image_data_size_in_bytes);
     if (decompressed_image_object == NULL) {
         // TODO: We really should use Py_DECREF here I think, but since the
@@ -39,23 +50,24 @@ static PyObject *method_decompress_media_station_rle(PyObject *self, PyObject *a
     // places we don't actually write pixels to.
     memset(decompressed_image, 0x00, uncompressed_image_data_size_in_bytes);
 
-    // CREATE THE LIST TO HOLD THE TRANSPARENCY REGIONS.
-    // This would be better to do in Python, but since it's part of the compressed stream 
-    // we'll just do it here. It's a good learning experience anyway.
-    PyObject *transparency_regions_list;
-    transparency_regions_list = PyList_New(0);
-    if (transparency_regions_list == NULL) {
-        PyErr_Format(PyExc_RuntimeError, "BitmapRle.c::PyList_New(): Failed to allocate transparency regions list.");
+    // ALLOCATE THE TRANSPARENCY MASK BUFFER.
+    PyObject *transparency_mask_object = PyBytes_FromStringAndSize(NULL, uncompressed_image_data_size_in_bytes);
+    if (transparency_mask_object == NULL) {
+        // TODO: We really should use Py_DECREF here I think, but since the
+        // program will currently just quit it isn't a big deal.
+        PyErr_Format(PyExc_RuntimeError, "BitmapRle.c::PyList_New(): Failed to allocate transparency mask buffer.");
         return NULL;
     }
+    char *transparency_mask = PyBytes_AS_STRING(transparency_mask_object);
+    memset(transparency_mask, 0x00, uncompressed_image_data_size_in_bytes);
 
     // CHECK FOR AN EMPTY COMPRESSED IMAGE.
     if (compressed_image_data_size_in_bytes <= 2) {
         // RETURN A BLANK IMAGE TO PYTHON.
-        PyObject *return_value = Py_BuildValue("(OO)", decompressed_image_object, transparency_regions_list);
+        PyObject *return_value = Py_BuildValue("(OO)", decompressed_image_object, transparency_mask_object);
         // Decrease the reference counts, as Py_BuildValue increments them.
         Py_DECREF(decompressed_image_object);
-        Py_DECREF(transparency_regions_list);
+        Py_DECREF(transparency_mask_object);
         if (return_value == NULL) {
             PyErr_Format(PyExc_RuntimeError, "BitmapRle.c::Py_BuildValue(): Failed to build return value.");
             return NULL;
@@ -64,12 +76,12 @@ static PyObject *method_decompress_media_station_rle(PyObject *self, PyObject *a
     }
 
     // DECOMPRESS THE RLE-COMPRESSED BITMAP STREAM.
-    size_t transparency_run_row_index = 0;
-    size_t transparency_run_start_horizontal_pixel_offset = 0;
+    size_t transparency_run_top_y_coordinate = 0;
+    size_t transparency_run_left_x_coordinate = 0;
     int image_fully_read = 0;
-    size_t row_index = 0;
-    while (row_index < frame_height) {
-        size_t horizontal_pixel_offset = 0;
+    size_t current_y_coordinate = frame_top_y_coordinate;
+    while (current_y_coordinate < frame_top_y_coordinate + frame_height) {
+        size_t current_x_coordinate = frame_left_x_coordinate;
         int reading_transparency_run = 0;
         while (1) {
             uint8_t operation = *compressed_image++;
@@ -94,8 +106,8 @@ static PyObject *method_decompress_media_station_rle(PyObject *self, PyObject *a
                     // observed to have transparency regions, and these intraframes have them so the keyframe
                     // can extend outside the boundary of the intraframe and still be removed.
                     reading_transparency_run = 1;
-                    transparency_run_row_index = row_index;
-                    transparency_run_start_horizontal_pixel_offset = horizontal_pixel_offset;
+                    transparency_run_top_y_coordinate = current_y_coordinate;
+                    transparency_run_left_x_coordinate = current_x_coordinate;
                 } else if (operation == 0x03) {
                     // ADJUST THE PIXEL POSITION.
                     // This permits jumping to a different part of the same row without
@@ -106,17 +118,17 @@ static PyObject *method_decompress_media_station_rle(PyObject *self, PyObject *a
                     // But to "skip" 10 pixels by encoding them as blank (0xff), you would encode 0a ff.
                     // What gives? I'm not sure.
                     uint8_t x_change = *compressed_image++;
-                    horizontal_pixel_offset += x_change;
+                    current_x_coordinate += x_change;
                     uint8_t y_change = *compressed_image++;
-                    row_index += y_change;
+                    current_y_coordinate += y_change;
                 } else if (operation >= 0x04) {
                     // READ A RUN OF UNCOMPRESSED PIXELS.
-                    size_t vertical_pixel_offset = row_index * frame_width;
-                    size_t run_starting_offset = vertical_pixel_offset + horizontal_pixel_offset;
+                    size_t y_offset = current_y_coordinate * full_width;
+                    size_t run_starting_offset = y_offset + current_x_coordinate;
                     char* run_starting_pointer = decompressed_image + run_starting_offset;
                     memcpy(run_starting_pointer, compressed_image, operation);
                     compressed_image += operation;
-                    horizontal_pixel_offset += operation;
+                    current_x_coordinate += operation;
 
                     if (((uintptr_t)compressed_image) % 2 == 1) {
                         compressed_image++;
@@ -124,77 +136,48 @@ static PyObject *method_decompress_media_station_rle(PyObject *self, PyObject *a
                 }
             } else {
                 // READ A RUN OF LENGTH ENCODED PIXELS.
-                size_t vertical_pixel_offset = row_index * frame_width;
-                size_t run_starting_offset = vertical_pixel_offset + horizontal_pixel_offset;
+                size_t y_offset = current_y_coordinate * full_width;
+                size_t run_starting_offset = y_offset + current_x_coordinate;
+                char *run_starting_pointer = decompressed_image + run_starting_offset;
                 uint8_t color_index_to_repeat = *compressed_image++;
                 uint8_t repetition_count = operation;
-                char *run_starting_pointer = decompressed_image + run_starting_offset;
                 memset(run_starting_pointer, color_index_to_repeat, repetition_count);
-                horizontal_pixel_offset += repetition_count;
+                current_x_coordinate += repetition_count;
 
                 if (reading_transparency_run) {
                     // MARK THIS PART OF THE TRANSPARENCY REGION.
-                    // TODO: Actually return the transparency in a region we can
-                    // use. Or maybe the transparency can actually be applied
-                    // right here?
-                    // At first, I tried to create a bitmap mask for
-                    // transparency, like this:
-                    //     if (reading_transparency_run) {
-                    //     // MARK THE TRANSPARENCY REGION.
-                    //     // The "interior" of transparency regions is always encoded by a single run of
-                    //     // pixels, usually 0x00 (white).
-                        
-                    //     // GET THE TRANSPARENCY RUN STARTING OFFSET.
-                    //     size_t transparency_run_start_vertical_pixel_offset = transparency_run_row_index * width;
-                    //     size_t transparency_run_starting_offset = transparency_run_start_vertical_pixel_offset + transparency_run_start_horizontal_pixel_offset;
-
-                    //     // GET THE TRANSPARENCY RUN ENDING OFFSET.
-                    //     size_t vertical_pixel_offset = row_index * width;
-                    //     // This is where we are right now.
-                    //     size_t transparency_run_ending_offset = vertical_pixel_offset + horizontal_pixel_offset;
-
-                    //     // GET THE NUMBER OF PIXELS (BYTES) IN THE TRANSPARENCY RUN.
-                    //     // This could be optimized using a bitfield, since the transparency mask is monochrome, but that isn't
-                    //     // worth it right now.
-                    //     size_t transparency_run_length = transparency_run_ending_offset - transparency_run_starting_offset;
-                    //     memset(transparency_mask + run_starting_offset, 0xff, transparency_run_length);
-                    //     reading_transparency_run = 0;
-                    // }
-                    //
-                    // I did this becuase it would be more straightforward to apply the transparency
-                    // rather than using this list of transparency regions. This fell apart when I 
-                    // realized that in movied that DON'T have transparency regions, all white pixels
-                    // (usually 0x00) should be treated as transparent. That added a bit more complexity
-                    // than I wanted to deal with at the moment, as well as the added overhead of managing
-                    // and applying animation framing to a masked bitmap.
-                    //
                     // The "interior" of transparency regions is always encoded by a single run of
                     // pixels, usually 0x00 (white).
-                    PyObject *transparency_run_tuple = Py_BuildValue("(nnn)", transparency_run_start_horizontal_pixel_offset, transparency_run_row_index, operation);
-                    if (transparency_run_tuple == NULL) {
-                        return NULL;
-                    }
-                    // Now we append to the list.
-                    if (PyList_Append(transparency_regions_list, transparency_run_tuple) != 0) {
-                        return NULL;
-                    }
+                    
+                    // GET THE TRANSPARENCY RUN STARTING OFFSET.
+                    size_t transparency_run_y_offset = transparency_run_top_y_coordinate * full_width;
+                    size_t transparency_run_start_offset = transparency_run_y_offset + transparency_run_left_x_coordinate;
+
+                    // GET THE NUMBER OF PIXELS (BYTES) IN THE TRANSPARENCY RUN.
+                    // This could be optimized using a bitfield, since the transparency mask is monochrome.
+                    size_t transparency_run_ending_offset = y_offset + current_x_coordinate;
+                    size_t transparency_run_length = transparency_run_ending_offset - transparency_run_start_offset;
+                    char *transparency_run_starting_pointer = transparency_mask + run_starting_offset;
+
+                    // STORE THE TRANSPARENCY RUN.
+                    memset(transparency_run_starting_pointer, 0xff, transparency_run_length);
                     reading_transparency_run = 0;
                 }
             }
         }
 
-        row_index++;
+        current_y_coordinate++;
         if (image_fully_read) {
             break;
         }
     }
 
-    // RETURN THE DECOMPRESSED PIXELS TO PYTHON.
-    // TODO: Can we use `PyBytes_FromStringAndSize` to be more self-documenting?
-    PyObject *return_value = Py_BuildValue("(OO)", decompressed_image_object, transparency_regions_list);
+    // RETURN THE FRAMED BITMAP TO PYTHON.
+    PyObject *return_value = Py_BuildValue("(OO)", decompressed_image_object, transparency_mask_object);
     // Decrease the reference counts, as Py_BuildValue increments them.
     Py_DECREF(decompressed_image_object);
-    Py_DECREF(transparency_regions_list);
+    Py_DECREF(transparency_mask_object);
+
     if (return_value == NULL) {
         PyErr_Format(PyExc_RuntimeError, "BitmapRle.c::Py_BuildValue(): Failed to build return value.");
         return NULL;
