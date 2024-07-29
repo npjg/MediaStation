@@ -14,7 +14,7 @@ static PyObject *method_decompress_media_station_rle(PyObject *self, PyObject *a
     // does not allow NULL values and does not handle embedded null bytes. It returns 
     // a new reference to the bytes-like object. 
     if(!PyArg_ParseTuple(args, "y#II", &compressed_image_data, &compressed_image_data_size, &width, &height)) {
-        PyErr_Format(PyExc_RuntimeError, "BitmapRle.c::PyArg_ParseTuble(): Failed to parse arguments.");
+        PyErr_Format(PyExc_RuntimeError, "BitmapRle.c::PyArg_ParseTuple(): Failed to parse arguments.");
         return NULL;
     }
 
