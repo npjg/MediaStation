@@ -14,7 +14,7 @@ static PyObject *method_decompress_media_station_rle(PyObject *self, PyObject *a
     // does not allow NULL values and does not handle embedded null bytes. It returns 
     // a new reference to the bytes-like object. 
     if(!PyArg_ParseTuple(args, "y#II", &compressed_image_data, &compressed_image_data_size, &width, &height)) {
-        PyErr_Format(PyExc_RuntimeError, "BitmapRle.c: Failed to parse arguments.");
+        PyErr_Format(PyExc_RuntimeError, "BitmapRle.c::PyArg_ParseTuple(): Failed to parse arguments.");
         return NULL;
     }
 
@@ -33,7 +33,7 @@ static PyObject *method_decompress_media_station_rle(PyObject *self, PyObject *a
     if (uncompressed_image_data_object == NULL) {
         // TODO: We really should use Py_DECREF here I think, but since the
         // program will currently just quit it isn't a big deal.
-        PyErr_Format(PyExc_RuntimeError, "BitmapRle.c: Failed to allocate uncompressed image data buffer.");
+        PyErr_Format(PyExc_RuntimeError, "BitmapRle.c::PyBytes_FromStringAndSize(): Failed to allocate uncompressed image data buffer.");
         return NULL;
     }
     char *uncompressed_image_data = PyBytes_AS_STRING(uncompressed_image_data_object);
@@ -47,7 +47,7 @@ static PyObject *method_decompress_media_station_rle(PyObject *self, PyObject *a
     PyObject *transparency_regions_list;
     transparency_regions_list = PyList_New(0);
     if (transparency_regions_list == NULL) {
-        PyErr_Format(PyExc_RuntimeError, "BitmapRle.c: Failed to allocate transparency regions list.");
+        PyErr_Format(PyExc_RuntimeError, "BitmapRle.c::PyList_New(): Failed to allocate transparency regions list.");
         return NULL;
     }
 
@@ -59,7 +59,7 @@ static PyObject *method_decompress_media_station_rle(PyObject *self, PyObject *a
         Py_DECREF(uncompressed_image_data_object);
         Py_DECREF(transparency_regions_list);
         if (return_value == NULL) {
-            PyErr_Format(PyExc_RuntimeError, "BitmapRle.c: Failed to build return value.");
+            PyErr_Format(PyExc_RuntimeError, "BitmapRle.c::Py_BuildValue(): Failed to build return value.");
             return NULL;
         }
         return return_value;
@@ -197,7 +197,7 @@ static PyObject *method_decompress_media_station_rle(PyObject *self, PyObject *a
     Py_DECREF(uncompressed_image_data_object);
     Py_DECREF(transparency_regions_list);
     if (return_value == NULL) {
-        PyErr_Format(PyExc_RuntimeError, "BitmapRle.c: Failed to build return value.");
+        PyErr_Format(PyExc_RuntimeError, "BitmapRle.c::Py_BuildValue(): Failed to build return value.");
         return NULL;
     }
     return return_value;
