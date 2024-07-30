@@ -18,13 +18,31 @@ static PyObject *method_decompress_media_station_rle(PyObject *self, PyObject *a
     // height (if applicable).
     unsigned int frame_left_x_coordinate = 0;
     unsigned int frame_top_y_coordinate = 0;
-    if(!PyArg_ParseTuple(args, "y#II", &compressed_image, &compressed_image_data_size_in_bytes, &frame_width, &frame_height)) {
-        PyErr_Format(PyExc_RuntimeError, "BitmapRle.c::PyArg_ParseTuple() Failed to parse arguments.");
+    if(!PyArg_ParseTuple(args, "y#II|IIII", &compressed_image, &compressed_image_data_size_in_bytes, &frame_width, &frame_height, &full_width, &full_height, &frame_left_x_coordinate, &frame_top_y_coordinate)) {
+        PyErr_Format(PyExc_RuntimeError, "BitmapRle.c::PyArg_ParseTuple(): Failed to parse arguments.");
         return NULL;
     }
-    // TODO: These aren't used yet, but they're here for use in the future.
-    full_width = frame_width;
-    full_height = frame_height;
+
+    // MAKE SURE THE PARAMETERS ARE SANE.
+    // The full width and full height are optional, so if they are not provided
+    // assume the full width and height is the same as the width and height for 
+    // this specific bitmap.
+    if (full_width == 0) {
+        full_width = frame_width;
+    }
+    if (full_height == 0) {
+        full_height = frame_height;
+    }
+    // Verify that with the coordinates specified, we don't overflow the
+    // space alloted for the frame.
+    if (frame_left_x_coordinate + frame_width > full_width) {
+        PyErr_Format(PyExc_RuntimeError, "BitmapRle.c: frame_left_x_coordinate (%u) + frame_width (%u) > full_width (%u)", frame_left_x_coordinate, frame_width, full_width);
+        return NULL;
+    }
+    if (frame_top_y_coordinate + frame_height > full_height) {
+        PyErr_Format(PyExc_RuntimeError, "BitmapRle.c: frame_top_y_coordinate (%u) + frame_height (%u) > full_height (%u)", frame_top_y_coordinate, frame_height, full_height);
+        return NULL;
+    }
 
     // MAKE SURE WE READ PAST THE FIRST 2 BYTES.
     char *compressed_image_data_start = compressed_image;
@@ -177,7 +195,6 @@ static PyObject *method_decompress_media_station_rle(PyObject *self, PyObject *a
     // Decrease the reference counts, as Py_BuildValue increments them.
     Py_DECREF(decompressed_image_object);
     Py_DECREF(transparency_mask_object);
-
     if (return_value == NULL) {
         PyErr_Format(PyExc_RuntimeError, "BitmapRle.c::Py_BuildValue(): Failed to build return value.");
         return NULL;
