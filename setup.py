@@ -22,7 +22,7 @@ try:
         ext_modules = [bitmap_decompression, ima_adpcm_decompression])
 except:
     # RELY ON THE PYTHON FALLBACK.
-    warnings.warn('The C bitmap decompression binary is not available on this installation. Expect image decompression to be SLOW.')
+    warnings.warn('The C decompression binaries are not available on this installation. Sounds and bitmaps might not export.')
     setup(name = 'MediaStation')
 
 # BUILD THE IMA ADPCM DECOMPRESSOR.

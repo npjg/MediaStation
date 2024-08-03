@@ -14,6 +14,17 @@ from ..Primitives.Point import Point
 from .Bitmap import Bitmap, BitmapHeader
 from .Sound import Sound
 
+# ATTEMPT TO IMPORT THE C-BASED DECOMPRESSION LIBRARY.
+# We will fall back to the pure Python implementation if it doesn't work, but there is easily a 
+# 10x slowdown with pure Python.
+try:
+    import MediaStationBitmapRle
+    rle_c_loaded = True
+except ImportError:
+    # We don't need a warning here since it is already issued in the bitmap
+    # decompression library.
+    rle_c_loaded = False
+
 ## Metadata that occurs after each movie frame and most keyframes.
 ## The only instance where it does not have a keyframe is...
 ## For example:
@@ -88,8 +99,11 @@ class MovieFrame(Bitmap):
         # and the footer right after this frame might not actually correspond to
         # this frame.
         self.footer = None
+        # These coordinates are relative to the whole screen, not just to this movie.
         self._left = 0
         self._top = 0
+        self.full_width = None
+        self.full_height = None
 
     @property 
     def _duration(self):
@@ -99,6 +113,25 @@ class MovieFrame(Bitmap):
         self.footer = footer
         self._left = self.footer._left
         self._top = self.footer._top
+
+    def decompress_bitmap(self, full_width, full_height, keyframe = b''):
+        self.full_width = full_width
+        self.full_height = full_height
+        if keyframe == None:
+            keyframe = b''
+        self._pixels = MediaStationBitmapRle.decompress(
+            self._raw, self.width, self.height, full_width, full_height, self._left, self._top, keyframe)
+
+    def export(self, root_directory_path: str, command_line_arguments):
+        # TODO: This is a nasty hack to get the animation-framed dimensions right!
+        if self.pixels is not None:
+            old_width = self._width
+            old_height = self._height
+            self._width = self.full_width
+            self._height = self.full_height
+            super().export(root_directory_path, command_line_arguments)
+            self._width = old_width
+            self._height = old_height
 
 ## A single animation.
 ##  - A series of bitmaps.
@@ -232,10 +265,11 @@ class Movie(Animation):
     # The animation framing MUST be applied or there will be an error when applying the keyframing.
     def _apply_keyframes(self):
         timestamp = -1
-        current_keyframe = None
-        bounding_box = self._minimal_bounding_box
+        current_keyframe: MovieFrame = None
         # TODO: Need to determine why some movies aren't exported.
         for index, frame in enumerate(self.frames):
+            global_variables.application.logger.debug(f'[{self.name}] (frame {frame.header.index}) (timestamp: {timestamp}) (start: {frame.footer.start_in_milliseconds if frame.footer else None}) (end: {frame.footer.end_in_milliseconds if frame.footer else None})')
+
             # CHECK IF WE SHOULD REGISTER THE NEXT KEYFRAME.
             if frame.header.keyframe_end_in_milliseconds > timestamp:
                 timestamp = frame.header.keyframe_end_in_milliseconds
@@ -244,68 +278,19 @@ class Movie(Animation):
                     # The keyframe is not intended to be included in the export.
                     # Though maybe we could include them as some sort of "K1.bmp" filename.
                     current_keyframe = frame
+                    current_keyframe.decompress_bitmap(self._width, self._height)
                     current_keyframe._include_in_export = False
                     continue
 
-            # MAKE SURE THIS FRAME CAN BE EXPORTED.
-            if frame._exportable_image is None or current_keyframe._exportable_image is None:
-                continue
-
-            # CREATE THE TRANSPARENCY MASK FOR THIS FRAME.
-            # We will replace the areas of this frame marked "transparent" with
-            # the corresponding areas of the current keyframe.
-            # TODO: This whole business is rather inefficient since we have to
-            # go to a numpy array and back. Might be better to have a C
-            # extension that handles this.
-            keyframe = np.array(current_keyframe._exportable_image)
-            original_frame = np.array(frame._exportable_image)
-            if len(frame.transparency_region) == 0:
-                # CREATE A MASK FOR THE 0x00 REGIONS OF THIS FRAME.
-                # The "transparent" regions are the places where this frame has
-                # a color index of 0x00 (typically appears as white in most palettes).
-                mask = (original_frame == 0)
-            else:
-                # CREATE A MASK FOR THE TRANSPARENT REGIONS OF THIS FRAME.
-                mask = np.zeros(original_frame.shape, dtype=bool)
-                for transparency_region in frame.transparency_region:
-                    # GET THE STARTING X COORDINATE.
-                    x_relative_to_this_frame = transparency_region[0]
-                    x = x_relative_to_this_frame + (frame.left - bounding_box.left)
-
-                    # GET THE STARTING Y COORDINATE.
-                    y_relative_to_this_frame = transparency_region[1]
-                    y = y_relative_to_this_frame + (frame.top - bounding_box.top)
-
-                    # GET THE ENDING X COORDINATE.
-                    # The transparency regions aren't supposed to span more than
-                    # a single line, so there isn't a corresponding y coordinate.
-                    if len(transparency_region) == 3:
-                        x_offset = transparency_region[2]
-                    else:
-                        # This mean the transparency region was never
-                        # closed, since an ending point was never specified.
-                        # So we will just assume a sane cutoff for now.
-                        # TODO: Verify how often this actually happens.
-                        x_offset = 10
-                    
-                    # MARK THIS TRANSPARENCY REGION IN THE MASK.
-                    mask[y, x : x + x_offset] = True
-
-            # APPLY THE MASK TO CREATE THE COMPLETE FRAME.
-            original_frame[mask] = keyframe[mask]
-            composite_frame = Image.fromarray(original_frame)
-            composite_frame.putpalette(current_keyframe._exportable_image.palette)
-            frame._exportable_image = composite_frame
+            frame.decompress_bitmap(self._width, self._height, current_keyframe.pixels)
 
     def export(self, root_directory_path, command_line_arguments):
         # TODO: Should the stills be exported like everything else? They look like they might be regular frames.
         self._fix_keyframe_coordinates()
-        #self._reframe_to_animation_size(command_line_arguments)
-        #
         # TODO: Provide an option to check for a request to not apply keyframes. 
         # TODO: Keyframe application is currently disabled becuase it is
         # horribly inefficient and doesn't even work very well. It needs to be reworked.
-        #self._apply_keyframes()
+        self._apply_keyframes()
         #
         self.frames.sort(key = lambda x: x.footer.end_in_milliseconds if x.footer else x.header.keyframe_end_in_milliseconds)
         super().export(root_directory_path, command_line_arguments)

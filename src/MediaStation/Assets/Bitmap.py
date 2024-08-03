@@ -59,10 +59,6 @@ class Bitmap(RectangularBitmap):
         self._height = self.header.dimensions.y
         self.should_export = True
 
-        # Only nonempty for images that have keyframes that need to 
-        # intersect 
-        self.transparency_region = []
-
         # READ THE RAW IMAGE DATA.
         self._data_start_pointer = chunk.stream.tell()
         if self.header._is_compressed:
@@ -91,10 +87,6 @@ class Bitmap(RectangularBitmap):
                else:
                    print(f'WARNING: Found mismatched width in uncompressed bitmap. Header: {self.header.unk2}. Width: {self._width}. This image might not be exported correctly.')
 
-    @property
-    def has_transparency(self):
-        return (len(self.transparency_region) > 0)
-
     ## Calculates the total number of bytes the uncompressed image
     ## (pixels) should occupy, rounded up to the closest whole byte.
     @property
@@ -103,13 +95,11 @@ class Bitmap(RectangularBitmap):
 
     def export(self, root_directory_path: str, command_line_arguments):
         if self.pixels is not None:
-            # VERIFY THE SIZE.
-            has_expected_length = (len(self.pixels) == self._expected_bitmap_length_in_bytes)
-            if not has_expected_length:
-                print(f'WARNING: [{self.name} - Compression Type: {self.header.compression_type}] Expected pixels length in bytes 0x{len(self.pixels):02x}, got 0x{self._expected_bitmap_length_in_bytes:02x}')
-
             # DO THE EXPORT.
             super().export(root_directory_path, command_line_arguments)
+
+    def decompress_bitmap(self):
+        self._pixels = MediaStationBitmapRle.decompress(self._raw, self.width, self.height)
 
     ## \return The decompressed pixels that represent this image.
     ## The number of bytes is the same as the product of the width and the height.
@@ -120,7 +110,7 @@ class Bitmap(RectangularBitmap):
                 if self.header.compression_type == Bitmap.CompressionType.RLE_COMPRESSED:
                     # DECOMPRESS THE BITMAP.
                     if rle_c_loaded:
-                        self._pixels, self.transparency_mask = MediaStationBitmapRle.decompress(self._raw, self.width, self.height)
+                        self.decompress_bitmap()
 
                 else:
                     # ISSUE A WARNING.
