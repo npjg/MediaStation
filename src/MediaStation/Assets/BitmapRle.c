@@ -59,6 +59,7 @@ static PyObject *method_decompress_media_station_rle(PyObject *self, PyObject *a
     } else {
         compressed_image = compressed_image_data_start;
     }
+    char *compressed_image_data_end = compressed_image + compressed_image_data_size_in_bytes;
 
     // ALLOCATE THE DECOMPRESSED PIXELS BUFFER.
     // Media Station has 8 bits per pixel, so the decompression buffer is simple.
@@ -83,12 +84,6 @@ static PyObject *method_decompress_media_station_rle(PyObject *self, PyObject *a
         }
     }
 
-    // CHECK FOR AN EMPTY COMPRESSED IMAGE.
-    if (compressed_image_data_size_in_bytes <= 2) {
-        // We just return an empty decompressed image to Python.
-        return decompressed_image_object;
-    }
-
     // DECOMPRESS THE RLE-COMPRESSED BITMAP STREAM.
     int transparency_run_ever_read = 0;
     size_t transparency_run_top_y_coordinate = 0;
@@ -105,6 +100,10 @@ static PyObject *method_decompress_media_station_rle(PyObject *self, PyObject *a
                 operation = *compressed_image++;
                 if (operation == 0x00) {
                     // MARK THE END OF THE LINE.
+                    // Also check if the image is finished being read.
+                    if (compressed_image >= compressed_image_data_end) {
+                        image_fully_read = 1;
+                    }
                     break;
                 } else if (operation == 0x01) {
                     // MARK THE END OF THE IMAGE.
