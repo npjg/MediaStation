@@ -49,10 +49,10 @@ def test_script_is_runnable():
         # VERIFY THE SCRIPT RAN SUCCESSFULLY.
         # A BOOT.STM is *required* so, the script will refuse to run far.
         # However, we can still tell if the script has been successfully invoked.
-        script_invoked_successfully = ('BOOT.STM is missing' in result.stdout) and (result.returncode == 1)
+        script_invoked_successfully = ('BOOT.STM is missing' in result.stderr) and (result.returncode == 1)
         if not script_invoked_successfully:
             raise AssertionError(
-                f'Received a nonzero exit code when running `{CALLABLE_SCRIPT_NAME}` from command line!'
+                f'Received a bad exit code when running `{CALLABLE_SCRIPT_NAME}` from command line!'
                 f'\nstdout: {result.stdout}'
                 f'\n\nstderr: {result.stderr}')
     finally:
