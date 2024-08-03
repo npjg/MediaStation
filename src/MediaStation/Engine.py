@@ -16,6 +16,7 @@
 
 from typing import List
 import os
+import logging
 
 from asset_extraction_framework.CommandLine import CommandLineArguments
 from asset_extraction_framework.Application import Application
@@ -28,6 +29,14 @@ from MediaStation.Profile import Profile
 class MediaStationEngine(Application):
     def __init__(self, application_name: str):
         super().__init__(application_name)
+
+        # CREATE THE LOGGER.
+        self.logger = logging.getLogger(__name__)
+        self.logger.setLevel(logging.DEBUG)
+        console_handler = logging.StreamHandler()
+        formatter = logging.Formatter('%(levelname)s: %(message)s')
+        console_handler.setFormatter(formatter)
+        self.logger.addHandler(console_handler)
 
     def get_context_by_file_id(self, file_id):
         for context in self.contexts:
@@ -78,7 +87,7 @@ class MediaStationEngine(Application):
                 # between the two. We will check to ensure this isn't the case.
                 if corresponding_asset.name is not None:
                     if corresponding_asset.name != asset_entry.name:
-                        print(f'WARNING: Asset names disagree. Name in asset: {corresponding_asset.name}. Name in PROFILE._ST: {asset_entry.name}.')
+                        self.logger.warning(f'Asset names disagree. Name in asset: {corresponding_asset.name}. Name in PROFILE._ST: {asset_entry.name}.')
                         continue
                 
                 corresponding_asset.name = asset_entry.name
@@ -95,7 +104,7 @@ class MediaStationEngine(Application):
                 corresponding_context.parameters.name = asset_entry.name
                 continue
             
-            print(f'WARNING: Asset {asset_entry.id} present in PROFILE._ST but not found in parsed assets: {asset_entry._raw_entry}')
+            self.logger.warning(f'Asset {asset_entry.id} present in PROFILE._ST but not found in parsed assets: {asset_entry._raw_entry}')
 
     def process(self, input_paths):
         # READ THE STARTUP FILE (BOOT.STM).
@@ -104,16 +113,19 @@ class MediaStationEngine(Application):
             # TODO: I really wanted to support extracting individual CXTs, but 
             # I think that will be too complex and the potential use cases are
             # too small.
-            print("ERROR: BOOT.STM is missing from the input path(s). This file contains vital information for processing Media Station games, and assets cannot be extracted without it. ")
+            self.logger.error("BOOT.STM is missing from the input path(s). This file contains vital information for processing Media Station games, and assets cannot be extracted without it. ")
             exit(1)
         if len(matched_boot_stm_files) > 1:
-            print('ERROR: Found more than one BOOT.STM file in the given path(s). You are likely trying to process more than one Media Station title at once, which is not supported.')
+            self.logger.error('Found more than one BOOT.STM file in the given path(s). You are likely trying to process more than one Media Station title at once, which is not supported.')
             exit(1)
         system_filepath =  matched_boot_stm_files[0]
-        print(f'INFO: Processing {system_filepath}')
+        self.logger.info(f'Processing {system_filepath}')
         self.system = System(system_filepath)
 
         # READ THE MAIN CONTEXTS.
+        # TODO: It really would be great to read one CXT and then export it,
+        # rather than saving exporting to the end. That gives as much data as 
+        # possible in the event of an error.
         matched_cxt_files = self.find_matching_files(input_paths, r'.*\.cxt$', case_sensitive = False)
         # And now we need to sort the CXTs based on what is in the system.
         # The INSTALL.CXT, if present, MUST be read after all the other contexts are read. This is because 
@@ -138,10 +150,10 @@ class MediaStationEngine(Application):
                 # This seems to legitimately happen for 1095.CXT and 1097.CXT in Lion King,
                 # which are both only 16 bytes and don't appear at all in BOOT.STM
                 # TODO: Don't issue a warning for these files.
-                print(f'WARNING: File declaration for {matched_cxt_filepath} not found in BOOT.STM. This file will not be processed or exported.')
+                self.logger.warning(f'File declaration for {matched_cxt_filepath} not found in BOOT.STM. This file will not be processed or exported.')
         self.contexts: List[Context] = []
         for cxt_filepath in [*cdrom_context_filepaths, *other_context_filepaths]:
-            print(f'INFO: Processing {cxt_filepath}')
+            self.logger.info(f'Processing {cxt_filepath}')
             context = Context(cxt_filepath)
             self.contexts.append(context)
 
@@ -149,10 +161,10 @@ class MediaStationEngine(Application):
         matched_profile_st_files = self.find_matching_files(input_paths, r'profile\._st$', case_sensitive = False)
         self.profile = None
         if len(matched_profile_st_files) == 0:
-            print('INFO: A PROFILE._ST is not available for this title, so nice-to-have information like asset names might not be available.')
+            self.logger.info('A PROFILE._ST is not available for this title, so nice-to-have information like asset names might not be available.')
         else:
             profile_filepath = matched_profile_st_files[0]
-            print(f'INFO: Processing {profile_filepath}')
+            self.logger.info(f'Processing {profile_filepath}')
             self.profile = Profile(profile_filepath)
             self.correlate_asset_ids_to_names()
 
@@ -165,7 +177,7 @@ class MediaStationEngine(Application):
         # title itself!
         # os.path.exists(application_export_subdirectory)
         for index, context in enumerate(self.contexts):
-            print(f'INFO: Exporting assets in {context.filepath}')
+            self.logger.info(f'Exporting assets in {context.filepath}')
             context.export_assets(application_export_subdirectory, command_line_arguments)
 
     # This is in a separate function becuase even on fast computers it 
@@ -173,13 +185,13 @@ class MediaStationEngine(Application):
     def export_metadata(self, command_line_arguments):
         application_export_subdirectory: str = os.path.join(command_line_arguments.export, self.application_name)
 
-        print(f'INFO: Exporting metadata for {self.system.filename}')
+        self.logger.info(f'Exporting metadata for {self.system.filename}')
         self.system.export_metadata(application_export_subdirectory)
         for context in self.contexts:
-            print(f'INFO: Exporting metadata for {context.filename}')
+            self.logger.info(f'Exporting metadata for {context.filename}')
             context.export_metadata(application_export_subdirectory)
         if self.profile is not None:
-            print(f'INFO: Exporting metadata for {self.profile.filename}')
+            self.logger.info(f'Exporting metadata for {self.profile.filename}')
             self.profile.export_metadata(application_export_subdirectory)
 
 class MediaStationCommandLineArguments(CommandLineArguments):

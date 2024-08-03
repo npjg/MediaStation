@@ -9,3 +9,4 @@ application = None
 # but this reduces some of the complexity there by storing a 
 # reference directly.
 version = None
+

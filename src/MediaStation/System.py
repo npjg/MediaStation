@@ -438,7 +438,7 @@ class System(DataFile):
 
             else:
                 # SIGNAL AN UNKNOWN SECTION.
-                print(f'WARNING: Detected unknown section 0x{section_type:04x}')
+                global_variables.application.logger.warning(f'[System] Detected unknown section 0x{section_type:04x}')
 
             # READ THE NEXT SECTION TYPE.
             section_type = Datum(chunk).d
