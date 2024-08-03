@@ -268,7 +268,7 @@ class Movie(Animation):
         current_keyframe: MovieFrame = None
         # TODO: Need to determine why some movies aren't exported.
         for index, frame in enumerate(self.frames):
-            global_variables.application.logger.debug(f'[{self.name}] (frame {frame.header.index}) (timestamp: {timestamp}) (start: {frame.footer.start_in_milliseconds if frame.footer else None}) (end: {frame.footer.end_in_milliseconds if frame.footer else None})')
+            global_variables.application.logger.debug(f'[{self.name}] ({index}) Keyframing frame {frame.header.index} (timestamp: {timestamp}) (start: {frame.footer.start_in_milliseconds if frame.footer else None}) (end: {frame.footer.end_in_milliseconds if frame.footer else None}) (keyframe_end: {frame.header.keyframe_end_in_milliseconds}) (current_keyframe: {current_keyframe.header.index if current_keyframe else None})')
 
             # CHECK IF WE SHOULD REGISTER THE NEXT KEYFRAME.
             if frame.header.keyframe_end_in_milliseconds > timestamp:
@@ -276,7 +276,9 @@ class Movie(Animation):
                 if current_keyframe is None or current_keyframe.header.index != frame.header.index:
                     # REGISTER THE NEXT KEYFRAME.
                     # The keyframe is not intended to be included in the export.
-                    # Though maybe we could include them as some sort of "K1.bmp" filename.
+                    # Though maybe we could include them as some sort of
+                    # "K1.bmp" filename to help with debugging.
+                    global_variables.application.logger.debug(f'[{self.name}] Registering next keyframe {frame.header.index}')
                     current_keyframe = frame
                     current_keyframe.decompress_bitmap(self._width, self._height)
                     current_keyframe._include_in_export = False
