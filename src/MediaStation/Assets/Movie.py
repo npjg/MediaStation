@@ -290,7 +290,5 @@ class Movie(Animation):
         # TODO: Should the stills be exported like everything else? They look like they might be regular frames.
         self._fix_keyframe_coordinates()
         # TODO: Provide an option to check for a request to not apply keyframes. 
-        # TODO: Keyframe application is currently disabled becuase it is
-        # horribly inefficient and doesn't even work very well. It needs to be reworked.
         self._apply_keyframes()
         super().export(root_directory_path, command_line_arguments)
