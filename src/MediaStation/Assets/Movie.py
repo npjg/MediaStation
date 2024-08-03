@@ -291,6 +291,4 @@ class Movie(Animation):
         # TODO: Keyframe application is currently disabled becuase it is
         # horribly inefficient and doesn't even work very well. It needs to be reworked.
         self._apply_keyframes()
-        #
-        self.frames.sort(key = lambda x: x.footer.end_in_milliseconds if x.footer else x.header.keyframe_end_in_milliseconds)
         super().export(root_directory_path, command_line_arguments)
