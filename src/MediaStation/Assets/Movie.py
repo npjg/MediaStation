@@ -252,14 +252,6 @@ class Movie(Animation):
             self.frames.extend(frames)
             self.sounds.append(audio)
 
-    def _fix_keyframe_coordinates(self):
-        for frame in self.frames:
-            if frame.footer is None:
-                for frame_with_dimensions in self.frames:
-                    if (frame.header.index == frame_with_dimensions.header.index):
-                        frame._left = frame_with_dimensions._left
-                        frame._top = frame_with_dimensions._top
-
     # Currently doesn't handle keyframes that end in the middle of another frame,
     # but that seems an unlikely occurrence.
     # The animation framing MUST be applied or there will be an error when applying the keyframing.
@@ -269,6 +261,14 @@ class Movie(Animation):
         # TODO: Need to determine why some movies aren't exported.
         for index, frame in enumerate(self.frames):
             global_variables.application.logger.debug(f'[{self.name}] ({index}) Keyframing frame {frame.header.index} (timestamp: {timestamp}) (start: {frame.footer.start_in_milliseconds if frame.footer else None}) (end: {frame.footer.end_in_milliseconds if frame.footer else None}) (keyframe_end: {frame.header.keyframe_end_in_milliseconds}) (current_keyframe: {current_keyframe.header.index if current_keyframe else None})')
+
+            # CORRECT THE COORDINATES OF THIS FRAME.
+            # TODO: Document why this is necessary.
+            if frame.footer is None:
+                for frame_with_dimensions in self.frames:
+                    if (frame.header.index == frame_with_dimensions.header.index):
+                        frame._left = frame_with_dimensions._left
+                        frame._top = frame_with_dimensions._top
 
             # CHECK IF WE SHOULD REGISTER THE NEXT KEYFRAME.
             if frame.header.keyframe_end_in_milliseconds > timestamp:
@@ -288,7 +288,6 @@ class Movie(Animation):
 
     def export(self, root_directory_path, command_line_arguments):
         # TODO: Should the stills be exported like everything else? They look like they might be regular frames.
-        self._fix_keyframe_coordinates()
         # TODO: Provide an option to check for a request to not apply keyframes. 
         self._apply_keyframes()
         super().export(root_directory_path, command_line_arguments)
