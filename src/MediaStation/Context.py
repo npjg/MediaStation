@@ -27,9 +27,11 @@ class ChunkType(IntEnum):
 ## This is usually the second header section in a context, after the palette (if present).
 class GlobalParameters:
     class SectionType(IntEnum):
+        NULL = 0x0000
         EMPTY = 0x0014
         NAME = 0x0bb9
-        FILE_NUMBER_SECTION = 0x0011
+        FILE_NUMBER = 0x0011
+        BYTECODE = 0x0017
 
     ## Reads context parametersfrom the binary stream at its current position.
     ## The number of bytes read from the stream depends on the type 
@@ -53,51 +55,56 @@ class GlobalParameters:
                 self.name = Datum(stream).d
                 assert_equal(Datum(stream).d, 0x0000)
 
-            elif section_type == GlobalParameters.SectionType.FILE_NUMBER_SECTION:
+            elif section_type == GlobalParameters.SectionType.FILE_NUMBER:
                 self.read_file_number_section(stream)
+
         else:
             # TODO: Document what this stuff is. My original code had zero documentation.
-            type = Datum(stream)
-            while type.d != 0x0000:
-                assert_equal(type.d, self.file_number, "file ID")
-                entries = []
+            section_type = Datum(stream)
+            while section_type.d != GlobalParameters.SectionType.NULL:
+                assert_equal(section_type.d, self.file_number, "file ID")
 
                 id = Datum(stream)
                 self.entries.update({id.d: self.entity(Datum(stream), stream)})
 
                 check = Datum(stream)
-                if check.d != 0x0014:
+                if check.d != GlobalParameters.SectionType.EMPTY:
                     break
 
-                type = Datum(stream)
+                section_type = Datum(stream)
 
-            if check.d == 0x0011: 
+            if check.d == GlobalParameters.SectionType.FILE_NUMBER:
                 self.read_file_number_section(stream)
 
         # READ THE CONTEXT-GLOBAL BYTECODE.
         # TODO: Does this run when the context is first loaded?
         if global_variables.version.is_first_generation_engine:
-            token = Datum(stream)
+            section_type = Datum(stream)
             self.init = []
-            while token.d == 0x0017:
+            while section_type.d == GlobalParameters.SectionType.BYTECODE:
                 self.init.append(Script(stream, in_independent_asset_chunk = False))
-                token = Datum(stream)
+                section_type = Datum(stream)
 
     # TODO: Document what this stuff is. My original code had zero documentation.
-    def entity(self, token, stream):
+    def entity(self, section_type, stream):
         entries = []
 
-        if token.d == 0x0007: # array
-            size = Datum(stream)
-            for _ in range(size.d):
-                entries.append(self.entity(Datum(stream), stream))
-        elif token.d == 0x0006: # string
-            size = Datum(stream)
-            entries.append(stream.read(size.d).decode("utf-8"))
-        else: 
-            entries.append(Datum(stream).d)
+        if section_type.d == 0x0007: # array
+            size = Datum(stream).d
+            for _ in range(size):
+                entity = self.entity(Datum(stream), stream)
+                entries.append(entity)
 
-        return {"token": token.d, "entries": entries}
+        elif section_type.d == 0x0006: # string
+            size = Datum(stream).d
+            string = stream.read(size).decode('latin-1')
+            entries.append(string)
+
+        else: 
+            entry = Datum(stream).d
+            entries.append(entry)
+
+        return {"section_type": section_type.d, "entries": entries}
 
     ## I don't know what this structure is, but it's in every old-style game.
     ## The fields aside from the file numbers are constant.
@@ -106,21 +113,15 @@ class GlobalParameters:
         # VERIFY THE FILE NUMBER.
         repeated_file_number = Datum(stream).d
         assert_equal(repeated_file_number, self.file_number)
-
-        # READ THE UNKNOWN FIELD.
-        unk = Datum(stream).d
-        assert_equal(unk, 0x0001)
+        # TODO: Figure out what this is.
+        unk1 = Datum(stream).d # This seems to always be 0x0001.
 
         # VERIFY THE FILE NUMBER.
         repeated_file_number = Datum(stream).d
         assert_equal(repeated_file_number, self.file_number)
-
-        # READ THE UNKNOWN FIELD.
-        unk = Datum(stream).d
-        assert_equal(unk, 0x0022)
-
-        # TODO: Understand what this is.
-        Datum(stream)
+        # TODO: Figure out what these are.
+        unk2 = Datum(stream).d # This seems to always be 0x0022.
+        unk3 = Datum(stream).d
 
 ## A "context" is the logical entity serialized in each CXT data file.
 ## Subfile 0 of this file always contains the header sections for the context.
