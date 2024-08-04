@@ -46,8 +46,9 @@ class MovieFrameFooter:
     ## Reads a movie frame header from a binary stream at its current position.
     ## \param[in] stream - A binary stream that supports the read method.
     def __init__(self, stream):
-        assert_equal(Datum(stream).d, 0x0001)
-        self.unk1 = Datum(stream).d
+        # TODO: Determine what this is.
+        self.unk1 = Datum(stream).d # This seems to always be 0x01.
+        self.unk2 = Datum(stream).d
         if global_variables.version.is_first_generation_engine or \
               ((global_variables.version.major_version <= 3) and (global_variables.version.minor_version <= 2)):
             # It is theoretically possible for movies to have a variable
@@ -58,8 +59,8 @@ class MovieFrameFooter:
             self._left = Datum(stream).d
             self._top = Datum(stream).d
             # TODO: Identify these fields.
-            self.unk2 = Datum(stream).d
             self.unk3 = Datum(stream).d
+            self.unk4 = Datum(stream).d
             # This index is zero-based.
             self.index = Datum(stream).d
         else:
