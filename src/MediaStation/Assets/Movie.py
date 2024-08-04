@@ -224,11 +224,11 @@ class Movie(Animation):
                 is_video_chunk = (chunk.chunk_integer == video_chunk_integer)
 
             # READ THE AUDIO.
-            audio = None
             is_audio_chunk = (subfile.current_chunk.chunk_integer == audio_chunk_integer)
             if is_audio_chunk:
                 audio = Sound(self._sound_encoding)
                 audio.read_chunk(chunk)
+                self.sounds.append(audio)
                 chunk = subfile.get_next_chunk()
 
             # READ THE FOOTER FOR THIS SUBFILE.
@@ -250,7 +250,6 @@ class Movie(Animation):
                         frame.set_footer(footer)
 
             self.frames.extend(frames)
-            self.sounds.append(audio)
 
     # Currently doesn't handle keyframes that end in the middle of another frame,
     # but that seems an unlikely occurrence.
