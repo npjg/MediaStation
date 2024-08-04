@@ -106,10 +106,6 @@ class MovieFrame(Bitmap):
         self.full_width = None
         self.full_height = None
 
-    @property 
-    def _duration(self):
-        return self.footer.end_in_milliseconds - self.footer.start_in_milliseconds
-
     def set_footer(self, footer: MovieFrameFooter):
         self.footer = footer
         self._left = self.footer._left
