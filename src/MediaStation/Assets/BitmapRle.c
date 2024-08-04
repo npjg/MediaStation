@@ -20,14 +20,22 @@ static PyObject *method_decompress_media_station_rle(PyObject *self, PyObject *a
     unsigned int frame_top_y_coordinate = 0;
     // The keyframe that we want to apply to this image.
     // It is expected to be the same size as the uncompressed image.
-    char *keyframe_image = NULL;
-    Py_ssize_t keyframe_image_size_in_bytes = 0;
-    if(!PyArg_ParseTuple(args, "y#II|IIIIy#", &compressed_image, &compressed_image_data_size_in_bytes, &frame_width, &frame_height, &full_width, &full_height, &frame_left_x_coordinate, &frame_top_y_coordinate, &keyframe_image, &keyframe_image_size_in_bytes)) {
+    PyObject *keyframe_image_object = NULL;
+    if(!PyArg_ParseTuple(args, "y#II|IIIIO", &compressed_image, &compressed_image_data_size_in_bytes, &frame_width, &frame_height, &full_width, &full_height, &frame_left_x_coordinate, &frame_top_y_coordinate, &keyframe_image_object)) {
         PyErr_Format(PyExc_RuntimeError, "BitmapRle.c::PyArg_ParseTuple(): Failed to parse arguments.");
         return NULL;
     }
-    if (keyframe_image_size_in_bytes == 0) {
-        keyframe_image = NULL;
+
+    // GET THE KEYFRAME IF IT'S PROVIDED.
+    char *keyframe_image = NULL;
+    Py_ssize_t keyframe_image_size_in_bytes = 0;
+    if (keyframe_image_object != NULL && keyframe_image_object != Py_None) {
+        if (!PyBytes_Check(keyframe_image_object)) {
+            PyErr_Format(PyExc_TypeError, "BitmapRle.c: keyframe_image must be a bytes-like object or None.");
+            return NULL;
+        }
+        keyframe_image = PyBytes_AsString(keyframe_image_object);
+        keyframe_image_size_in_bytes = PyBytes_Size(keyframe_image_object);
     }
 
     // MAKE SURE THE PARAMETERS ARE SANE.

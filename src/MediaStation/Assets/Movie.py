@@ -111,11 +111,9 @@ class MovieFrame(Bitmap):
         self._left = self.footer._left
         self._top = self.footer._top
 
-    def decompress_bitmap(self, full_width, full_height, keyframe = b''):
+    def decompress_bitmap(self, full_width, full_height, keyframe = None):
         self.full_width = full_width
         self.full_height = full_height
-        if keyframe == None:
-            keyframe = b''
         self._pixels = MediaStationBitmapRle.decompress(
             self._raw, self.width, self.height, full_width, full_height, self._left, self._top, keyframe)
 
