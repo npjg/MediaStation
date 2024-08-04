@@ -32,7 +32,7 @@ class MediaStationEngine(Application):
 
         # CREATE THE LOGGER.
         self.logger = logging.getLogger(__name__)
-        self.logger.setLevel(logging.DEBUG)
+        self.logger.setLevel(logging.INFO)
         console_handler = logging.StreamHandler()
         formatter = logging.Formatter('%(levelname)s: %(message)s')
         console_handler.setFormatter(formatter)
@@ -210,6 +210,8 @@ def main(raw_command_line: List[str] = None):
 
     # PARSE THE ASSETS.
     media_station_engine = MediaStationEngine(APPLICATION_NAME)
+    if command_line_arguments.debug:
+        media_station_engine.logger.setLevel(logging.DEBUG)
     global_variables.application = media_station_engine
     media_station_engine.process(command_line_arguments.input)
 
