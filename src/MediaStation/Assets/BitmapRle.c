@@ -68,7 +68,7 @@ static PyObject *method_decompress_media_station_rle(PyObject *self, PyObject *a
     if (decompressed_image_object == NULL) {
         // TODO: We really should use Py_DECREF here I think, but since the
         // program will currently just quit it isn't a big deal.
-        PyErr_Format(PyExc_RuntimeError, "BitmapRle.c: Failed to allocate decompressed image data buffer.");
+        PyErr_Format(PyExc_RuntimeError, "BitmapRle.c::PyBytes_FromStringAndSize(): Failed to allocate decompressed image data buffer.");
         return NULL;
     }
     char *decompressed_image = PyBytes_AS_STRING(decompressed_image_object);
