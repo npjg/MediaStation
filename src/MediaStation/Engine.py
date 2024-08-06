@@ -95,7 +95,7 @@ class MediaStationEngine(Application):
             
             # CHECK IF THE ENTRY CORRESPONDS TO A CONTEXT.
             # Contexts have assigned asset IDs too, as in this example:
-            #  "context_7d07g_PurplePurpleNo 1000 0"
+            # "context_7d07g_PurplePurpleNo 1000 0"
             # In this script, assets currently are not stored in the
             # asset headers list because asset headers are not provided for contexts,
             # at least not in the same way.
@@ -110,9 +110,7 @@ class MediaStationEngine(Application):
         # READ THE STARTUP FILE (BOOT.STM).
         matched_boot_stm_files = self.find_matching_files(input_paths, r'boot\.stm$', case_sensitive = False)
         if len(matched_boot_stm_files) == 0:
-            # TODO: I really wanted to support extracting individual CXTs, but 
-            # I think that will be too complex and the potential use cases are
-            # too small.
+            # TODO: I really wanted to support extracting individual CXTs, I think that will be too complex and the potential use cases are too small.
             self.logger.error("ERROR: BOOT.STM is missing from the input path(s). This file contains vital information for processing Media Station games, and assets cannot be extracted without it. ")
             exit(1)
         if len(matched_boot_stm_files) > 1:
@@ -170,11 +168,9 @@ class MediaStationEngine(Application):
 
     def export_assets(self, command_line_arguments):
         application_export_subdirectory: str = os.path.join(command_line_arguments.export, self.application_name)
-        # TODO: Check if the directory already exists, and issue a warning if
-        # so. I would like to introduce a command-line argument `--force` to
-        # force writing to a directory that already exists.
-        # Or we could also make it such that the subdirectory is named after the
-        # title itself!
+        # TODO: Check if the directory already exists, and issue a warning if so. 
+        # I would like to introduce a command-line argument `--force` to force writing to a directory that already exists.
+        # Or we could also make it such that the subdirectory is named after the title itself!
         # os.path.exists(application_export_subdirectory)
         for index, context in enumerate(self.contexts):
             self.logger.info(f'Exporting assets in {context.filepath}')

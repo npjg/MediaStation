@@ -325,7 +325,6 @@ class Asset:
 
         elif section_type == 0x03ed:
             # This should only occur in version 1 games.
-            # 
             # This type should be only used for LKASB Zazu minigame,
             # so it's okay to hardcode the constant 5.
             self.mouse = {
@@ -422,8 +421,7 @@ class Asset:
             self.bitmap_declarations.append(bitmap_declaration)
 
         elif section_type == 0x779: # IMAGE_SET
-            # TODO: Figure out what this is. I just split it out here so I 
-            # wouldn't forget about it.
+            # TODO: Figure out what this is. I just split it out here so I wouldn't forget about it.
             self.unk_bitmap_set_bounding_box = Datum(chunk).d
 
         elif section_type >= 0x0773 and section_type <= 0x0780:
