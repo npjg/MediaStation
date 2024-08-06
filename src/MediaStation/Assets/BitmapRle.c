@@ -1,8 +1,8 @@
 #define PY_SSIZE_T_CLEAN
 #include <Python.h>
 
-/// Actually decompresses the Media Station RLE stream, and easily provides a 10x performance improvement
-/// over the pure Python implementation.
+// Actually decompresses the Media Station RLE stream, and easily provides a 10x performance improvement
+// over the pure Python implementation.
 static PyObject *method_decompress_media_station_rle(PyObject *self, PyObject *args) {
     // READ THE PARAMETERS FROM PYTHON.
     char *compressed_image;
@@ -202,15 +202,15 @@ static PyObject *method_decompress_media_station_rle(PyObject *self, PyObject *a
     return decompressed_image_object;
 }
 
-/// Defines the Python methods callable in this module.
+// Defines the Python methods callable in this module.
 static PyMethodDef MediaStationBitmapRleDecompressionMethod[] = {
     {"decompress", method_decompress_media_station_rle, METH_VARARGS, "Decompresses raw Media Station RLE-encoded streams into an image bitmap (8-bit indexed color) and a transparency bitmap (monochrome, but still 8-bit for simplicity)."},
     // An entry of nulls must be provided to indicate we're done.
     {NULL, NULL, 0, NULL}
 };
 
-/// Defines the Python module itself. Because the module requires references to 
-/// each of the methods, the module must be defined after the methods.
+// Defines the Python module itself. Because the module requires references to 
+// each of the methods, the module must be defined after the methods.
 static struct PyModuleDef MediaStationBitmapRleModule = {
     PyModuleDef_HEAD_INIT,
     "BitmapRle",
@@ -222,7 +222,7 @@ static struct PyModuleDef MediaStationBitmapRleModule = {
     MediaStationBitmapRleDecompressionMethod
 };
 
-/// Called when a Python script inputs this module for the first time.
+// Called when a Python script inputs this module for the first time.
 PyMODINIT_FUNC PyInit_MediaStationBitmapRle(void) {
     return PyModule_Create(&MediaStationBitmapRleModule);
 }
