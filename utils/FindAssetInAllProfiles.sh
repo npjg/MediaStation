@@ -10,8 +10,8 @@ while IFS= read -r file; do
     if [[ -f $file ]]; then
         grep_result=$(grep -i "$search_string" "$file")
         if [[ ! -z $grep_result ]]; then
-            echo "Filename: $file"
-            echo "$grep_result"
+            echo "Filename: $file\n"
+            echo "$grep_result\n"
         fi
     fi
 done < <(echo "$files")

@@ -17,7 +17,7 @@ set -e
 # Since we have set -e, any errors will cause the script to exit immediately, so we must trap EXIT instead. 
 trap cleanup EXIT
 cleanup() {
-        echo -e "\nAttempting to clean up mount points and attached disks..."
+        echo -e "\nAttempting to clean up mount points and attached disks...\n"
         # We don't want to show any more errors.
         umount "$mount_point" > /dev/null || true
         rmdir "$mount_point" > /dev/null
@@ -63,10 +63,10 @@ mount -t cd9660 "$disk_identifier" "$mount_point"
 echo "BOOT.STM"
 bootstm_path=$(find "$mount_point" -iname "boot.stm" -print)
 if [ -z "$bootstm_path" ]; then
-  echo "ERROR: BOOT.STM not found on CD-ROM. This is likely not a Media Sation title, or it uses some format we're not aware of yet."
+  echo "ERROR: BOOT.STM not found on CD-ROM. This is likely not a Media Sation title, or it uses some format we're not aware of yet.\n"
   exit 1
 elif [ $(echo "$bootstm_path" | wc -l) -gt 1 ]; then
-  echo "ERROR: Multiple BOOT.STMs found: $bootstm_path. Using the first one."
+  echo "ERROR: Multiple BOOT.STMs found: $bootstm_path. Using the first one.\n"
   bootstm_path=$(echo "$bootstm_path" | head -n 1)
 fi
 xxd -l 256 "$bootstm_path"
@@ -78,7 +78,7 @@ if [ -z "$profilest_path" ]; then
   echo "No profile._st found."
 else
   if [ $(echo "$profilest_path" | wc -l) -gt 1 ]; then
-    echo "WARNING: Multiple PROFILE._STs found: $profilest_path. Using the first one."
+    echo "WARNING: Multiple PROFILE._STs found: $profilest_path. Using the first one.\n"
     profilest_path=$(echo "$profilest_path" | head -n 1)
   fi
   xxd -l 256 "$profilest_path"
@@ -110,12 +110,12 @@ read -p "Title Compiler Version (e.g. 4.0r8): " title_compiler_version
 read -p "Engine Version (e.g. 1.0/US): " engine_version
 read -p "Language: " language
 platform="Windows"
-folder_name="$game_name - $title_compiler_version - $engine_version - $language - $platform"
+folder_name="$game_name - $title_compiler_version - $engine_version - $language - $platform\n"
 pc_folder_path="$extracted_files_root/$folder_name"
 if [ ! -d "$pc_folder_path" ]; then
   mkdir -p "$pc_folder_path"
 else
-  echo "Directory already exists and will not be overwritten: $pc_folder_path"
+  echo "Directory already exists and will not be overwritten: $pc_folder_path\n"
   exit 1
 fi
 
@@ -125,7 +125,7 @@ rmdir "$mount_point"
 
 # MOUNT THE HFS (Macintosh) PARTITION.
 # TODO: Make sure there is indeed an HFS partition.
-echo -e "\nAttempting to mount HFS (Macintosh) partition with hmount..."
+echo -e "\nAttempting to mount HFS (Macintosh) partition with hmount...\n"
 hfs_partition=$(echo "$partitions_on_attached_iso" | grep "Apple_HFS" | awk '{print $1}')
 if [ -n "$hfs_partition" ]; then
   hmount $hfs_partition
@@ -139,11 +139,11 @@ if [ -n "$hfs_partition" ]; then
   mkdir -p "$mac_folder_path"
   # These files just have a data fork. Executable files need to have a resource fork copied to to be useful.
   # This is not a recursive copy but specifying that we want raw data (just the data fork).
-  echo "Copying data from HFS volume to $mac_folder_path (progress will not echo)..."
+  echo "Copying data from HFS volume to $mac_folder_path (progress will not echo)...\n"
   # Apparently you cannot use the path 'data/*' to get the paths.
   # TODO: For DW and maybe some others, the CXTs aren't in a data directory, they
   # are in program/data directory, so you might need to change to that.
-  # hcd program
+  # hcd program # uncomment if required.
   hcd data
   hcopy -r '*' "$mac_folder_path"
   humount
@@ -151,34 +151,34 @@ if [ -n "$hfs_partition" ]; then
   # CHECK THE HASHES.
   # The hashes of the data files should be EXACTLY the same across the Windows and Mac versions.
   # The only difference should be the executable file, of course.
-  echo -e "\nChecking to see if there is any difference in the data files in the Windows and Mac versions..."
-  echo "If there is a difference a diff will be shown here."
+  echo -e "\nChecking to see if there is any difference in the data files in the Windows and Mac versions...\n"
+  echo "If there is a difference a diff will be shown here.\n"
   pc_hashes=$(mktemp)
-  echo "Windows hashes stored at $pc_hashes"
+  echo "Windows hashes stored at $pc_hashes:\n"
   # md5sum returns lines like this:
-  #  b74d5f875eff726d2a1b7c0778ffd769  ./DATA/160.CXT
+  # b74d5f875eff726d2a1b7c0778ffd769 ./DATA/160.CXT
   # This extracts the first field (hash). The filenames might have different capitalization
   # and so forth, so rather than worrying about that we will just sort in place and then check
   # the hash list. Of course, if they don't match then there will be some more effort to sort out which lines don't match. 
   find "$pc_folder_path" \( -iname "*.cxt" -o -iname "*.stm" -o -iname "*._st" \) -exec md5sum {} + | sort | awk '{print $1}' > $pc_hashes
   mac_hashes=$(mktemp)
-  echo "Mac hashes stored at $mac_hashes"
+  echo "Mac hashes stored at $mac_hashes\n"
   find "$mac_folder_path" \( -iname "*.cxt" -o -iname "*.stm" -o -iname "*._st" \) -exec md5sum {} + | sort | awk '{print $1}' > $mac_hashes
   set +e
   windows_mac_hash_diff=$(diff $pc_hashes $mac_hashes)
   set -e
   echo $windows_mac_hash_diff
   if [ -z "$windows_mac_hash_diff" ]; then
-    echo "Hashes match exactly, so removing the Mac version..."
+    echo "Hashes match exactly, so removing the Mac version...\n"
     rm -r "$mac_folder_path"
   fi
   # rm $pc_hashes $mac_hashes
 else
-  echo "No HFS partition found, so skipping Mac partition."
+  echo "No HFS partition found, so skipping Mac partition.\n"
 fi
 
 # DETATCH THE DISK IMAGE.
-echo -e "\nMoving ISO to the correct location..."
+echo -e "\nMoving ISO to the correct location...\n"
 diskutil eject "$disk_identifier"
 
 # MOVE THE ISO TO MATCH THE NAME.
