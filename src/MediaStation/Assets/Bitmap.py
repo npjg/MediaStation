@@ -10,8 +10,7 @@ from asset_extraction_framework.Exceptions import BinaryParsingError
 from ..Primitives.Datum import Datum
 
 # ATTEMPT TO IMPORT THE C-BASED DECOMPRESSION LIBRARY.
-# We will fall back to the pure Python implementation if it doesn't work, but there is easily a 
-# 10x slowdown with pure Python.
+# We will fall back to the pure Python implementation if it doesn't work, but there is easily a 10x slowdown with pure Python.
 try:
     import MediaStationBitmapRle
     rle_c_loaded = True
@@ -19,10 +18,10 @@ except ImportError:
     print('WARNING: The C bitmap decompression binary is not available on this installation. Bitmaps will not be exported.')
     rle_c_loaded = False
 
-## A base header for a bitmap.
+# A base header for a bitmap.
 class BitmapHeader:
-    ## Reads a bitmap header from the binary stream at its current position.
-    ## \param[in] stream - A binary stream that supports the read method.
+    # Reads a bitmap header from the binary stream at its current position.
+    # \param[in] stream - A binary stream that supports the read method.
     def __init__(self, stream):
         self._header_size_in_bytes = Datum(stream).d
         self.dimensions = Datum(stream).d
@@ -38,7 +37,7 @@ class BitmapHeader:
         return (self.compression_type != Bitmap.CompressionType.UNCOMPRESSED) and \
             (self.compression_type != Bitmap.CompressionType.UNCOMPRESSED_2)
 
-## A single, still bitmap.
+# A single, still bitmap.
 class Bitmap(RectangularBitmap):
     class CompressionType(IntEnum):
         UNCOMPRESSED = 0
@@ -46,11 +45,10 @@ class Bitmap(RectangularBitmap):
         UNCOMPRESSED_2 = 7
         UNK1 = 6
 
-    ## Reads a bitmap from the binary stream at its current position.
-    ## \param[in] stream - A binary stream that supports the read method.
-    ## \param[in] dimensions - The dimensions of the image, if they are known beforehand
-    ##            (like in an asset header). Otherwise, the dimensions will be read
-    ##            from the image.
+    # Reads a bitmap from the binary stream at its current position.
+    # \param[in] stream - A binary stream that supports the read method.
+    # \param[in] dimensions - The dimensions of the image, if they are known beforehand
+    # (like in an asset header). Otherwise, the dimensions will be read from the image.
     def __init__(self, chunk, header_class = BitmapHeader):
         super().__init__()
         self.name = None
@@ -87,8 +85,7 @@ class Bitmap(RectangularBitmap):
                else:
                    print(f'WARNING: Found mismatched width in uncompressed bitmap. Header: {self.header.unk2}. Width: {self._width}. This image might not be exported correctly.')
 
-    ## Calculates the total number of bytes the uncompressed image
-    ## (pixels) should occupy, rounded up to the closest whole byte.
+    # Calculates the total number of bytes the uncompressed image (pixels) should occupy, rounded up to the closest whole byte.
     @property
     def _expected_bitmap_length_in_bytes(self) -> int:
         return self.width * self.height
@@ -101,8 +98,8 @@ class Bitmap(RectangularBitmap):
     def decompress_bitmap(self):
         self._pixels = MediaStationBitmapRle.decompress(self._raw, self.width, self.height)
 
-    ## \return The decompressed pixels that represent this image.
-    ## The number of bytes is the same as the product of the width and the height.
+    # \return The decompressed pixels that represent this image. 
+    # The number of bytes is the same as the product of the width and the height.
     @property
     def pixels(self) -> bytes:
         if self._pixels is None:

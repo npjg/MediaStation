@@ -67,8 +67,7 @@ class MediaStationEngine(Application):
     # Uses the mapping in PROFILE._ST to correlate the numeric asset IDs
     # to descriptive asset names. Later titles had the asset names encoded
     # directly in the asset headers, in which case this isn't necessary.
-    # But for earlier titles, the only way to get the names is to read
-    # the PROFILE._ST as is done here.
+    # But for earlier titles, the only way to get the names is to read the PROFILE._ST as is done here.
     def correlate_asset_ids_to_names(self):
         # MAKE SURE THERE IS A PROFILE.
         if self.profile is None:
@@ -97,8 +96,7 @@ class MediaStationEngine(Application):
             # Contexts have assigned asset IDs too, as in this example:
             # "context_7d07g_PurplePurpleNo 1000 0"
             # In this script, assets currently are not stored in the
-            # asset headers list because asset headers are not provided for contexts,
-            # at least not in the same way.
+            # asset headers list because asset headers are not provided for contexts, at least not in the same way.
             corresponding_context = self.get_context_by_file_id(asset_entry.id)
             if corresponding_context is not None:
                 corresponding_context.parameters.name = asset_entry.name
@@ -176,8 +174,7 @@ class MediaStationEngine(Application):
             self.logger.info(f'Exporting assets in {context.filepath}')
             context.export_assets(application_export_subdirectory, command_line_arguments)
 
-    # This is in a separate function becuase even on fast computers it 
-    # can take a very long time and often isn't necessary.
+    # This is in a separate function becuase even on fast computers it can take a very long time and often isn't necessary.
     def export_metadata(self, command_line_arguments):
         application_export_subdirectory: str = os.path.join(command_line_arguments.export, self.application_name)
 

@@ -14,8 +14,7 @@
 
 # DEFINE ERROR HANDLERS.
 set -e 
-# Since we have set -e, any errors will cause the script to exit immediately,
-# so we must trap EXIT instead. 
+# Since we have set -e, any errors will cause the script to exit immediately, so we must trap EXIT instead. 
 trap cleanup EXIT
 cleanup() {
         echo -e "\nAttempting to clean up mount points and attached disks..."
@@ -133,8 +132,7 @@ if [ -n "$hfs_partition" ]; then
 
   # COPY THE MAC PARTITION TO THE CORRECT DIRECTORY.
   # We will assume that the versions are all the same as the PC one... though maybe this should be checked.
-  # It is easier to just check the PC version since hfstools doesn't provide direct access to the files; they
-  # must be copied out first.
+  # It is easier to just check the PC version since hfstools doesn't provide direct access to the files; they must be copied out first.
   platform="Mac"
   folder_name="$game_name - $title_compiler_version - $engine_version - $language - $platform"
   mac_folder_path="$extracted_files_root/$folder_name"
@@ -161,8 +159,7 @@ if [ -n "$hfs_partition" ]; then
   #  b74d5f875eff726d2a1b7c0778ffd769  ./DATA/160.CXT
   # This extracts the first field (hash). The filenames might have different capitalization
   # and so forth, so rather than worrying about that we will just sort in place and then check
-  # the hash list. Of course, if they don't match then there will be some more effort to sort out
-  # which lines don't match. 
+  # the hash list. Of course, if they don't match then there will be some more effort to sort out which lines don't match. 
   find "$pc_folder_path" \( -iname "*.cxt" -o -iname "*.stm" -o -iname "*._st" \) -exec md5sum {} + | sort | awk '{print $1}' > $pc_hashes
   mac_hashes=$(mktemp)
   echo "Mac hashes stored at $mac_hashes"
@@ -187,8 +184,7 @@ diskutil eject "$disk_identifier"
 # MOVE THE ISO TO MATCH THE NAME.
 # Since the ISO has both platforms, we don't need to include the platform.
 # This could be a little bit less descriptive than possible if there is just
-# one platform in the image (like George Shrinks, which is Windows only), but
-# that is okay for now.
+# one platform in the image (like George Shrinks, which is Windows only), but that is okay for now.
 iso_filename="$game_name - $title_compiler_version - $engine_version - $language.iso"
 new_iso_path="$ISOS_ROOT/$iso_filename"
 mv -v "$iso_path" "$new_iso_path"

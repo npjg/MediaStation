@@ -11,8 +11,8 @@ from .Riff.DataFile import DataFile
 from .Primitives.Datum import Datum
 from .Primitives.Point import Point
 
-## Contains information about the engine (also called "title compiler") used in this particular game.
-## Engine version information is not present in version 1 games, so all the fields are initialized to be none.
+# Contains information about the engine (also called "title compiler") used in this particular game.
+# Engine version information is not present in version 1 games, so all the fields are initialized to be none.
 class EngineVersionInformation:
     def __init__(self, stream = None):
         self.major_version = None
@@ -26,14 +26,13 @@ class EngineVersionInformation:
             self.revision_number = Datum(stream).d
             # A textual description of this engine.
             # Example: "Title Compiler T4.0r8 built Feb 13 1998 10:16:52"
-            #           ^^^^^^^^^^^^^^  ^^^^^
-            #           | Engine name   | Version number
+            #          | Engine name   | Version number
             self.string = Datum(stream).d
 
             # LOG THE TITLE INFORMATION FOR DEBUGGING PURPOSES.
             print(f' {self.string} - {self.version_number}')
 
-    ## Engine version information is not present in version 1 games, so all the fields are initialized to be None.
+    # Engine version information is not present in version 1 games, so all the fields are initialized to be None.
     @property
     def is_first_generation_engine(self) -> bool:
         return (self.major_version is None) and \
@@ -45,20 +44,18 @@ class EngineVersionInformation:
     def version_number(self) -> str:
         return f'{self.major_version}.{self.minor_version}r{self.revision_number}'
 
-## A "context" is the logical entity serialized in each CXT file.
-## (As I understand it, "scene" is more commonly used a synonym for "context".)
-## CXT files do not have the same names as the contexts they contain.
-## For example, a file named "109.CXT" might have a context called 
-## "Root_7x00". The "109" is called the context's "file number".
-## This extra naming indirection is probably to allow contexts to have longer, more
-## descriptive names while preserving compatibility with operating systems that used 
-## 8.3 filenames.
-##  - Maps context names to CXT filenames (indirectly).
-##  - Includes files referenced by this file.
+# A "context" is the logical entity serialized in each CXT file.
+# (As I understand it, "scene" is more commonly used a synonym for "context".)
+# CXT files do not have the same names as the contexts they contain.
+# For example, a file named "109.CXT" might have a context called 
+# "Root_7x00". The "109" is called the context's "file number".
+# This extra naming indirection is probably to allow contexts to have longer, more
+# descriptive names while preserving compatibility with operating systems that used 8.3 filenames.
+# - Maps context names to CXT filenames (indirectly).
+# - Includes files referenced by this file.
 class ContextDeclaration:
-    ## Defines each of the sections in this data structure.
-    ## Usually there is one section for each type of data stored
-    ## plus a special "empty" section.
+    # Defines each of the sections in this data structure.
+    # Usually there is one section for each type of data stored plus a special "empty" section.
     class SectionType(IntEnum):
         EMPTY = 0x0000
         PLACEHOLDER = 0x0003
@@ -72,8 +69,7 @@ class ContextDeclaration:
         section_type = Datum(chunk).d
         if (ContextDeclaration.SectionType.EMPTY == section_type):
             # THIS CONTEXT DECLARATION IS EMPTY.
-            # This signals to the holder of this declaration that there
-            # are no more declarations in the stream.
+            # This signals to the holder of this declaration that there are no more declarations in the stream.
             self._is_empty = True
             return
         else:
@@ -87,12 +83,10 @@ class ContextDeclaration:
         # for a definition of file numbers).
         self.file_references = []
         # The file number of the file that contains this context.
-        # This is the number that is in the filename and NOT the internal ID
-        # for the filename. For instance, context "Root_7x00" in file "109.cxt"
-        # would have file number 109.
+        # This is the number that is in the filename and NOT the internal ID.
+        # for the filename. For instance, context "Root_7x00" in file "109.cxt" would have file number 109.
         self.file_number = None
-        # This is the context's descriptive name, as opposed
-        # to the filename that consists of the file number and a CXT extension.
+        # This is the context's descriptive name, as opposed to the filename that consists of the file number and a CXT extension.
         self.context_name = None
 
         # READ THE FILE REFERENCES.
@@ -177,22 +171,22 @@ class UnknownDeclaration:
         repeated_unk = Datum(stream).d
         assert_equal(repeated_unk, self.unk)
 
-## Declares a data file in the game's data directory.
-## Usually every file that has a CXT extension is declared here.
-## This does not contain information on the context in the file,
-## but information about the file itself (like its name and its
-## intended installation location).
+# Declares a data file in the game's data directory.
+# Usually every file that has a CXT extension is declared here.
+# This does not contain information on the context in the file,
+# but information about the file itself (like its name and its
+# intended installation location).
 class FileDeclaration:
-    ## Defines each of the sections in this data structure.
-    ## Usually there is one section for each type of data stored
-    ## plus a special "empty" section.
+    # Defines each of the sections in this data structure.
+    # Usually there is one section for each type of data stored
+    # plus a special "empty" section.
     class SectionType(IntEnum):
         EMPTY = 0x0000
         FILE_ID = 0x002b
         FILE_NAME_AND_TYPE = 0x002d
 
-    ## Indicates where this file is intended to be stored.
-    ## NOTE: This might not correct and this might be a more general "file type".
+    # Indicates where this file is intended to be stored.
+    # NOTE: This might not correct and this might be a more general "file type".
     class IntendedFileLocation(IntEnum):
         # Usually all files that have numbers remain on the CD-ROM.
         CD_ROM = 0x0007
@@ -200,8 +194,8 @@ class FileDeclaration:
         # Usually only INSTALL.CXT is copied to the hard disk.
         HARD_DISK = 0x000b
 
-    ## Reads a file declaration from a binary stream at its current position.
-    ## \param[in] stream - A binary stream that supports the read method.
+    # Reads a file declaration from a binary stream at its current position.
+    # \param[in] stream - A binary stream that supports the read method.
     def __init__(self, stream):
         section_type: int = Datum(stream).d
         if (FileDeclaration.SectionType.EMPTY == section_type):
@@ -235,19 +229,19 @@ class FileDeclaration:
         # the directory. All files should be matched case-insensitively.
         self.name: str = Datum(stream).d
 
-## Declares a RIFF subfile in a data file.
+# Declares a RIFF subfile in a data file.
 class SubfileDeclaration:
-    ## Defines each of the sections in this data structure.
-    ## Usually there is one section for each type of data stored
-    ## plus a special "empty" section.
+    # Defines each of the sections in this data structure.
+    # Usually there is one section for each type of data stored
+    # plus a special "empty" section.
     class SectionType(IntEnum):
         EMPTY = 0x0000
         ASSET_ID = 0x002a
         FILE_ID = 0x002b
         START_POINTER = 0x002c
 
-    ## Reads a subfile declaration from a binary stream at its current position.
-    ## \param[in] stream - A binary stream that supports the read method.
+    # Reads a subfile declaration from a binary stream at its current position.
+    # \param[in] stream - A binary stream that supports the read method.
     def __init__(self, stream):
         section_type: int = Datum(stream).d
         if (ContextDeclaration.SectionType.EMPTY == section_type):
@@ -283,10 +277,10 @@ class SubfileDeclaration:
         assert_equal(section_type, SubfileDeclaration.SectionType.START_POINTER)
         self.start_pointer_in_file: int = Datum(stream).d
 
-## Declares a cursor, which is stored as a cursor resource in the game executable.
+# Declares a cursor, which is stored as a cursor resource in the game executable.
 class CursorDeclaration:
-    ## Reads a cursor declaration from a binary stream at its current position.
-    ## \param[in] stream - A binary stream that supports the read method.
+    # Reads a cursor declaration from a binary stream at its current position.
+    # \param[in] stream - A binary stream that supports the read method.
     def __init__(self, stream):
         # READ THE CURSOR RESOURCE.
         section_type = Datum(stream).d
@@ -296,14 +290,14 @@ class CursorDeclaration:
         self.unk: int = Datum(stream).d
         self.name: str = Datum(stream).d
 
-## Contains metadata about the game and its native data files,
-## usually all files with a CXT extension. (Additional files 
-## like 3D models are not detailed in the .)
-## Generally corresponds to the file "BOOT.STM". The "System" name
-## comes as the most likely meaning of the "STM" extension.
-## The data is generally, but not always, presented in the following order:
-## - Game title
-## - Engine version
+# Contains metadata about the game and its native data files,
+# usually all files with a CXT extension. (Additional files 
+# like 3D models are not detailed in the .)
+# Generally corresponds to the file "BOOT.STM". The "System" name
+# comes as the most likely meaning of the "STM" extension.
+# The data is generally, but not always, presented in the following order:
+# - Game title
+# - Engine version
 
 class System(DataFile):
     class SectionType(IntEnum):
@@ -317,13 +311,13 @@ class System(DataFile):
         RIFF_DECLARATION = 0x000b
         CURSOR_DECLARATION = 0x0015
 
-    ## Reads a system specification from the given location.
-    ## \param[in] - filepath: The filepath of the file, if it exists on the filesystem.
-    ##                        Defaults to None if not provided.
-    ## \param[in] - stream: A BytesIO-like object that holds the file data, if the file does
-    ##                      not exist on the filesystem.
-    ## NOTE: It is an error to provide both a filepath and a stream, as the source of the data
-    ##       is then ambiguous.
+    # Reads a system specification from the given location.
+    # \param[in] - filepath: The filepath of the file, if it exists on the filesystem.
+    #                        Defaults to None if not provided.
+    # \param[in] - stream: A BytesIO-like object that holds the file data, if the file does
+    #                      not exist on the filesystem.
+    # NOTE: It is an error to provide both a filepath and a stream, as the source of the data
+    #       is then ambiguous.
     def __init__(self, filepath: str = None, stream = None):
         # OPEN THE FILE FOR READING.
         # Systems do not have a Media Station header, probably

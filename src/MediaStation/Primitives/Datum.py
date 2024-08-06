@@ -8,20 +8,17 @@ from .Polygon import Polygon
 from .Point import Point
 from .Reference import Reference
 
-## Except for compressed image data and audio data,
-## nearly all data in Media Station files is encapsulated 
-## in "datums", so called because they generally represent 
-## the smallest units of useful data in Media Station data files. 
-## 
-## A datum provides a 16-bit type code, followed by a variable-
-## length data section, whose length is generally defined 
-## by the type code. 
-## Here is an example, where `xx` represents one byte:
-##  Type code
-##  |     Data
-##  |     | 
-##  xx xx xx xx .. xx xx
-## TODO: Add type assertions for extra checking.
+# Except for compressed image data and audio data,
+# nearly all data in Media Station files is encapsulated 
+# in "datums", so called because they generally represent 
+# the smallest units of useful data in Media Station data files.
+# A datum provides a 16-bit type code, followed by a variable length data section, whose length is generally defined by the type code. 
+# Here is an example, where `xx` represents one byte:
+#  Type code
+#  |     Data
+#  |     | 
+#  xx xx xx xx .. xx xx
+# TODO: Add type assertions for extra checking.
 class Datum:
     ## The various known datum type codes.
     class Type(IntEnum):
@@ -50,10 +47,9 @@ class Datum:
         PALETTE = 0x05aa
         REFERENCE = 0x001b
 
-    ## Reads a datum from the binary stream at its current position.
-    ## The number of bytes read from the stream depends on the type
-    ## of the datum.
-    ## \param[in] stream - A binary stream that supports the read method.
+    # Reads a datum from the binary stream at its current position.
+    # The number of bytes read from the stream depends on the type of the datum.
+    # \param[in] stream - A binary stream that supports the read method.
     def __init__(self, stream):
         # READ THE TYPE OF THE DATUM. 
         # Regardless of the datum's value the type always has constant size.
@@ -76,8 +72,7 @@ class Datum:
             self.d = struct.unpack.raw("<d", stream.read(8))[0]
 
         elif (self.t == Datum.Type.STRING) or (self.t == Datum.Type.FILENAME):
-            # TODO: Check titles in languages to see if there are any
-            # non-ASCII characters.
+            # TODO: Check titles in languages to see if there are any non-ASCII characters.
             size = Datum(stream).d
             self.d = stream.read(size).decode('ascii')
 

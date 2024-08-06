@@ -5,8 +5,8 @@ from asset_extraction_framework.Asset.Sound import Sound as BaseSound
 from asset_extraction_framework.Asserts import assert_equal
 
 # ATTEMPT TO IMPORT THE C-BASED DECOMPRESSION LIBRARY.
-# TODO: A pure Python implementation of the IMA ADPCM decoder currently doesn't
-# exist. Even if it's really slow, it probably should exist as a fallback.
+# TODO: A pure Python implementation of the IMA ADPCM decoder currently doesn't exist. 
+# Even if it's really slow, it probably should exist as a fallback.
 try:
     import MediaStationImaAdpcm
     adpcm_c_loaded = True
@@ -20,9 +20,9 @@ class Sound(BaseSound):
         PCM_S16LE_MONO_22050 = 0x0010 # Uncompressed linear PCM
         IMA_ADPCM_S16LE_MONO_22050 = 0x0004 # IMA ADPCM encoding, must be decoded
 
-    ## Reads a sound from the binary stream at its current position.
-    ## \param[in] stream - A binary stream that supports the read method.
-    ## \param[in] header - The header for this asset.
+    # Reads a sound from the binary stream at its current position.
+    # \param[in] stream - A binary stream that supports the read method.
+    # \param[in] header - The header for this asset.
     def __init__(self, sound_encoding):
         super().__init__()
         self._signed = True
@@ -35,9 +35,9 @@ class Sound(BaseSound):
         # but they must be decoded separately.
         self._chunks = []
 
-    ## Reads a sound in a subfile.
-    ## \param[in] subfile - The subfile to read. The binary stream must generally
-    ## be at the start of the subfile.
+    # Reads a sound in a subfile.
+    # \param[in] subfile - The subfile to read. The binary stream must generally
+    # be at the start of the subfile.
     def read_subfile(self, subfile, chunk, total_chunks):
         self._chunk_count = total_chunks
         asset_id = chunk.fourcc
@@ -48,8 +48,8 @@ class Sound(BaseSound):
             assert_equal(chunk.fourcc, asset_id, "sound chunk label")
             self.read_chunk(chunk)
 
-    ##  Reads one chunk of a sound from a binary stream at its current position.
-    ## \param[in] stream - A binary stream that supports the read method.
+    #  Reads one chunk of a sound from a binary stream at its current position.
+    # \param[in] stream - A binary stream that supports the read method.
     def read_chunk(self, chunk):
         # TODO: Update to use the memview interface to avoid copying.
         samples = chunk.read(chunk.length)

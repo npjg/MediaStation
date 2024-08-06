@@ -7,25 +7,24 @@ from asset_extraction_framework.Asserts import assert_equal
 from ..Primitives.Datum import Datum
 from .Bitmap import Bitmap, BitmapHeader
 
-## This is not an animation or a sprite but just a collection of static bitmaps.
-## It is a fairly rare asset type, having only been observed in:
-##  - Hercules, 1531.CXT. Seems to be some sort of changeable background.
-##    This is denoted in the PROFILE._ST by a strange line:
-##    "# image_7d12g_Background 15000 15001 15002 15003 15004 15005 15006 15007 15008 15009 15010 15011 15012 15013"
-##    Indeed, there are 14 images in this set.
+# This is not an animation or a sprite but just a collection of static bitmaps.
+# It is a fairly rare asset type, having only been observed in:
+#  - Hercules, 1531.CXT. Seems to be some sort of changeable background.
+#    This is denoted in the PROFILE._ST by a strange line:
+#    "# image_7d12g_Background 15000 15001 15002 15003 15004 15005 15006 15007 15008 15009 15010 15011 15012 15013"
+#    Indeed, there are 14 images in this set.
 
-## Each bitmap is declared in the asset header.
+# Each bitmap is declared in the asset header.
 class BitmapSetBitmapDeclaration:
     def __init__(self, stream):
         self.index = Datum(stream).d
         # This is the ID as reported in PROFILE.ST.
-        # Using the example above, it's something like 15000, 15001,
-        # and so forth. Should increase along with the indices
+        # Using the example above, it's something like 15000, 15001, and so forth. Should increase along with the indices
         self.id = Datum(stream).d
         # This includes the space requried for the header.
         self.chunk_length_in_bytes = Datum(stream).d
 
-## The bitmap header for one of the bitmaps in the bitmap set.
+# The bitmap header for one of the bitmaps in the bitmap set.
 class BitmapSetBitmapHeader(BitmapHeader):
     def __init__(self, stream):
         # Specifies the position of the bitmap in the bitmap set.
@@ -58,7 +57,7 @@ class BitmapSet:
         # VERIFY BITMAP DATA WILL NOT BE LOST.
         existing_bitmap_with_same_index = self.bitmaps.get(bitmap.header.index) 
         if existing_bitmap_with_same_index is not None:
-             # Interestingly, in Hercules the same images that occur in the first subfile
+            # Interestingly, in Hercules the same images that occur in the first subfile
             # also seem to occur in later subfiles (with the same index). To make sure
             # no data is being lost, we will just ensure that the bitmap being replaced
             # has the exact same pixel data as the bitmap replacing it.

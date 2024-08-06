@@ -3,7 +3,7 @@ import self_documenting_struct as struct
 
 from . import Datum
 
-## A two-dimensional point (X, Y).
+# A two-dimensional point (X, Y).
 class Point:
     def __init__(self, stream, **kwargs):
         COORDINATE_SEPARATOR = b'\x10\x00'

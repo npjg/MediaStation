@@ -317,7 +317,7 @@ class Context(DataFile):
         if (Context.SectionType.CONTEXT_PARAMETERS == section_type):
             # VERIFY THIS CONTEXT DOES NOT ALREADY HAVE PARAMETERS.
             if self.parameters is not None:
-                raise ValueError('More than one parameters structure present in context.')
+                raise ValueError('ERROR: More than one parameters structure present in context.')
             
             # TODO: If a context is itself an asset, do we really need a separate parameters field?
             # (Currently the answer is yes because these parameters don't provide the same fields
@@ -334,7 +334,7 @@ class Context(DataFile):
             # VERIFY THIS CONTEXT DOES NOT ALREADY HAVE A PALETTE.
             # We can only have one palette for each context.
             if self.palette is not None:
-                raise ValueError('More than one palette present in context.')
+                raise ValueError('ERROR: More than one palette present in context.')
             self.palette = RgbPalette(self.stream, has_entry_alignment = False)
             Datum(chunk).d
 
@@ -343,7 +343,7 @@ class Context(DataFile):
             asset_header = Asset(chunk)
             asset_already_exists = self.assets.get(asset_header.id) is not None
             if asset_already_exists:
-                raise ValueError(f'Attempted to reassign asset {asset_header.id} which already exists!')
+                raise ValueError(f'ERROR: Attempted to reassign asset {asset_header.id} which already exists!')
             self.assets.update({asset_header.id: asset_header})
 
             if (Asset.AssetType.STAGE == asset_header.type):
@@ -522,7 +522,7 @@ class Context(DataFile):
             header.image_set.read_subfile(subfile, chunk)
 
         else:
-            raise BinaryParsingError(f'Unknown subfile asset type: {header.type}', chunk.stream)
+            raise BinaryParsingError(f'ERROR: Unknown subfile asset type: {header.type}', chunk.stream)
 
     ## This is included as a separate step becuase it is not connected to reading the data.
     def apply_palette(self):

@@ -1,11 +1,9 @@
 #!/usr/bin/env python
-# This script takes the JSON file that keeps all known Media Station titles
-# and formats it in a format for presentation on the wiki 
+# This script takes the JSON file that keeps all known Media Station titles.
+# and formats it in a format for presentation on the Wiki. 
 # (https://github.com/npjg/MediaStation/wiki/All-Known-Media-Station-Titles).
-# Currently only this one-way synchronization is supported - going from the wiki back to 
-# the JSON is not supported yet.
-#
-# This script MUST be run from the root directory of this repo.
+# Currently only this one-way synchronization is supported - going from the wiki back to the JSON is not supported yet.
+# This script MUST be run from the root directory of this repository.
 import json
 import re
 
@@ -88,8 +86,7 @@ if __name__ == "__main__":
 
         data = sorted(data, key = lambda x: x['date'])
         # The JSON has other fields, but only these fields are valuable to report
-        # on the wiki. Specifying this order also lets us put the most important
-        # information up front.
+        # on the wiki. Specifying this order also lets us put the most important information up front.
         headers = [
             "full_name",
             "have_cdrom",
