@@ -87,7 +87,7 @@ class MediaStationEngine(Application):
                 # between the two. We will check to ensure this isn't the case.
                 if corresponding_asset.name is not None:
                     if corresponding_asset.name != asset_entry.name:
-                        self.logger.warning(f'Asset names disagree. Name in asset: {corresponding_asset.name}. Name in PROFILE._ST: {asset_entry.name}.')
+                        self.logger.warning(f'WARNING: Asset names disagree. Name in asset: {corresponding_asset.name}. Name in PROFILE._ST: {asset_entry.name}.')
                         continue
                 
                 corresponding_asset.name = asset_entry.name
@@ -104,7 +104,7 @@ class MediaStationEngine(Application):
                 corresponding_context.parameters.name = asset_entry.name
                 continue
             
-            self.logger.warning(f'Asset {asset_entry.id} present in PROFILE._ST but not found in parsed assets: {asset_entry._raw_entry}')
+            self.logger.warning(f'WARNING: Asset {asset_entry.id} present in PROFILE._ST but not found in parsed assets: {asset_entry._raw_entry}')
 
     def process(self, input_paths):
         # READ THE STARTUP FILE (BOOT.STM).
@@ -113,10 +113,10 @@ class MediaStationEngine(Application):
             # TODO: I really wanted to support extracting individual CXTs, but 
             # I think that will be too complex and the potential use cases are
             # too small.
-            self.logger.error("BOOT.STM is missing from the input path(s). This file contains vital information for processing Media Station games, and assets cannot be extracted without it. ")
+            self.logger.error("ERROR: BOOT.STM is missing from the input path(s). This file contains vital information for processing Media Station games, and assets cannot be extracted without it. ")
             exit(1)
         if len(matched_boot_stm_files) > 1:
-            self.logger.error('Found more than one BOOT.STM file in the given path(s). You are likely trying to process more than one Media Station title at once, which is not supported.')
+            self.logger.error('WARNING: Found more than one BOOT.STM file in the given path(s). You are likely trying to process more than one Media Station title at once, which is not supported.')
             exit(1)
         system_filepath =  matched_boot_stm_files[0]
         self.logger.info(f'Processing {system_filepath}')
@@ -150,7 +150,7 @@ class MediaStationEngine(Application):
                 # This seems to legitimately happen for 1095.CXT and 1097.CXT in Lion King,
                 # which are both only 16 bytes and don't appear at all in BOOT.STM
                 # TODO: Don't issue a warning for these files.
-                self.logger.warning(f'File declaration for {matched_cxt_filepath} not found in BOOT.STM. This file will not be processed or exported.')
+                self.logger.warning(f'WARNING: File declaration for {matched_cxt_filepath} not found in BOOT.STM. This file will not be processed or exported.')
         self.contexts: List[Context] = []
         for cxt_filepath in [*cdrom_context_filepaths, *other_context_filepaths]:
             self.logger.info(f'Processing {cxt_filepath}')

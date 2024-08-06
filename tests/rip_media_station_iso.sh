@@ -64,10 +64,10 @@ mount -t cd9660 "$disk_identifier" "$mount_point"
 echo "BOOT.STM"
 bootstm_path=$(find "$mount_point" -iname "boot.stm" -print)
 if [ -z "$bootstm_path" ]; then
-  echo "Error: BOOT.STM not found on CD-ROM. This is likely not a Media Sation title, or it uses some format we're not aware of yet."
+  echo "ERROR: BOOT.STM not found on CD-ROM. This is likely not a Media Sation title, or it uses some format we're not aware of yet."
   exit 1
 elif [ $(echo "$bootstm_path" | wc -l) -gt 1 ]; then
-  echo "Warning: Multiple BOOT.STMs found: $bootstm_path. Using the first one."
+  echo "ERROR: Multiple BOOT.STMs found: $bootstm_path. Using the first one."
   bootstm_path=$(echo "$bootstm_path" | head -n 1)
 fi
 xxd -l 256 "$bootstm_path"
@@ -79,7 +79,7 @@ if [ -z "$profilest_path" ]; then
   echo "No profile._st found."
 else
   if [ $(echo "$profilest_path" | wc -l) -gt 1 ]; then
-    echo "Warning: Multiple PROFILE._STs found: $profilest_path. Using the first one."
+    echo "WARNING: Multiple PROFILE._STs found: $profilest_path. Using the first one."
     profilest_path=$(echo "$profilest_path" | head -n 1)
   fi
   xxd -l 256 "$profilest_path"

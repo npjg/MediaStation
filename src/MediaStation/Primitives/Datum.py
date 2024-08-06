@@ -94,4 +94,4 @@ class Datum:
             self.d = Reference(stream)
 
         else:
-            raise BinaryParsingError(f'Unknown datum type: 0x{self.t:04x}', stream)
+            raise BinaryParsingError(f'ERROR: Unknown datum type: 0x{self.t:04x}', stream)

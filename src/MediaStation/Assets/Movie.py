@@ -172,7 +172,7 @@ class Movie(Animation):
                     frame.set_footer(footer)
 
         else:
-            raise BinaryParsingError(f'Unknown header type in movie still area: 0x{section_type.d:02x}', chunk.stream)
+            raise BinaryParsingError(f'ERROR: Unknown header type in movie still area: 0x{section_type.d:02x}', chunk.stream)
 
     ## Reads the data in a subfile from the binary stream at its current position.
     ## The subfile's metadata must have already been read.
@@ -217,7 +217,7 @@ class Movie(Animation):
                     footers.append(footer)
 
                 else:
-                    raise TypeError(f'Unknown movie chunk tag: 0x{section_type:04x}')
+                    raise TypeError(f'ERROR: Unknown movie chunk tag: 0x{section_type:04x}')
 
                 # READ THE NEXT CHUNK.
                 chunk = subfile.get_next_chunk()
@@ -239,7 +239,7 @@ class Movie(Animation):
                 assert_equal(chunk.length, 0x04, "frameset delimiter size")
                 chunk.read(chunk.length)
             else:
-                raise BinaryParsingError(f'Unknown delimiter at end of movie frameset: {subfile.current_chunk.fourcc}', chunk.stream)
+                raise BinaryParsingError(f'ERROR: Unknown delimiter at end of movie frameset: {subfile.current_chunk.fourcc}', chunk.stream)
             
             # SET THE REQUIRED FOOTERS.
             # Most keyframes don't have any different metadata from regular frames (aside from duration).

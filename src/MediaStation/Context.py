@@ -434,7 +434,7 @@ class Context(DataFile):
             ))
 
         else:
-            raise ValueError(f'Unknown section type: {section_type:04x}')
+            raise ValueError(f'ERROR: Unknown section type: {section_type:04x}')
 
         return True
 
@@ -457,7 +457,7 @@ class Context(DataFile):
             if header is None:
                 # This should never actually be an error condition in valid contexts, because the asset headers are also in the first subfile.
                 raise ValueError(
-                    f'Asset FourCC {chunk.fourcc} was encountered in the first subfile, but no asset header read thus far has declared this FourCC.\n\n'
+                    f'ERROR: Asset FourCC {chunk.fourcc} was encountered in the first subfile, but no asset header read thus far has declared this FourCC.\n\n'
                     'This is expected if you are trying to extract assets from an INSTALL.CXT while excluding other CXTs, as INSTALL.CXT does not contain any asset headers.\n'
                     'Try running the extraction again on the entire game directory.')
 
@@ -489,7 +489,7 @@ class Context(DataFile):
             header.movie.add_still(chunk)
     
         else:
-            raise BinaryParsingError(f'Unknown asset type in first subfile: 0x{header.type:02x}', chunk.stream)
+            raise BinaryParsingError(f'ERROR: Unknown asset type in first subfile: 0x{header.type:02x}', chunk.stream)
 
     ## Reads an asset from a subfile after the first subfile.
     def read_asset_from_later_subfile(self, subfile, chunk = None):

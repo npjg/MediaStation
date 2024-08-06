@@ -453,7 +453,7 @@ class Asset:
             try:
                 self.sound_encoding = Sound.Encoding(raw_sound_encoding)
             except:
-                raise ValueError(f'Received unknown sound encoding specifier: 0x{raw_sound_encoding:04x}')
+                raise ValueError(f'ERROR: Received unknown sound encoding specifier: 0x{raw_sound_encoding:04x}')
 
         else:
-            raise BinaryParsingError(f'Unknown section type: 0x{section_type:0>4x}', chunk.stream)
+            raise BinaryParsingError(f'ERROR: Unknown section type: 0x{section_type:0>4x}', chunk.stream)

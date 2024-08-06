@@ -19,7 +19,7 @@ ENABLE_ASSET_EXPORT_IN_TESTS = True
 GAME_ROOT_DIRECTORY = 'tests/test_data/Extracted Folders'
 game_directories = []
 if not os.path.exists(os.path.realpath(GAME_ROOT_DIRECTORY)):
-    warnings.warn('No test data present, game parsing tests will be skipped.')
+    warnings.warn('WARNING: No test data present, game parsing tests will be skipped.')
 else:
     for filename in os.listdir(os.path.realpath(GAME_ROOT_DIRECTORY)):
         filepath = os.path.join(GAME_ROOT_DIRECTORY, filename)
@@ -49,10 +49,10 @@ def test_script_is_runnable():
         # VERIFY THE SCRIPT RAN SUCCESSFULLY.
         # A BOOT.STM is *required* so, the script will refuse to run far.
         # However, we can still tell if the script has been successfully invoked.
-        script_invoked_successfully = ('BOOT.STM is missing' in result.stderr) and (result.returncode == 1)
+        script_invoked_successfully = ('ERROR: BOOT.STM is missing' in result.stderr) and (result.returncode == 1)
         if not script_invoked_successfully:
             raise AssertionError(
-                f'Received a bad exit code when running `{CALLABLE_SCRIPT_NAME}` from command line!'
+                f'ERROR: Received a bad exit code when running `{CALLABLE_SCRIPT_NAME}` from command line!'
                 f'\nstdout: {result.stdout}'
                 f'\n\nstderr: {result.stderr}')
     finally:
