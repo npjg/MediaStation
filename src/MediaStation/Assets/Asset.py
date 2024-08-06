@@ -347,8 +347,7 @@ class Asset:
             self.unks.append({hex(section_type): Datum(chunk).d})
 
         elif section_type >= 0x0514 and section_type < 0x0519:
-            # These data are constant across the LKASB constellation
-            # minigame. I will ignore them.
+            # These data are constant across the LKASB constellation minigame. I will ignore them.
             self.unks.append({hex(section_type): Datum(chunk).d})
 
         elif section_type == 0x0519:
@@ -360,8 +359,7 @@ class Asset:
             self.palette = chunk.read(0x300)
 
         elif section_type == 0x05dc:
-            # It's only not 0.0 in the 'Read to me' and 'Read and play'
-            # images of Dalmatians. So I will ignore it.
+            # It's only not 0.0 in the 'Read to me' and 'Read and play' images of Dalmatians. So I will ignore it.
             self.unks.append({hex(section_type): Datum(chunk).d})
 
         elif section_type == 0x05dd:
@@ -411,8 +409,7 @@ class Asset:
             self.unks.append({hex(section_type): Datum(chunk).d})
 
         elif section_type == 0x776: # IMAGE_SET
-            # I think this is just a marker for the beginning of the image set
-            # data (0x778s), so I think we can just ignore this.
+            # I think this is just a marker for the beginning of the image set data (0x778s), so I think we can just ignore this.
             self.unks.append({hex(section_type): Datum(chunk).d})
             self.bitmap_declarations = []
 

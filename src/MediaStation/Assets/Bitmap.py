@@ -27,9 +27,8 @@ class BitmapHeader:
         self.dimensions = Datum(stream).d
         self.compression_type = Bitmap.CompressionType(Datum(stream).d)
         # TODO: Figure out what this is.
-        # This has something to do with the width of the bitmap but is always
-        # a few pixels off from the width. And in rare cases it seems to be 
-        # the true width!
+        # This has something to do with the width of the bitmap but is always a few pixels off from the width. 
+        # And in rare cases it seems to be the true width!
         self.unk2 = Datum(stream).d
 
     @property
@@ -74,11 +73,9 @@ class Bitmap(RectangularBitmap):
             # VERIFY THAT THE WIDTH IS CORRECT.
             if len(self._pixels) != (self._width * self._height):
                # TODO: This was to enable
-               # Hunchback:346.CXT:img_q13_BackgroundPanelA to export
-               # properly. It turns out the true width was in fact 
-               # what's in the header rather than what's actually stored
-               # in the width. I don't know the other cases where this might
-               # happen, or what regressions might be caused. 
+               # Hunchback:346.CXT:img_q13_BackgroundPanelA to export properly. 
+               # It turns out the true width was in fact what's in the header rather than what's actually stored in the width. 
+               # I don't know the other cases where this might happen, or what regressions might be caused. 
                if len(self._pixels) == (self.header.unk2 * self._height):
                    self._width = self.header.unk2
                    print(f'WARNING: Found and corrected mismatched width in uncompressed bitmap. Header: {self.header.unk2}. Width: {self._width}. Resetting width to header.')

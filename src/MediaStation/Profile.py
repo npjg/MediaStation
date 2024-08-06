@@ -33,17 +33,15 @@ SECTION_SEPARATOR = '!'
 #       $downArrow 10038
 #       * 10039
 #
-# I am not sure what these numbers mean yet. Sometimes it looks like they're the
-# maximum ID for whatever type we're looking at in the title, but sometimes this
-# also doesn't seem to be the case. So further investigation is necessary!
+# I am not sure what these numbers mean yet. Sometimes it looks like they're the maximum ID for whatever type we're looking at in the title, 
+# But sometimes this also doesn't seem to be the case. So further investigation is necessary!
 SUMMARY_INDICATOR = '*'
 
 class Profile(File):
     # Reads a profile from the given location. Profiles contain the names and IDs of all
-    # the assets in this title, along with other data. For newer titles, the asset names
-    # are contained in the Contexts themselves, but for older titles the asset names
-    # are ONLY contained in this file. The extractor can read the asset names in the 
-    # profile to assign better names to the exported assets.
+    # the assets in this title, along with other data. For newer titles, the asset names are contained in the Contexts themselves. 
+    # But for older titles the asset names,
+    # are ONLY contained in this file. The extractor can read the asset names in the profile to assign better names to the exported assets.
     # \param[in] - filepath: The filepath of the file, if it exists on the filesystem.
     # Defaults to None if not provided.
     # \param[in] - stream: A BytesIO-like object that holds the file data, if the file does not exist on the filesystem.
@@ -64,14 +62,10 @@ class Profile(File):
         self.constants = ProfileSection(lines_in_file, ConstantDeclaration)
 
     # The File class was designed for binary files, not text files.
-    # Some implementation details of the File class thus sadly bypass the 
-    # default universal readline support with stream.readline(). 
-    # Specifically, the mmap.mmap stream that the binary data is wrapped in
-    # only seems to recognize \n as a line separator, but not \r by itself.
-    # That means Profiles from Mac versions will not be read correctly;
-    # the file appears as one huge line. 
-    # So this generator restores "universal" newline functionality to mmap.mmap
-    # streams.
+    # Some implementation details of the File class thus sadly bypass the default universal readline support with stream.readline(). 
+    # Specifically, the mmap.mmap stream that the binary data is wrapped in only seems to recognize \n as a line separator, but not \r by itself.
+    # That means Profiles from Mac versions will not be read correctly,the file appears as one huge line. 
+    # So this generator restores "universal" newline functionality to mmap.mmap streams.
     def readline_with_universal_newline(self, stream):
         raw_data = stream.read()
         split_by_carriage_return = raw_data.split(b'\r')
@@ -191,8 +185,7 @@ class AssetDeclaration(ProfileEntry):
         # 
         # In the case of Hercules, it's in the immediately previous line:
         #  "image_7d12g_Background 1453 254"
-        # Since there is no unique name assigned to each of the bitmaps in the bitmap set (only the IDs noted above),
-        # we will just discard this line.
+        # Since there is no unique name assigned to each of the bitmaps in the bitmap set (only the IDs noted above), we will just discard this line.
         IMAGE_SET_LINE_INDICATOR = '#'
         if (IMAGE_SET_LINE_INDICATOR == self.name):
             print(f'INFO: Found image set: {self._raw_entry}. This case might not be completely handled yet.')
