@@ -1,3 +1,4 @@
+#!/usr/bin/python3
 
 import self_documenting_struct as struct
 from asset_extraction_framework.Exceptions import BinaryParsingError

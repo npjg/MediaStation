@@ -1,3 +1,5 @@
+#!/usr/bin/python3
+
 # Holds a reference to a data chunk. This data chunk is usually in the same file as this reference, but this is not always the case.
 # \param[in] stream - A binary stream that supports the read method.
 class Reference:

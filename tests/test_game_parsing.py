@@ -1,3 +1,5 @@
+#!/usr/bin/python3
+
 import os
 import shutil
 import tempfile
@@ -8,7 +10,6 @@ import importlib
 import pytest
 
 from MediaStation import Engine 
-
 
 # Even with the C-based decompression exporting ALL assets
 # takes a while, so it probably only needs to be run right

@@ -1,3 +1,4 @@
+#!/usr/bin/python3
 
 from asset_extraction_framework.Asset.Animation import Animation
 from asset_extraction_framework.Asserts import assert_equal

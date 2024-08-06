@@ -1,3 +1,4 @@
+#!/usr/bin/python3
 
 import io
 from enum import IntEnum

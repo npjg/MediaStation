@@ -1,4 +1,4 @@
-#! python3
+#!/usr/bin/python3
 
 # This program extracts asets from Media Station titles. Refer to the readme 
 # for information on tested titles and known issues.
