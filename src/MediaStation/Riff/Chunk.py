@@ -14,9 +14,9 @@ class ZeroLengthChunkError(Exception):
 ## Here are the major differences:
 ##  - Each Media Station file contains one or more RIFF files after an (optional) header.
 ##  - Some FourCCs are not four characters long; they are actually 8 characters long.
-##    The strings "IMTSrate" and "dataigod" are the most common 8-character FourCCs.
-##    These cannot be LIST-like structures because there is no size between the 
-##    two FourCCs as would be expected for a LIST structure.
+##  - The strings "IMTSrate" and "dataigod" are the most common 8-character FourCCs.
+##  - These cannot be LIST-like structures because there is no size between the 
+##  - two FourCCs as would be expected for a LIST structure.
 class Chunk:
     def __init__(self, stream, fourcc_length = 4):
         self.stream = stream
