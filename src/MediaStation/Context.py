@@ -23,7 +23,6 @@ class ChunkType(IntEnum):
 ## - File number,
 ## - Human-readable name,
 ## - Any bytecode that runs when the context is first loaded (maybe).
-##
 ## This is usually the second header section in a context, after the palette (if present).
 class GlobalParameters:
     class SectionType(IntEnum):
@@ -87,11 +86,11 @@ class GlobalParameters:
     def entity(self, token, stream):
         entries = []
 
-        if token.d == 0x0007: # array
+        if token.d == 0x0007: # Array
             size = Datum(stream)
             for _ in range(size.d):
                 entries.append(self.entity(Datum(stream), stream))
-        elif token.d == 0x0006: # string
+        elif token.d == 0x0006: # String
             size = Datum(stream)
             entries.append(stream.read(size.d).decode("utf-8"))
         else: 

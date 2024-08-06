@@ -11,10 +11,8 @@ from .Riff.DataFile import DataFile
 from .Primitives.Datum import Datum
 from .Primitives.Point import Point
 
-## Contains information about the engine (also called
-##  "title compiler") used in this particular game.
-## Engine version information is not present in version 1 games,
-## so all the fields are initialized to be none.
+## Contains information about the engine (also called "title compiler") used in this particular game.
+## Engine version information is not present in version 1 games, so all the fields are initialized to be none.
 class EngineVersionInformation:
     def __init__(self, stream = None):
         self.major_version = None
@@ -35,8 +33,7 @@ class EngineVersionInformation:
             # LOG THE TITLE INFORMATION FOR DEBUGGING PURPOSES.
             print(f' {self.string} - {self.version_number}')
 
-    ## Engine version information is not present in version 1 games,
-    ## so all the fields are initialized to be None.
+    ## Engine version information is not present in version 1 games, so all the fields are initialized to be None.
     @property
     def is_first_generation_engine(self) -> bool:
         return (self.major_version is None) and \
@@ -53,11 +50,9 @@ class EngineVersionInformation:
 ## CXT files do not have the same names as the contexts they contain.
 ## For example, a file named "109.CXT" might have a context called 
 ## "Root_7x00". The "109" is called the context's "file number".
-## 
 ## This extra naming indirection is probably to allow contexts to have longer, more
 ## descriptive names while preserving compatibility with operating systems that used 
 ## 8.3 filenames.
-##
 ##  - Maps context names to CXT filenames (indirectly).
 ##  - Includes files referenced by this file.
 class ContextDeclaration:
@@ -92,7 +87,6 @@ class ContextDeclaration:
         # for a definition of file numbers).
         self.file_references = []
         # The file number of the file that contains this context.
-        #
         # This is the number that is in the filename and NOT the internal ID
         # for the filename. For instance, context "Root_7x00" in file "109.cxt"
         # would have file number 109.
@@ -305,13 +299,11 @@ class CursorDeclaration:
 ## Contains metadata about the game and its native data files,
 ## usually all files with a CXT extension. (Additional files 
 ## like 3D models are not detailed in the .)
-##
 ## Generally corresponds to the file "BOOT.STM". The "System" name
 ## comes as the most likely meaning of the "STM" extension.
-##
 ## The data is generally, but not always, presented in the following order:
-##  - Game title
-##  - Engine version
+## - Game title
+## - Engine version
 
 class System(DataFile):
     class SectionType(IntEnum):
@@ -345,7 +337,6 @@ class System(DataFile):
 
         # DECLARE METADATA FOR THE WHOLE GAME.
         # These fields will not be present in early games.
-        #
         # The name of this title. Usually slightly abbreviated,
         # like "tonka_gr" for Tonka Garage.
         self.game_title: str = None

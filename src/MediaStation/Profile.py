@@ -68,12 +68,10 @@ class Profile(File):
     # The File class was designed for binary files, not text files.
     # Some implementation details of the File class thus sadly bypass the 
     # default universal readline support with stream.readline(). 
-    #
     # Specifically, the mmap.mmap stream that the binary data is wrapped in
     # only seems to recognize \n as a line separator, but not \r by itself.
     # That means Profiles from Mac versions will not be read correctly;
     # the file appears as one huge line. 
-    #
     # So this generator restores "universal" newline functionality to mmap.mmap
     # streams.
     def readline_with_universal_newline(self, stream):
