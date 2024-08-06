@@ -1,3 +1,4 @@
+#!/usr/bin/python3
 
 from typing import List
 
@@ -33,23 +34,19 @@ SECTION_SEPARATOR = '!'
 #       $downArrow 10038
 #       * 10039
 #
-# I am not sure what these numbers mean yet. Sometimes it looks like they're the
-# maximum ID for whatever type we're looking at in the title, but sometimes this
-# also doesn't seem to be the case. So further investigation is necessary!
+# I am not sure what these numbers mean yet. Sometimes it looks like they're the maximum ID for whatever type we're looking at in the title, 
+# But sometimes this also doesn't seem to be the case. So further investigation is necessary!
 SUMMARY_INDICATOR = '*'
 
 class Profile(File):
-    ## Reads a profile from the given location. Profiles contain the names and IDs of all
-    ## the assets in this title, along with other data. For newer titles, the asset names
-    ## are contained in the Contexts themselves, but for older titles the asset names
-    ## are ONLY contained in this file. The extractor can read the asset names in the 
-    ## profile to assign better names to the exported assets.
-    ## \param[in] - filepath: The filepath of the file, if it exists on the filesystem.
-    ##                        Defaults to None if not provided.
-    ## \param[in] - stream: A BytesIO-like object that holds the file data, if the file does
-    ##                      not exist on the filesystem.
-    ## NOTE: It is an error to provide both a filepath and a stream, as the source of the data
-    ##       is then ambiguous.
+    # Reads a profile from the given location. Profiles contain the names and IDs of all
+    # the assets in this title, along with other data. For newer titles, the asset names are contained in the Contexts themselves. 
+    # But for older titles the asset names,
+    # are ONLY contained in this file. The extractor can read the asset names in the profile to assign better names to the exported assets.
+    # \param[in] - filepath: The filepath of the file, if it exists on the filesystem.
+    # Defaults to None if not provided.
+    # \param[in] - stream: A BytesIO-like object that holds the file data, if the file does not exist on the filesystem.
+    # NOTE: It is an error to provide both a filepath and a stream, as the source of the data is then ambiguous.
     def __init__(self, filepath: str = None, stream = None):
         # OPEN THE FILE FOR READING.
         # We need to open the file in text-reading mode so the newlines are automatically handled.
@@ -66,16 +63,10 @@ class Profile(File):
         self.constants = ProfileSection(lines_in_file, ConstantDeclaration)
 
     # The File class was designed for binary files, not text files.
-    # Some implementation details of the File class thus sadly bypass the 
-    # default universal readline support with stream.readline(). 
-    #
-    # Specifically, the mmap.mmap stream that the binary data is wrapped in
-    # only seems to recognize \n as a line separator, but not \r by itself.
-    # That means Profiles from Mac versions will not be read correctly;
-    # the file appears as one huge line. 
-    #
-    # So this generator restores "universal" newline functionality to mmap.mmap
-    # streams.
+    # Some implementation details of the File class thus sadly bypass the default universal readline support with stream.readline(). 
+    # Specifically, the mmap.mmap stream that the binary data is wrapped in only seems to recognize \n as a line separator, but not \r by itself.
+    # That means Profiles from Mac versions will not be read correctly,the file appears as one huge line. 
+    # So this generator restores "universal" newline functionality to mmap.mmap streams.
     def readline_with_universal_newline(self, stream):
         raw_data = stream.read()
         split_by_carriage_return = raw_data.split(b'\r')
@@ -85,11 +76,11 @@ class Profile(File):
             yield line.strip()
 
 class ProfileSection:
-    ## Creates a profile section that contains entries (parsed forms of individual
-    ## lines of text from the Profile file). 
-    ## \param[in] lines_in_file - The generator to get the lines from the Profile file.
-    ## \param[in] profile_entry_class - The class that should be used to create profile
-    ##            entries from each line of text.
+    # Creates a profile section that contains entries (parsed forms of individual
+    # lines of text from the Profile file). 
+    # \param[in] lines_in_file - The generator to get the lines from the Profile file.
+    # \param[in] profile_entry_class - The class that should be used to create profile
+    #            entries from each line of text.
     def __init__(self, lines_in_file, profile_entry_class):
         self.entries = []
         for line in lines_in_file:
@@ -109,9 +100,9 @@ class ProfileSection:
                 self.summary = entry
 
 class ProfileEntry:
-    ## Creates a profile entry from the given line of text from the Profile file.
-    ## \param[in] line - A binary string containing the lined from the Profile
-    ##            file that should be put into the Profile entry.
+    # Creates a profile entry from the given line of text from the Profile file.
+    # \param[in] line - A binary string containing the lined from the Profile
+    #            file that should be put into the Profile entry.
     def __init__(self, line: bytes):
         self._raw_entry: List[str] = line.strip().decode(TEXT_ENCODING).split(' ')
         # Check if this is a summary entry (see above).
@@ -125,9 +116,9 @@ class ProfileEntry:
         else:
             self._end_of_section = False
 
-## Examples:
-##  _Version3.4_ _PC_
-##  _Version3.3_ _MAC_
+# Examples:
+#  _Version3.4_ _PC_
+#  _Version3.3_ _MAC_
 class Version(ProfileEntry):
     def __init__(self, lines_in_file):
         line = next(lines_in_file)
@@ -142,14 +133,14 @@ class Version(ProfileEntry):
         # PRINT THIS INFORMATION FOR DEBUGGING PURPOSES.
         print(f'---\n {self.version_number} {self.platform}\n---')
 
-## Examples:
-##  Context cxt_7x70_Sounds 888886792
-##  ^       ^               ^
-##  type    name            unk1
-##
-##  Screen scr_7x81 889300178
-##  ^      ^        ^
-##  type   name    unk1
+# Examples:
+#  Context cxt_7x70_Sounds 888886792
+#  ^       ^               ^
+#  type    name            unk1
+#
+#  Screen scr_7x81 889300178
+#  ^      ^        ^
+#  type   name    unk1
 class ContextDeclaration(ProfileEntry):
     def __init__(self, lines_in_file):
         super().__init__(lines_in_file)
@@ -160,21 +151,21 @@ class ContextDeclaration(ProfileEntry):
         self.name: str = self._raw_entry[1]
         self.unk1: int = int(self._raw_entry[2])
 
-## Examples:
-##  Root_7x00 109 0
-##  ^         ^   ^ -----
-##  name      asset_id  |
-##                      chunk_id (none)
-##
-##  img_7x00gg011all_RadioLines 162 8
-##  ^                           ^   ^ -----
-##  name                        asset_id  |
-##                                        chunk_id (a008)
-##
-##  mov_7xb2_MSIBumper 265 104 105 106
-##  ^                  ^   ^---^---^--
-##  name               asset_id  |
-##                               chunk_ids (a068, a069, a06a)
+# Examples:
+#  Root_7x00 109 0
+#  ^         ^   ^ -----
+#  name      asset_id  |
+#                      chunk_id (none)
+#
+#  img_7x00gg011all_RadioLines 162 8
+#  ^                           ^   ^ -----
+#  name                        asset_id  |
+#                                        chunk_id (a008)
+#
+#  mov_7xb2_MSIBumper 265 104 105 106
+#  ^                  ^   ^---^---^--
+#  name               asset_id  |
+#                               chunk_ids (a068, a069, a06a)
 class AssetDeclaration(ProfileEntry):
     def __init__(self, lines_in_file):
         super().__init__(lines_in_file)
@@ -195,8 +186,7 @@ class AssetDeclaration(ProfileEntry):
         # 
         # In the case of Hercules, it's in the immediately previous line:
         #  "image_7d12g_Background 1453 254"
-        # Since there is no unique name assigned to each of the bitmaps in the bitmap set (only the IDs noted above),
-        # we will just discard this line.
+        # Since there is no unique name assigned to each of the bitmaps in the bitmap set (only the IDs noted above), we will just discard this line.
         IMAGE_SET_LINE_INDICATOR = '#'
         if (IMAGE_SET_LINE_INDICATOR == self.name):
             print(f'INFO: Found image set: {self._raw_entry}. This case might not be completely handled yet.')
@@ -217,14 +207,13 @@ class AssetDeclaration(ProfileEntry):
         else:
             return True
 
-    ## \return A list of FourCCs associated with this asset, if there are any.
-    ##         If there are no chunks for this asset, None is returned.
-    ## The FourCC is generated by converting each chunk ID to a one-bsaed, 3-digit 
-    ## hex number and appending an "a".
-    ## For the three examples provided above, these would be returned:
-    ##  Root_7x00 109 0                    -> None
-    ##  img_7x00gg011all_RadioLines 162 8  -> ['a008']
-    ##  mov_7xb2_MSIBumper 265 104 105 106 -> ['a068', 'a069', 'a6a']
+    # \return A list of FourCCs associated with this asset, if there are any. If there are no chunks for this asset, None is returned.
+    # The FourCC is generated by converting each chunk ID to a one-bsaed, 3-digit 
+    # hex number and appending an "a".
+    # For the three examples provided above, these would be returned:
+    #  Root_7x00 109 0                    -> None
+    #  img_7x00gg011all_RadioLines 162 8  -> ['a008']
+    #  mov_7xb2_MSIBumper 265 104 105 106 -> ['a068', 'a069', 'a6a']
     @property
     def four_ccs(self):
         if not self._has_associated_chunks:
@@ -236,18 +225,18 @@ class AssetDeclaration(ProfileEntry):
             return f'a{chunk_id:03x}'
         return [create_fourcc(chunk_id) for chunk_id in self._chunk_ids]
 
-## Examples:
-##  "3664.cxt" 100
-##  ^          ^
-##  filename   file_id
-##
-##  "113.cxt" 101
-##  ^         ^
-##  filename  file_id
-##
-##  "436.cxt" 102
-##  ^         ^
-##  filename  file_id
+# Examples:
+#  "3664.cxt" 100
+#  ^          ^
+#  filename   file_id
+#
+#  "113.cxt" 101
+#  ^         ^
+#  filename  file_id
+#
+#  "436.cxt" 102
+#  ^         ^
+#  filename  file_id
 class FileDeclaration(ProfileEntry):
     def __init__(self, lines_in_file):
         super().__init__(lines_in_file)
@@ -257,18 +246,18 @@ class FileDeclaration(ProfileEntry):
         self.filename: str = self._raw_entry[0]
         self.file_id: int = int(self._raw_entry[1])
 
-## Examples:
-##  var_6c00_01_CurrentThesaurusImage 100
-##  ^                                 ^
-##  variable_name                     variable_id
-##
-##  var_6c00_01_CurrentThesaurusSound 101
-##  ^                                 ^
-##  variable_name                     variable_id
-##
-##  var_6c00_01_CurrentThesaurusMovie 102
-##  ^                                 ^
-##  variable_name                     variable_id
+# Examples:
+#  var_6c00_01_CurrentThesaurusImage 100
+#  ^                                 ^
+#  variable_name                     variable_id
+#
+#  var_6c00_01_CurrentThesaurusSound 101
+#  ^                                 ^
+#  variable_name                     variable_id
+#
+#  var_6c00_01_CurrentThesaurusMovie 102
+#  ^                                 ^
+#  variable_name                     variable_id
 class VariableDeclaration(ProfileEntry):
     def __init__(self, lines_in_file):
         super().__init__(lines_in_file)
@@ -278,10 +267,10 @@ class VariableDeclaration(ProfileEntry):
         self.variable_name: str = self._raw_entry[0]
         self.variable_id: int = int(self._raw_entry[1])
 
-## Examples:
-##  $Yes 10000
-##  $resource 10001
-##  $Deactivate 10002
+# Examples:
+# - $Yes 10000
+# - $resource 10001
+# - $Deactivate 10002
 class ResourceDeclaration(ProfileEntry):
     def __init__(self, lines_in_file):
         super().__init__(lines_in_file)
@@ -291,10 +280,10 @@ class ResourceDeclaration(ProfileEntry):
         self.resource_name: str = self._raw_entry[0]
         self.resource_id: int = int(self._raw_entry[1])
 
-## Examples:
-##  SCREENCOVER_Z -100
-##  KNS_COVER_Z -100
-##  PLAY_BACKGROUND_PATCH 00:29.00
+# Examples:
+# - SCREENCOVER_Z -100
+# - KNS_COVER_Z -100
+# - PLAY_BACKGROUND_PATCH 00:29.00
 class ConstantDeclaration(ProfileEntry):
     def __init__(self, lines_in_file):
         super().__init__(lines_in_file)

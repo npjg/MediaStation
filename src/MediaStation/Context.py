@@ -1,3 +1,4 @@
+#!/usr/bin/python3
 
 from enum import IntEnum
 from typing import Dict, List, Optional
@@ -23,7 +24,6 @@ class ChunkType(IntEnum):
 ## - File number,
 ## - Human-readable name,
 ## - Any bytecode that runs when the context is first loaded (maybe).
-##
 ## This is usually the second header section in a context, after the palette (if present).
 class GlobalParameters:
     class SectionType(IntEnum):
@@ -87,11 +87,11 @@ class GlobalParameters:
     def entity(self, token, stream):
         entries = []
 
-        if token.d == 0x0007: # array
+        if token.d == 0x0007: # Array
             size = Datum(stream)
             for _ in range(size.d):
                 entries.append(self.entity(Datum(stream), stream))
-        elif token.d == 0x0006: # string
+        elif token.d == 0x0006: # String
             size = Datum(stream)
             entries.append(stream.read(size.d).decode("utf-8"))
         else: 
@@ -318,7 +318,7 @@ class Context(DataFile):
         if (Context.SectionType.CONTEXT_PARAMETERS == section_type):
             # VERIFY THIS CONTEXT DOES NOT ALREADY HAVE PARAMETERS.
             if self.parameters is not None:
-                raise ValueError('More than one parameters structure present in context.')
+                raise ValueError('ERROR: More than one parameters structure present in context.')
             
             # TODO: If a context is itself an asset, do we really need a separate parameters field?
             # (Currently the answer is yes because these parameters don't provide the same fields
@@ -335,7 +335,7 @@ class Context(DataFile):
             # VERIFY THIS CONTEXT DOES NOT ALREADY HAVE A PALETTE.
             # We can only have one palette for each context.
             if self.palette is not None:
-                raise ValueError('More than one palette present in context.')
+                raise ValueError('ERROR: More than one palette present in context.')
             self.palette = RgbPalette(self.stream, has_entry_alignment = False)
             Datum(chunk).d
 
@@ -344,7 +344,7 @@ class Context(DataFile):
             asset_header = Asset(chunk)
             asset_already_exists = self.assets.get(asset_header.id) is not None
             if asset_already_exists:
-                raise ValueError(f'Attempted to reassign asset {asset_header.id} which already exists!')
+                raise ValueError(f'ERROR: Attempted to reassign asset {asset_header.id} which already exists!')
             self.assets.update({asset_header.id: asset_header})
 
             if (Asset.AssetType.STAGE == asset_header.type):
@@ -434,7 +434,7 @@ class Context(DataFile):
             ))
 
         else:
-            raise ValueError(f'Unknown section type: {section_type:04x}')
+            raise ValueError(f'ERROR: Unknown section type: {section_type:04x}')
 
         return True
 
@@ -457,7 +457,7 @@ class Context(DataFile):
             if header is None:
                 # This should never actually be an error condition in valid contexts, because the asset headers are also in the first subfile.
                 raise ValueError(
-                    f'Asset FourCC {chunk.fourcc} was encountered in the first subfile, but no asset header read thus far has declared this FourCC.\n\n'
+                    f'ERROR: Asset FourCC {chunk.fourcc} was encountered in the first subfile, but no asset header read thus far has declared this FourCC.\n\n'
                     'This is expected if you are trying to extract assets from an INSTALL.CXT while excluding other CXTs, as INSTALL.CXT does not contain any asset headers.\n'
                     'Try running the extraction again on the entire game directory.')
 
@@ -489,7 +489,7 @@ class Context(DataFile):
             header.movie.add_still(chunk)
     
         else:
-            raise BinaryParsingError(f'Unknown asset type in first subfile: 0x{header.type:02x}', chunk.stream)
+            raise BinaryParsingError(f'ERROR: Unknown asset type in first subfile: 0x{header.type:02x}', chunk.stream)
 
     ## Reads an asset from a subfile after the first subfile.
     def read_asset_from_later_subfile(self, subfile, chunk = None):
@@ -523,7 +523,7 @@ class Context(DataFile):
             header.image_set.read_subfile(subfile, chunk)
 
         else:
-            raise BinaryParsingError(f'Unknown subfile asset type: {header.type}', chunk.stream)
+            raise BinaryParsingError(f'ERROR: Unknown subfile asset type: {header.type}', chunk.stream)
 
     ## This is included as a separate step becuase it is not connected to reading the data.
     def apply_palette(self):

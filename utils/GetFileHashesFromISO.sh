@@ -1,4 +1,4 @@
-#!/usr/bin/env bash
+#!/bin/bash
 
 # DEFINE ERROR HANDLERS.
 set -e 
@@ -6,7 +6,7 @@ set -e
 # so we must trap EXIT instead. 
 trap cleanup EXIT
 cleanup() {
-    echo -e "\nAttempting to clean up mount points and attached disks..."
+    echo -e "\nAttempting to clean up mount points and attached disks...\n"
     # We don't want to show any more errors.
     umount "$mount_point"
     rmdir "$mount_point"

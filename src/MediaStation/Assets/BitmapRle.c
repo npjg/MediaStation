@@ -1,8 +1,8 @@
 #define PY_SSIZE_T_CLEAN
 #include <Python.h>
 
-/// Actually decompresses the Media Station RLE stream, and easily provides a 10x performance improvement
-/// over the pure Python implementation.
+// Actually decompresses the Media Station RLE stream, and easily provides a 10x performance improvement
+// over the pure Python implementation.
 static PyObject *method_decompress_media_station_rle(PyObject *self, PyObject *args) {
     // READ THE PARAMETERS FROM PYTHON.
     char *compressed_image;
@@ -30,7 +30,7 @@ static PyObject *method_decompress_media_station_rle(PyObject *self, PyObject *a
         keyframe_image = NULL;
     }
 
-    // MAKE SURE THE PARAMETERS ARE SANE.
+    // MAKE SURE THE PARAMETERS ARE SAME.
     // The full width and full height are optional, so if they are not provided
     // assume the full width and height is the same as the width and height for 
     // this specific bitmap.
@@ -68,7 +68,7 @@ static PyObject *method_decompress_media_station_rle(PyObject *self, PyObject *a
     if (decompressed_image_object == NULL) {
         // TODO: We really should use Py_DECREF here I think, but since the
         // program will currently just quit it isn't a big deal.
-        PyErr_Format(PyExc_RuntimeError, "BitmapRle.c: Failed to allocate decompressed image data buffer.");
+        PyErr_Format(PyExc_RuntimeError, "BitmapRle.c::PyBytes_FromStringAndSize(): Failed to allocate decompressed image data buffer.");
         return NULL;
     }
     char *decompressed_image = PyBytes_AS_STRING(decompressed_image_object);
@@ -202,15 +202,15 @@ static PyObject *method_decompress_media_station_rle(PyObject *self, PyObject *a
     return decompressed_image_object;
 }
 
-/// Defines the Python methods callable in this module.
+// Defines the Python methods callable in this module.
 static PyMethodDef MediaStationBitmapRleDecompressionMethod[] = {
     {"decompress", method_decompress_media_station_rle, METH_VARARGS, "Decompresses raw Media Station RLE-encoded streams into an image bitmap (8-bit indexed color) and a transparency bitmap (monochrome, but still 8-bit for simplicity)."},
     // An entry of nulls must be provided to indicate we're done.
     {NULL, NULL, 0, NULL}
 };
 
-/// Defines the Python module itself. Because the module requires references to 
-/// each of the methods, the module must be defined after the methods.
+// Defines the Python module itself. Because the module requires references to 
+// each of the methods, the module must be defined after the methods.
 static struct PyModuleDef MediaStationBitmapRleModule = {
     PyModuleDef_HEAD_INIT,
     "BitmapRle",
@@ -222,7 +222,7 @@ static struct PyModuleDef MediaStationBitmapRleModule = {
     MediaStationBitmapRleDecompressionMethod
 };
 
-/// Called when a Python script inputs this module for the first time.
+// Called when a Python script inputs this module for the first time.
 PyMODINIT_FUNC PyInit_MediaStationBitmapRle(void) {
     return PyModule_Create(&MediaStationBitmapRleModule);
 }

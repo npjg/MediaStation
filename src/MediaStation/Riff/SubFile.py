@@ -1,4 +1,4 @@
-
+#!/usr/bin/python3
 
 from typing import Optional
 
@@ -11,12 +11,12 @@ from .Chunk import Chunk
 ## A single RIFF-style subfile inside a Media Station data file.
 ## All subfiles follow this beginning structure:
 ## - RIFF
-##  - IMTSrate (always 4 bytes of data)
-##  - LIST
-##   - data[fourcc] (e.g. "dataigod" or "dataa000")
-##   - [fourcc] (e.g. "igod" or "a000")
-##   - [fourcc]
-##   - ...
+## - IMTSrate (always 4 bytes of data)
+## - LIST
+## - data[fourcc] (e.g. "dataigod" or "dataa000")
+## - [fourcc] (e.g. "igod" or "a000")
+## - [fourcc]
+## - ...
 ## The real data is stored in the subchunks of the LIST chunk - the "data chunks".
 ##
 ## Each of these subfiles are *almost* RIFF files but for one exception:
@@ -80,7 +80,7 @@ class SubFile:
             if attempted_read_past_end_of_subfile:
                 bytes_past_chunk_end = new_end_pointer - self.root_chunk.end_pointer
                 raise BinaryParsingError(
-                    f'Attempted to read a new chunk past the end of the subfile whose data starts at 0x{self.root_chunk.data_start_pointer:02x} and ends at 0x{self.root_chunk.end_pointer:02x}.',
+                    f'ERROR: Attempted to read a new chunk past the end of the subfile whose data starts at 0x{self.root_chunk.data_start_pointer:02x} and ends at 0x{self.root_chunk.end_pointer:02x}.',
                     self.stream)
 
         # GET THE NEXT CHUNK.

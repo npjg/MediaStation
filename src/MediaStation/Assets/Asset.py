@@ -1,3 +1,4 @@
+#!/usr/bin/python3
 
 from dataclasses import dataclass
 from enum import IntEnum
@@ -325,7 +326,6 @@ class Asset:
 
         elif section_type == 0x03ed:
             # This should only occur in version 1 games.
-            # 
             # This type should be only used for LKASB Zazu minigame,
             # so it's okay to hardcode the constant 5.
             self.mouse = {
@@ -348,8 +348,7 @@ class Asset:
             self.unks.append({hex(section_type): Datum(chunk).d})
 
         elif section_type >= 0x0514 and section_type < 0x0519:
-            # These data are constant across the LKASB constellation
-            # minigame. I will ignore them.
+            # These data are constant across the LKASB constellation minigame. I will ignore them.
             self.unks.append({hex(section_type): Datum(chunk).d})
 
         elif section_type == 0x0519:
@@ -361,8 +360,7 @@ class Asset:
             self.palette = chunk.read(0x300)
 
         elif section_type == 0x05dc:
-            # It's only not 0.0 in the 'Read to me' and 'Read and play'
-            # images of Dalmatians. So I will ignore it.
+            # It's only not 0.0 in the 'Read to me' and 'Read and play' images of Dalmatians. So I will ignore it.
             self.unks.append({hex(section_type): Datum(chunk).d})
 
         elif section_type == 0x05dd:
@@ -412,8 +410,7 @@ class Asset:
             self.unks.append({hex(section_type): Datum(chunk).d})
 
         elif section_type == 0x776: # IMAGE_SET
-            # I think this is just a marker for the beginning of the image set
-            # data (0x778s), so I think we can just ignore this.
+            # I think this is just a marker for the beginning of the image set data (0x778s), so I think we can just ignore this.
             self.unks.append({hex(section_type): Datum(chunk).d})
             self.bitmap_declarations = []
 
@@ -422,8 +419,7 @@ class Asset:
             self.bitmap_declarations.append(bitmap_declaration)
 
         elif section_type == 0x779: # IMAGE_SET
-            # TODO: Figure out what this is. I just split it out here so I 
-            # wouldn't forget about it.
+            # TODO: Figure out what this is. I just split it out here so I wouldn't forget about it.
             self.unk_bitmap_set_bounding_box = Datum(chunk).d
 
         elif section_type >= 0x0773 and section_type <= 0x0780:
@@ -453,7 +449,7 @@ class Asset:
             try:
                 self.sound_encoding = Sound.Encoding(raw_sound_encoding)
             except:
-                raise ValueError(f'Received unknown sound encoding specifier: 0x{raw_sound_encoding:04x}')
+                raise ValueError(f'ERROR: Received unknown sound encoding specifier: 0x{raw_sound_encoding:04x}')
 
         else:
-            raise BinaryParsingError(f'Unknown section type: 0x{section_type:0>4x}', chunk.stream)
+            raise BinaryParsingError(f'ERROR: Unknown section type: 0x{section_type:0>4x}', chunk.stream)
