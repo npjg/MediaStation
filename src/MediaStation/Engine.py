@@ -1,18 +1,18 @@
 #! python3
 
-## This program extracts asets from Media Station titles. Refer to the readme 
-## for information on tested titles and known issues.
-## Overall Design:
-##  - Some of the data structures used in the files are rather strange and suited 
-##    for real-time playback instead of asset extraction. So first all the data is
-##    read from the files. Each structure in the data files generally has its own
-##    class in this application, and structures that correspond to multimedia assets 
-##    also support exporting. There is a little bit of inconsistency as to what
-##    constitutes a "structure" here as opposed to just a piece of another structure.
-##    But the arrangement I have adopted has seemed to preserve conceptual integrity 
-##    pretty well.
-##  - Each of the classes populated from the data is generally exported to JSON.
-##  - Multimedia files are exported to BMP or WAV.
+# This program extracts asets from Media Station titles. Refer to the readme 
+# for information on tested titles and known issues.
+# Overall Design:
+#  - Some of the data structures used in the files are rather strange and suited 
+#  - for real-time playback instead of asset extraction. So first all the data is
+#  - read from the files. Each structure in the data files generally has its own
+#  - class in this application, and structures that correspond to multimedia assets 
+#  - also support exporting. There is a little bit of inconsistency as to what
+#  - constitutes a "structure" here as opposed to just a piece of another structure.
+#  - But the arrangement I have adopted has seemed to preserve conceptual integrity 
+#  - pretty well.
+#  - Each of the classes populated from the data is generally exported to JSON.
+#  - Multimedia files are exported to BMP or WAV.
 
 from typing import List
 import os
@@ -44,20 +44,20 @@ class MediaStationEngine(Application):
                 if context.parameters.file_number == file_id:
                     return context
 
-    ## Gets an asset with associated data chunk(s) by the FourCC for those chunk(s).
-    ## Usually assets are defined in the same context that has their data, so this 
-    ## is not necessary. However, some new-generation titles have INSTALL.CXT files,
-    ## intended to be copied to the hard drive, that only contain asset data chunks
-    ## and no asset headers. So this application-level lookup is necessary to correctly
-    ## link up the data in this file with the asset headers.
+    # Gets an asset with associated data chunk(s) by the FourCC for those chunk(s).
+    # Usually assets are defined in the same context that has their data, so this 
+    # is not necessary. However, some new-generation titles have INSTALL.CXT files,
+    # intended to be copied to the hard drive, that only contain asset data chunks
+    # and no asset headers. So this application-level lookup is necessary to correctly
+    # link up the data in this file with the asset headers.
     def get_asset_by_chunk_id(self, chunk_id: str):
         for context in self.contexts:
             found_asset = context.get_asset_by_chunk_id(chunk_id)
             if found_asset is not None:
                 return found_asset
 
-    ## \return The asset whose asset ID matches the provided asset ID.
-    ## If no asset in any of the parsed files matches, None is returned.
+    # \return The asset whose asset ID matches the provided asset ID.
+    # If no asset in any of the parsed files matches, None is returned.
     def get_asset_by_asset_id(self, asset_id: int):
         for context in self.contexts:
             found_asset = context.get_asset_by_asset_id(asset_id)
@@ -82,8 +82,7 @@ class MediaStationEngine(Application):
             if corresponding_asset is not None:
                 # VERIFY THERE IS NO ASSET NAME CONFLICT.
                 # In later titles that encode the asset name in the asset header and 
-                # also put the asset names in PROFILE._ST, there could be an inconsistency
-                # between the two. We will check to ensure this isn't the case.
+                # also put the asset names in PROFILE._ST, there could be an inconsistency between the two. We will check to ensure this isn't the case.
                 if corresponding_asset.name is not None:
                     if corresponding_asset.name != asset_entry.name:
                         self.logger.warning(f'WARNING: Asset names disagree. Name in asset: {corresponding_asset.name}. Name in PROFILE._ST: {asset_entry.name}.')
