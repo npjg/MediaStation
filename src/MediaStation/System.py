@@ -14,7 +14,7 @@ from .Primitives.Point import Point
 ## Contains information about the engine (also called
 ##  "title compiler") used in this particular game.
 ## Engine version information is not present in version 1 games,
-## so all the fields are initialized to be None.
+## so all the fields are initialized to be none.
 class EngineVersionInformation:
     def __init__(self, stream = None):
         self.major_version = None
@@ -312,7 +312,7 @@ class CursorDeclaration:
 ## The data is generally, but not always, presented in the following order:
 ##  - Game title
 ##  - Engine version
-##  - 
+
 class System(DataFile):
     class SectionType(IntEnum):
         EMPTY = 0x0000
@@ -337,7 +337,7 @@ class System(DataFile):
         # Systems do not have a Media Station header, probably
         # because the only ever have one subfile.
         super().__init__(filepath = filepath, stream = stream, has_header = False)
-        # TODO: This should be integrated into the file itself.
+        # TODO:##  -  This should be integrated into the file itself.
         subfile = self.get_next_subfile()
         chunk = subfile.get_next_chunk()
         # TODO: Figure out what this is.
