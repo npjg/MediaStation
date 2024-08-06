@@ -30,7 +30,7 @@ static PyObject *method_decompress_media_station_rle(PyObject *self, PyObject *a
         keyframe_image = NULL;
     }
 
-    // MAKE SURE THE PARAMETERS ARE SANE.
+    // MAKE SURE THE PARAMETERS ARE SAME.
     // The full width and full height are optional, so if they are not provided
     // assume the full width and height is the same as the width and height for 
     // this specific bitmap.
