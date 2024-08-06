@@ -16,6 +16,6 @@ class Polygon:
         self.points = []
         for _ in range(total_points):
             # TODO: Define what this separator is to 
-            # provide more rigorous parsing.
+            # Provide more rigorous parsing.
             stream.read(2)
             self.points.append(Point(stream))
