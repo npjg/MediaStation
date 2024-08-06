@@ -1,4 +1,4 @@
-#!/usr/bin/env bash
+#!/bin/bash
 
 # DEFINE ERROR HANDLERS.
 set -e 

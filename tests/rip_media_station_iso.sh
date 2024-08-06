@@ -1,4 +1,4 @@
-#! bash
+#!/bin/bash
 
 # This script rips a Media Station ISO to a directory whose name should uniquely
 # identify the edition of the title in a human-readable fashion. It is designed to
