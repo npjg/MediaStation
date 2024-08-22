@@ -1,4 +1,5 @@
 from enum import IntEnum
+from typing import Optional
 
 import self_documenting_struct as struct
 from asset_extraction_framework.Exceptions import BinaryParsingError
@@ -54,10 +55,12 @@ class Datum:
     ## The number of bytes read from the stream depends on the type
     ## of the datum.
     ## \param[in] stream - A binary stream that supports the read method.
-    def __init__(self, stream):
+    def __init__(self, stream, expected_type: Optional[Type] = None):
         # READ THE TYPE OF THE DATUM. 
         # Regardless of the datum's value the type always has constant size.
         self.t = struct.unpack.uint16_le(stream)
+        if expected_type is not None and self.t != expected_type:
+            raise BinaryParsingError(f'Expected datum type {expected_type.name}, but got datum type {self.Type(self.t).name}.')
 
         # READ THE VALUE IN THE DATUM.
         if (self.t == Datum.Type.UINT8):
