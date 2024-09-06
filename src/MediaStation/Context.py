@@ -327,9 +327,25 @@ class Context(DataFile):
             self.parameters = GlobalParameters(chunk)
 
         elif (Context.SectionType.ASSET_LINK == section_type):
-            # TODO: Figure out what is going on here.
+            # TODO: Figure out what the asset links are actually used for.
+            # They seem to ONLY provide the ID of an asset defined in this file,
+            # which doesn't make a lot of sense. Moreover, these don't occur in
+            # EVERY file that has assets, only some of them.
+            # 
+            # These are also always ordered in the opposite of the order they
+            # appear in the file, so the last asset in the file is first here.
+            # I wonder if this is some sort of way to "export" assets so they
+            # can be used by other contexts in other screens? 
             asset_link = Datum(chunk).d
             self.links.append(asset_link)
+            # TODO: There is a recursive read here becuase the asset links seem
+            # to be stored in their own chunk, which consists entirely of asset
+            # links with an END section type. But, when we're reading new-style header
+            # sections, an entire chunk is expected to be read by this function
+            # at a time. If we just read one asset link here, the next chunk
+            # will start in the middle of this chunk, which is not correct. A
+            # likely more intuitive alernative would be putting an interation in
+            # here rather than recursing.
             self.read_header_section(chunk, reading_stage = reading_stage)
 
         elif (Context.SectionType.PALETTE == section_type):
