@@ -48,42 +48,47 @@ class GlobalParameters:
         self.file_number: int = Datum(stream).d
 
         # READ THE SECTIONS.
-        section_type: int = Datum(stream).d
+        section_type: int = Datum(stream, Datum.Type.UINT16_1).d
         if section_type != GlobalParameters.SectionType.EMPTY:
             if section_type == GlobalParameters.SectionType.NAME:
-                assert_equal(Datum(stream).d, self.file_number)
-                self.name = Datum(stream).d
-                assert_equal(Datum(stream).d, 0x0000)
+                repeated_file_number = Datum(stream, Datum.Type.UINT16_1).d
+                assert_equal(repeated_file_number, self.file_number)
+                self.name = Datum(stream, Datum.Type.STRING).d
+                unk1 = Datum(stream, Datum.Type.UINT16_1).d # Always 0x0000
 
             elif section_type == GlobalParameters.SectionType.FILE_NUMBER:
-                self.read_file_number_section(stream)
+                unk1 = UnknownFileNumberSection(stream)
+                assert_equal(unk1.file_number, self.file_number)
 
         else:
             # TODO: Document what this stuff is. My original code had zero documentation.
-            section_type = Datum(stream)
+            section_type = Datum(stream, Datum.Type.UINT16_1)
             while section_type.d != GlobalParameters.SectionType.NULL:
                 assert_equal(section_type.d, self.file_number, "file ID")
 
-                id = Datum(stream)
-                self.entries.update({id.d: self.entity(Datum(stream), stream)})
+                id = Datum(stream).d
+                entity = self.entity(Datum(stream), stream)
+                self.entries.update({id: entity})
 
                 check = Datum(stream)
                 if check.d != GlobalParameters.SectionType.EMPTY:
                     break
 
-                section_type = Datum(stream)
+                section_type = Datum(stream, Datum.Type.UINT16_1)
 
             if check.d == GlobalParameters.SectionType.FILE_NUMBER:
-                self.read_file_number_section(stream)
+                unk1 = UnknownFileNumberSection(stream)
+                assert_equal(unk1.file_number, self.file_number)
 
         # READ THE CONTEXT-GLOBAL BYTECODE.
         # TODO: Does this run when the context is first loaded?
         if global_variables.version.is_first_generation_engine:
-            section_type = Datum(stream)
+            section_type = Datum(stream, Datum.Type.UINT16_1)
             self.init = []
             while section_type.d == GlobalParameters.SectionType.BYTECODE:
                 self.init.append(Script(stream, in_independent_asset_chunk = False))
-                section_type = Datum(stream)
+                section_type = Datum(stream, Datum.Type.UINT16_1)
+
 
     # TODO: Document what this stuff is. My original code had zero documentation.
     def entity(self, section_type, stream):
@@ -100,28 +105,35 @@ class GlobalParameters:
             string = stream.read(size).decode('latin-1')
             entries.append(string)
 
-        else: 
+        # TODO: It looks like the only section types are
+        #  - 0x0005
+        #  - 0x0002
+        #  - 0x0003?
+        #  - 0x0001
+        else: # literal
             entry = Datum(stream).d
             entries.append(entry)
 
         return {"section_type": section_type.d, "entries": entries}
 
-    ## I don't know what this structure is, but it's in every old-style game.
-    ## The fields aside from the file numbers are constant.
-    ## \param[in] stream - A binary stream that supports the read method.
-    def read_file_number_section(self, stream):
+## I don't know what this structure is, but it's in every old-style game.
+## The fields aside from the file numbers are constant.
+## \param[in] stream - A binary stream that supports the read method.
+class UnknownFileNumberSection:
+    def __init__(self, stream):
         # VERIFY THE FILE NUMBER.
-        repeated_file_number = Datum(stream).d
-        assert_equal(repeated_file_number, self.file_number)
+        self.file_number = Datum(stream, Datum.Type.UINT16_1).d
         # TODO: Figure out what this is.
-        unk1 = Datum(stream).d # This seems to always be 0x0001.
+        unk1 = Datum(stream, Datum.Type.UINT16_1).d # This seems to always be 0x0001.
 
         # VERIFY THE FILE NUMBER.
-        repeated_file_number = Datum(stream).d
+        repeated_file_number = Datum(stream, Datum.Type.UINT16_1).d
         assert_equal(repeated_file_number, self.file_number)
         # TODO: Figure out what these are.
-        unk2 = Datum(stream).d # This seems to always be 0x0022.
-        unk3 = Datum(stream).d
+        unk2 = Datum(stream, Datum.Type.UINT16_1).d # This seems to always be 0x0022.
+        unk3 = Datum(stream, Datum.Type.UINT16_1).d # Is this always zero?
+        if unk3 != 0:
+            raise ValueError('Not zero!')
 
 ## A "context" is the logical entity serialized in each CXT data file.
 ## Subfile 0 of this file always contains the header sections for the context.
