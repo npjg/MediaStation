@@ -273,7 +273,7 @@ class Context(DataFile):
         more_chunks_to_read = (not subfile.at_end) and (chunk.is_igod)
         while more_chunks_to_read:
             # READ ALL THE HEADER SECTIONS IN THIS CHUNK.
-            section_type = Datum(chunk).d
+            section_type = Datum(chunk, Datum.Type.UINT16_1).d
             assert_equal(section_type, Context.SectionType.OLD_STYLE)
             more_sections_to_read: bool = True
             while more_sections_to_read:
@@ -306,7 +306,7 @@ class Context(DataFile):
         more_sections_to_read = chunk.is_igod
         while more_sections_to_read:
             # VERIFY THIS IGOD CHUNK IS A HEADER.
-            chunk_is_header = (Datum(chunk).d == ChunkType.HEADER)
+            chunk_is_header = (Datum(chunk, Datum.Type.UINT16_1).d == ChunkType.HEADER)
             if not chunk_is_header:
                 break
 
@@ -366,7 +366,8 @@ class Context(DataFile):
             if self.palette is not None:
                 raise ValueError('More than one palette present in context.')
             self.palette = RgbPalette(self.stream, has_entry_alignment = False)
-            Datum(chunk).d
+            unk1 = Datum(chunk).d
+            global_variables.application.logger.debug(f'Context(): Palette: unk: {unk}')
 
         elif (Context.SectionType.ASSET_HEADER == section_type):
             # READ AN ASSET HEADER.
@@ -377,9 +378,12 @@ class Context(DataFile):
             self.assets.update({asset_header.id: asset_header})
 
             if (Asset.AssetType.STAGE == asset_header.type):
-                # TODO: Figure out what these are. Are they always zero?
-                Datum(chunk)
-                Datum(chunk)
+                section_type = Datum(chunk).d
+                if Context.SectionType.ASSET_LINK == section_type:
+                    stage_asset_id = Datum(chunk).d
+                    assert_equal(stage_asset_id, asset_header.id)
+                else:
+                    raise ValueError('Expected asset link in stage!')
 
                 # TODO: Correctly handle embedded stages.
                 if reading_stage:
@@ -402,7 +406,7 @@ class Context(DataFile):
                 (not global_variables.version.is_first_generation_engine) and \
                 (not reading_stage) and \
                 (not asset_header.type == Asset.AssetType.STAGE):
-                Datum(chunk).d
+                unk = Datum(chunk).d # Seems to always be zero, likely working as a terminator.
 
             # TODO: I think this is related to embedded stages.
             if (chunk.at_end) and reading_stage:
@@ -447,8 +451,9 @@ class Context(DataFile):
 
         elif (Context.SectionType.END == section_type):
             # TODO: Figure out what these are.
-            Datum(chunk)
-            Datum(chunk)
+            unk1 = Datum(chunk).d
+            unk2 = Datum(chunk).d
+            global_variables.application.logger.debug(f'Context: End: unk1: 0x{unk1:04x}; unk2: 0x{unk2:04x}')
             return False
 
         elif (Context.SectionType.EMPTY == section_type):
