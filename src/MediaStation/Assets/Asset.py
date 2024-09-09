@@ -120,12 +120,8 @@ class Asset:
 
         # READ THE ASSET TYPE.
         self.type = Asset.AssetType(Datum(chunk).d)
-        if (Asset.AssetType.STAGE == self.type):
-            self.children = None
-
         # The ID of this asset. Unique within each game.
         self.id: int = Datum(chunk).d
-
         # The asset ID of the stage on which this asset is shown.
         # None if the asset does not belong to a stage.
         self.stage_id = None
@@ -147,8 +143,15 @@ class Asset:
             section_type = Datum(chunk).d
             more_sections_to_read = (Asset.SectionType.EMPTY != section_type)
 
-        # CREATE THE CHILDREN.
-        if (Asset.AssetType.IMAGE == self.type):
+        # CREATE THE FIELDS FOR THIS ASSET.
+        # TODO: Would this be better polymorphic, where each of these are
+        # subclasses? This composition-based appraoch is working well enough, though.
+        if (Asset.AssetType.STAGE == self.type):
+            # TODO: This is not currently populated becuase we read asset
+            # headers in Context, not here. So the assets in stages will go 
+            # into the main assets list, and they're never populated here.
+            self.children = []
+        elif (Asset.AssetType.IMAGE == self.type):
             self.image = None
         elif (Asset.AssetType.IMAGE_SET == self.type):
             self.image_set = BitmapSet(self)
