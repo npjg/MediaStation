@@ -28,12 +28,12 @@ class ChunkType(IntEnum):
 class GlobalParameters:
     class SectionType(IntEnum):
         NULL = 0x0000
-        EMPTY = 0x0014
+        ENTITY = 0x0014
         NAME = 0x0bb9
         FILE_NUMBER = 0x0011
         BYTECODE = 0x0017
 
-    ## Reads context parametersfrom the binary stream at its current position.
+    ## Reads context parameters from the binary stream at its current position.
     ## The number of bytes read from the stream depends on the type 
     ## \param[in] stream - A binary stream that supports the read method.
     def __init__(self, stream):
@@ -42,6 +42,8 @@ class GlobalParameters:
         self.name: Optional[str] = None
         # TODO: Understand what this declaration is.
         self.entries = {}
+        # TODO: Do the scripts in here run when the context is first loaded?
+        self.scripts = []
         # This is not an internal file ID, but the number of the file
         # as it appears in the filename. For instance, the context in
         # "100.cxt" would have file number 100.
@@ -49,7 +51,7 @@ class GlobalParameters:
 
         # READ THE SECTIONS.
         section_type: int = Datum(stream, Datum.Type.UINT16_1).d
-        if section_type != GlobalParameters.SectionType.EMPTY:
+        while section_type != GlobalParameters.SectionType.NULL:            
             if section_type == GlobalParameters.SectionType.NAME:
                 repeated_file_number = Datum(stream, Datum.Type.UINT16_1).d
                 assert_equal(repeated_file_number, self.file_number)
@@ -60,35 +62,23 @@ class GlobalParameters:
                 unk1 = UnknownFileNumberSection(stream)
                 assert_equal(unk1.file_number, self.file_number)
 
-        else:
-            # TODO: Document what this stuff is. My original code had zero documentation.
-            section_type = Datum(stream, Datum.Type.UINT16_1)
-            while section_type.d != GlobalParameters.SectionType.NULL:
-                assert_equal(section_type.d, self.file_number, "file ID")
+            elif section_type == GlobalParameters.SectionType.ENTITY:
+                # TODO: Document what this stuff is. My original code had zero documentation.
+                file_number = Datum(stream, Datum.Type.UINT16_1).d
+                assert_equal(file_number, self.file_number, "file ID")
 
                 id = Datum(stream).d
                 entity = self.entity(Datum(stream), stream)
                 self.entries.update({id: entity})
 
-                check = Datum(stream)
-                if check.d != GlobalParameters.SectionType.EMPTY:
-                    break
+            elif section_type == GlobalParameters.SectionType.BYTECODE:
+                init_script = Script(stream, in_independent_asset_chunk = False)
+                self.scripts.append(init_script)
 
-                section_type = Datum(stream, Datum.Type.UINT16_1)
-
-            if check.d == GlobalParameters.SectionType.FILE_NUMBER:
-                unk1 = UnknownFileNumberSection(stream)
-                assert_equal(unk1.file_number, self.file_number)
-
-        # READ THE CONTEXT-GLOBAL BYTECODE.
-        # TODO: Does this run when the context is first loaded?
-        if global_variables.version.is_first_generation_engine:
-            section_type = Datum(stream, Datum.Type.UINT16_1)
-            self.init = []
-            while section_type.d == GlobalParameters.SectionType.BYTECODE:
-                self.init.append(Script(stream, in_independent_asset_chunk = False))
-                section_type = Datum(stream, Datum.Type.UINT16_1)
-
+            else:
+                raise ValueError(f'GlobalParameters: Got unexpected section type 0x{section_type:04x}')
+            
+            section_type: int = Datum(stream, Datum.Type.UINT16_1).d
 
     # TODO: Document what this stuff is. My original code had zero documentation.
     def entity(self, section_type, stream):
