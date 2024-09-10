@@ -68,7 +68,7 @@ class GlobalParameters:
                 assert_equal(file_number, self.file_number, "file ID")
 
                 id = Datum(stream).d
-                entity = self.entity(Datum(stream), stream)
+                entity = self.entity(stream)
                 self.entries.update({id: entity})
 
             elif section_type == GlobalParameters.SectionType.BYTECODE:
@@ -81,16 +81,17 @@ class GlobalParameters:
             section_type: int = Datum(stream, Datum.Type.UINT16_1).d
 
     # TODO: Document what this stuff is. My original code had zero documentation.
-    def entity(self, section_type, stream):
+    def entity(self, stream):
+        section_type = Datum(stream, Datum.Type.UINT8).d
         entries = []
 
-        if section_type.d == 0x0007: # array
+        if section_type == 0x0007: # array
             size = Datum(stream).d
             for _ in range(size):
-                entity = self.entity(Datum(stream), stream)
+                entity = self.entity(stream)
                 entries.append(entity)
 
-        elif section_type.d == 0x0006: # string
+        elif section_type == 0x0006: # string
             size = Datum(stream).d
             string = stream.read(size).decode('latin-1')
             entries.append(string)
