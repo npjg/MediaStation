@@ -28,7 +28,7 @@ class ChunkType(IntEnum):
 class GlobalParameters:
     class SectionType(IntEnum):
         NULL = 0x0000
-        ENTITY = 0x0014
+        ARRAY = 0x0014
         NAME = 0x0bb9
         FILE_NUMBER = 0x0011
         BYTECODE = 0x0017
@@ -41,7 +41,7 @@ class GlobalParameters:
         # When the names are present, they generally look like the following: "Decals_7x00".
         self.name: Optional[str] = None
         # TODO: Understand what this declaration is.
-        self.entries = {}
+        self.arrays = {}
         # TODO: Do the scripts in here run when the context is first loaded?
         self.scripts = []
         # This is not an internal file ID, but the number of the file
@@ -62,14 +62,14 @@ class GlobalParameters:
                 unk1 = UnknownFileNumberSection(stream)
                 assert_equal(unk1.file_number, self.file_number)
 
-            elif section_type == GlobalParameters.SectionType.ENTITY:
+            elif section_type == GlobalParameters.SectionType.ARRAY:
                 # TODO: Document what this stuff is. My original code had zero documentation.
                 file_number = Datum(stream, Datum.Type.UINT16_1).d
                 assert_equal(file_number, self.file_number, "file ID")
 
                 id = Datum(stream).d
-                entity = self.entity(stream)
-                self.entries.update({id: entity})
+                array = Array(stream)
+                self.arrays.update({id: array})
 
             elif section_type == GlobalParameters.SectionType.BYTECODE:
                 init_script = Script(stream, in_independent_asset_chunk = False)
@@ -79,22 +79,24 @@ class GlobalParameters:
                 raise ValueError(f'GlobalParameters: Got unexpected section type 0x{section_type:04x}')
             
             section_type: int = Datum(stream, Datum.Type.UINT16_1).d
-
-    # TODO: Document what this stuff is. My original code had zero documentation.
-    def entity(self, stream):
+    
+class Array:
+    def __init__(self, stream):
+        # TODO: Document what this stuff is. My original code had zero
+        # documentation.
         section_type = Datum(stream, Datum.Type.UINT8).d
-        entries = []
+        self.entries = []
 
         if section_type == 0x0007: # array
             size = Datum(stream).d
             for _ in range(size):
-                entity = self.entity(stream)
-                entries.append(entity)
+                array = Array(stream)
+                self.entries.append(array)
 
         elif section_type == 0x0006: # string
             size = Datum(stream).d
             string = stream.read(size).decode('latin-1')
-            entries.append(string)
+            self.entries.append(string)
 
         # TODO: It looks like the only section types are
         #  - 0x0005
@@ -103,9 +105,7 @@ class GlobalParameters:
         #  - 0x0001
         else: # literal
             entry = Datum(stream).d
-            entries.append(entry)
-
-        return {"section_type": section_type.d, "entries": entries}
+            self.entries.append((section_type, entry))
 
 ## I don't know what this structure is, but it's in every old-style game.
 ## The fields aside from the file numbers are constant.
