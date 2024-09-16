@@ -22,13 +22,14 @@ class ChunkType(IntEnum):
 ## Contains parameters for the entire context, including the following:
 ## - File number,
 ## - Human-readable name,
+## - Variables global to the context.
 ## - Any bytecode that runs when the context is first loaded (maybe).
 ##
 ## This is usually the second header section in a context, after the palette (if present).
-class GlobalParameters:
+class Parameters:
     class SectionType(IntEnum):
         NULL = 0x0000
-        ARRAY = 0x0014
+        VARIABLE = 0x0014
         NAME = 0x0bb9
         FILE_NUMBER = 0x0011
         BYTECODE = 0x0017
@@ -40,8 +41,8 @@ class GlobalParameters:
         # Titles that use the old-style format don't have human-readable context names.
         # When the names are present, they generally look like the following: "Decals_7x00".
         self.name: Optional[str] = None
-        # TODO: Understand what this declaration is.
-        self.arrays = {}
+        # Variable initialization for at least some variables used in the context.
+        self.variables = {}
         # TODO: Do the scripts in here run when the context is first loaded?
         self.scripts = []
         # This is not an internal file ID, but the number of the file
@@ -51,27 +52,32 @@ class GlobalParameters:
 
         # READ THE SECTIONS.
         section_type: int = Datum(stream, Datum.Type.UINT16_1).d
-        while section_type != GlobalParameters.SectionType.NULL:            
-            if section_type == GlobalParameters.SectionType.NAME:
+        while section_type != Parameters.SectionType.NULL:            
+            if section_type == Parameters.SectionType.NAME:
                 repeated_file_number = Datum(stream, Datum.Type.UINT16_1).d
                 assert_equal(repeated_file_number, self.file_number)
                 self.name = Datum(stream, Datum.Type.STRING).d
                 unk1 = Datum(stream, Datum.Type.UINT16_1).d # Always 0x0000
 
-            elif section_type == GlobalParameters.SectionType.FILE_NUMBER:
+            elif section_type == Parameters.SectionType.FILE_NUMBER:
                 unk1 = UnknownFileNumberSection(stream)
                 assert_equal(unk1.file_number, self.file_number)
 
-            elif section_type == GlobalParameters.SectionType.ARRAY:
-                # TODO: Document what this stuff is. My original code had zero documentation.
+            elif section_type == Parameters.SectionType.VARIABLE:
+                # VERIFY THE FILE NUMBER.
+                # Not sure why this is here? Maybe there could be cases where
+                # the variable is delcared for a different context? I have never
+                # observed this, though. 
                 file_number = Datum(stream, Datum.Type.UINT16_1).d
                 assert_equal(file_number, self.file_number, "file ID")
 
-                id = Datum(stream).d
-                array = Array(stream)
-                self.arrays.update({id: array})
+                # READ THE VARIABLE DECLARATION.
+                # Any dclared variables seem to always need a value.
+                id = Datum(stream, Datum.Type.UINT16_1).d
+                variable = Variable(stream)
+                self.variables.update({id: variable})
 
-            elif section_type == GlobalParameters.SectionType.BYTECODE:
+            elif section_type == Parameters.SectionType.BYTECODE:
                 init_script = Script(stream, in_independent_asset_chunk = False)
                 self.scripts.append(init_script)
 
@@ -79,33 +85,60 @@ class GlobalParameters:
                 raise ValueError(f'GlobalParameters: Got unexpected section type 0x{section_type:04x}')
             
             section_type: int = Datum(stream, Datum.Type.UINT16_1).d
-    
-class Array:
+
+class Variable:
+    class Type(IntEnum):
+        # This is an "array", but the IMT sources 
+        # use the term "collection".
+        COLLECTION = 0x0007
+        STRING = 0x0006
+        ASSET_ID = 0x0005
+        # These seem to be used in Dalmatians, but I don't know what they are
+        # used for.
+        UNK1 = 0x0004
+        # These seem to be constants of some sort? This is what some of these
+        # IDs look like in PROFILE._ST:
+        #  - $downEar 10026
+        #  - $sitDown 10027
+        # Seems like these can also reference variables:
+        #  - var_6c14_bool_FirstThingLev3 315
+        #  - var_6c14_NextEncouragementSound 316
+        UNK2 = 0x0003
+        BOOLEAN = 0x0002
+        LITERAL = 0x0001
+
     def __init__(self, stream):
-        # TODO: Document what this stuff is. My original code had zero
-        # documentation.
-        section_type = Datum(stream, Datum.Type.UINT8).d
-        self.entries = []
+        # These variables don't seem to appear in the variables section of
+        # PROFILE._ST. They seem to be internal to each context.
+        self.type = Datum(stream, Datum.Type.UINT8).d
+        self.value = None
 
-        if section_type == 0x0007: # array
+        # Some of these seem to be the asset IDs that are groups
+        # of images, hilites, and outlines. For example,
+        #   - img_6c16_ArmorHilite 2385 2672
+        #   - img_6c16_ArmorOutline 2383 2673
+        #   - img_6c16_ArmorHelp 2384 2674
+        if Variable.Type.COLLECTION == self.type:
             size = Datum(stream).d
+            self.value = []
             for _ in range(size):
-                array = Array(stream)
-                self.entries.append(array)
+                collection = Variable(stream)
+                self.value.append(collection)
 
-        elif section_type == 0x0006: # string
+        elif Variable.Type.STRING == self.type:
             size = Datum(stream).d
             string = stream.read(size).decode('latin-1')
-            self.entries.append(string)
+            self.value = string
 
-        # TODO: It looks like the only section types are
-        #  - 0x0005
-        #  - 0x0002
-        #  - 0x0003?
-        #  - 0x0001
-        else: # literal
-            entry = Datum(stream).d
-            self.entries.append((section_type, entry))
+        elif (Variable.Type.ASSET_ID == self.type) or \
+            (Variable.Type.BOOLEAN == self.type) or \
+            (Variable.Type.LITERAL == self.type):
+            self.value = Datum(stream).d
+
+        else:
+            global_variables.application.logger.warning(f'Got unknown variable type: 0x{self.type:04x}')
+            self.value = Datum(stream).d
+            global_variables.application.logger.warning(f' > Value: {self.value}')
 
 ## I don't know what this structure is, but it's in every old-style game.
 ## The fields aside from the file numbers are constant.
@@ -123,8 +156,6 @@ class UnknownFileNumberSection:
         # TODO: Figure out what these are.
         unk2 = Datum(stream, Datum.Type.UINT16_1).d # This seems to always be 0x0022.
         unk3 = Datum(stream, Datum.Type.UINT16_1).d # Is this always zero?
-        if unk3 != 0:
-            raise ValueError('Not zero!')
 
 ## A "context" is the logical entity serialized in each CXT data file.
 ## Subfile 0 of this file always contains the header sections for the context.
@@ -147,7 +178,7 @@ class Context(DataFile):
     class SectionType(IntEnum):
         EMPTY = 0x0000
         OLD_STYLE = 0x000d
-        CONTEXT_PARAMETERS = 0x000e
+        PARAMETERS = 0x000e
         PALETTE = 0x05aa
         END = 0x0010
         ASSET_HEADER = 0x0011
@@ -170,7 +201,7 @@ class Context(DataFile):
         # Since this is a separate header section, it is parsed by its own class
         # rather than being read through a method in this class. That adds some 
         # indirection, but it helps preserve conceptual integrity of the design.
-        self.parameters: Optional[GlobalParameters] = None
+        self.parameters: Optional[Parameters] = None
         # All images in this context use this same palette, if one is provided.
         # There is no facility for palette changes within a context.
         # This makes handling images a lot simpler!
@@ -319,7 +350,7 @@ class Context(DataFile):
     ##         Note that there are times other than when this function returns False.
     def read_header_section(self, chunk, reading_stage = False):
         section_type = Datum(chunk).d
-        if (Context.SectionType.CONTEXT_PARAMETERS == section_type):
+        if (Context.SectionType.PARAMETERS == section_type):
             # VERIFY THIS CONTEXT DOES NOT ALREADY HAVE PARAMETERS.
             if self.parameters is not None:
                 raise ValueError('More than one parameters structure present in context.')
@@ -327,7 +358,7 @@ class Context(DataFile):
             # TODO: If a context is itself an asset, do we really need a separate parameters field?
             # (Currently the answer is yes because these parameters don't provide the same fields
             # as asset headers.)
-            self.parameters = GlobalParameters(chunk)
+            self.parameters = Parameters(chunk)
 
         elif (Context.SectionType.ASSET_LINK == section_type):
             # TODO: Figure out what the asset links are actually used for.
