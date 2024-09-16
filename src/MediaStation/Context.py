@@ -388,7 +388,7 @@ class Context(DataFile):
             if self.palette is not None:
                 raise ValueError('More than one palette present in context.')
             self.palette = RgbPalette(self.stream, has_entry_alignment = False)
-            unk1 = Datum(chunk).d
+            unk = Datum(chunk).d
             global_variables.application.logger.debug(f'Context(): Palette: unk: {unk}')
 
         elif (Context.SectionType.ASSET_HEADER == section_type):
