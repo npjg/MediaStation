@@ -235,7 +235,16 @@ class Asset:
             self.asset_reference = Datum(chunk).d
 
         elif section_type == 0x001f: # IMG, HSP, SPR, MOV, TXT, CVS
-            self.automatically_play = bool(Datum(chunk).d)
+            # TODO: This seems like a constant that we can cast to an enum based
+            # on the asset type.
+            # Known values are:
+            #  - $Hide (0)
+            #  - $Deactivate (0)
+            #  - $Show (1)
+            # I don't know why in movies and sprites, the startup line is listed
+            # like this:
+            #  Startup	: [ $Show ] 
+            self.startup = Datum(chunk).d
 
         elif section_type == 0x0020: # IMG, SPR, CVS
             # TODO: Determine what this is.
@@ -249,8 +258,7 @@ class Asset:
             self.unks.append({hex(section_type): Datum(chunk).d})
 
         elif section_type == 0x0024: # SPR
-            # TODO: Determine what this is.
-            self.unks.append({hex(section_type): Datum(chunk).d})
+            self.frame_rate = Datum(chunk).d
 
         #elif section_type == 0x0026: # TXT
         #    # TODO: This seems to only occur in Ariel.
@@ -397,16 +405,19 @@ class Asset:
             self.unks.append({hex(section_type): Datum(chunk).d})
 
         elif section_type == 0x076f: # CAM
-            self.unks.append({hex(section_type): Datum(chunk).d})
+            self.viewport_origin = Datum(chunk).d
 
         elif section_type == 0x0770: # CAM
-            self.unks.append({hex(section_type): Datum(chunk).d})
+            self.lens_open = bool(Datum(chunk.d))
 
         elif section_type == 0x0771: # STG
             self.unks.append({hex(section_type): Datum(chunk).d})
 
         elif section_type == 0x0772: # STG
-            self.unks.append({hex(section_type): Datum(chunk).d})
+            self.cylindrical_x = bool(Datum(chunk).d)
+
+        elif section_type == 0x0773: # STG
+            self.cylindrical_y = bool(Datum(chunk).d)
 
         elif section_type == 0x774: # IMAGE_SET
             self.bitmap_count = Datum(chunk).d
@@ -420,6 +431,9 @@ class Asset:
             self.unks.append({hex(section_type): Datum(chunk).d})
             self.bitmap_declarations = []
 
+        elif section_type == 0x777:
+            self.unks.append({hex(section_type): Datum(chunk).d})
+
         elif section_type == 0x778: # IMAGE_SET
             bitmap_declaration = BitmapSetBitmapDeclaration(chunk)
             self.bitmap_declarations.append(bitmap_declaration)
@@ -429,7 +443,7 @@ class Asset:
             # wouldn't forget about it.
             self.unk_bitmap_set_bounding_box = Datum(chunk).d
 
-        elif section_type >= 0x0773 and section_type <= 0x0780:
+        elif section_type == 0x780:
             self.unks.append({hex(section_type): Datum(chunk).d})
 
         elif section_type == 0x7d2: # XSND_MIDI (Ariel)
