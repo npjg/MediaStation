@@ -42,13 +42,14 @@ class Opcodes(IntEnum):
     # For example, function parameter 1 is stored in slot [1]. 
     AssignVariable = 203
     GetValue = 207 # ? Got this from the if statement, not sure if right.
-    Unk1 = 213
+    Add = 213
+    Subtract = 214
+    Divide = 216
     # Routine calls have this form:
     #  [Opcode.CallRoutine, FunctionId, ParametersCount]
     # Followed by the actual parameters to pass to the function.
     # Functions with low ID numbers are "built-in" functions, and 
     # functions with large ID numbers are user-defined functions.
-    UnkRelatedToVariableAssignment = 214 # Appears when we are referencing variables.
     CallRoutine = 219
     # Method calls are like function calls, but they have an implicit "self"
     # parameter that is always the first. For example:
@@ -70,10 +71,14 @@ class BuiltInFunction(IntEnum):
     TimePlay = 206 # PARAMS: 1
 
     # HOTSPOT METHODS.
+    mouseActivate = 210 # PARAMS: 1
     mouseDeactivate = 211 # PARAMS: 0
 
     # IMAGE METHODS.
     Height = 236 # PARAMS: 0
+
+    # SPRITE METHODS.
+    movieReset = 219 # PARAMS: 0
 
     # STAGE METHODS.
     setWorldSpaceExtent = 363 # PARAMS: 2
@@ -81,6 +86,9 @@ class BuiltInFunction(IntEnum):
 
     # CAMERA METHODS.
     stopPan = 350 # PARAMS: 0
+    viewportMoveTo = 352 # PARAMS: 2    
+    yViewportPosition = 357 # PARAMS: 0
+    panTo = 370 # PARAMS: 4
 
 class OperandType(IntEnum):
     # TODO: Figure out the difference between these two.
@@ -94,6 +102,7 @@ class OperandType(IntEnum):
     #  [155, 301]
     DollarSignVariable = 155
     AssetId = 156
+    Float = 157
 
 # TODO: This is a debugging script to help decompile the bytecode 
 # when there are opcodes we have documented but still provide a
@@ -142,6 +151,7 @@ class EventHandler(Script):
     class Type(IntEnum):
         Time = 0x05 # Timer
         MouseDown = 0x06 # Hotspot
+        KeyDown = 13 # TODO: Where is the key actually stored?
         SoundEnd = 14
         MovieEnd = 21
         Entry = 17 # Screen
@@ -209,12 +219,18 @@ class CodeChunk:
                 statement = [opcode, lhs, rhs]
 
             elif (Opcodes.GetValue == opcode) or \
-                (Opcodes.AssignVariable == opcode) or \
-                (Opcodes.UnkRelatedToVariableAssignment == opcode):
+                (Opcodes.AssignVariable == opcode):
                 variable_id = self.read_statement(stream)
                 # TODO: This is the same "4" literal that we see above.
                 unk = self.read_statement(stream)
                 statement = [opcode, variable_id, unk]
+
+            elif (Opcodes.Add == opcode) or \
+                (Opcodes.Subtract == opcode) or \
+                (Opcodes.Divide == opcode):
+                variable_1 = self.read_statement(stream)
+                variable_2 = self.read_statement(stream)
+                statement = [opcode, variable_1, variable_2]
 
             elif (Opcodes.CallRoutine == opcode) or \
                 (Opcodes.CallMethod == opcode):
