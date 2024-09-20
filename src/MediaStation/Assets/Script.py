@@ -135,8 +135,8 @@ class EventHandler(Script):
         # This only occurs in scripts that are attached to asset headers.
         # TODO: Understand what this is. I think it says when a given script
         # triggers (like when the asset is clicked, etc.)
-        self.type = Datum(chunk).d
-        global_variables.application.logger.debug(f'Event Handler TYPE: {self.type}')
+        self.type = maybe_cast_to_enum(Datum(chunk).d, EventHandler.Type)
+        global_variables.application.logger.debug(f'Event Handler TYPE: {self.type.__repr__()}')
         self.unk1 = Datum(chunk).d
 
         # READ THE BYTECODE.
