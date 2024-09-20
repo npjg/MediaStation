@@ -30,19 +30,17 @@ class SubFile:
     ## of the FourCC of the first data chunk.
     ## \param[in] stream - A binary stream that supports the read method.
     def __init__(self, stream):
-        # VERIFY THE FILE SIGNATURE.
+        # VERIFY FILE SIGNATURE.
         self.stream = stream
         self.root_chunk: Chunk = self.get_next_chunk(called_from_init = True)
         assert_equal(self.root_chunk.fourcc, 'RIFF', 'subfile signature')
-
-        # READ THE EXTRA-LONG FOURCC.
         # The FourCC for the next chunk is actually an "EightCC".
         # It is eight characters long - "IMTSrate". To simplify handling,
         # we will read the first four characters now.
         assert_equal(stream.read(4), b'IMTS', 'subfile signature')
 
         # READ THE RATE CHUNK.
-        # This chunk shoudl always contain just one piece of data - the "rate"
+        # This chunk should always contain just one piece of data - the "rate"
         # (whatever that is). Usually it is zero.
         # TODO: Figure out what this actually is.
         self.get_next_chunk()
