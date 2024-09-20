@@ -42,6 +42,7 @@ class Opcodes(IntEnum):
     # For example, function parameter 1 is stored in slot [1]. 
     AssignVariable = 203
     GetValue = 207 # ? Got this from the if statement, not sure if right.
+    Unk1 = 213
     # Routine calls have this form:
     #  [Opcode.CallRoutine, FunctionId, ParametersCount]
     # Followed by the actual parameters to pass to the function.
@@ -60,13 +61,31 @@ class Opcodes(IntEnum):
     UnkSomethingWithFunctionCalls = 221
 
 class BuiltInFunction(IntEnum): 
+    # TODO: Split out routines and methods into different enums.
+    # ROUTINES.
+    # effectTransitionOnSync = 13 # PARAMS: 1
     EffectTransition = 102 # PARAMS: 1
     PrintStringToConsole = 180 # PARAMS: 1+
     SpatialShow = 202 # PARAMS: 1
     TimePlay = 206 # PARAMS: 1
 
+    # HOTSPOT METHODS.
+    mouseDeactivate = 211 # PARAMS: 0
+
+    # IMAGE METHODS.
+    Height = 236 # PARAMS: 0
+
+    # STAGE METHODS.
+    setWorldSpaceExtent = 363 # PARAMS: 2
+    setBounds = 287 # PARAMS: 4
+
+    # CAMERA METHODS.
+    stopPan = 350 # PARAMS: 0
+
 class OperandType(IntEnum):
+    # TODO: Figure out the difference between these two.
     Literal = 151
+    Literal2 = 153
     String = 154
     # TODO: This only seems to be used in effectTransition:
     #  effectTransition ( $FadeToPalette )
@@ -189,19 +208,28 @@ class CodeChunk:
                 rhs = self.read_statement(stream)
                 statement = [opcode, lhs, rhs]
 
-            elif (Opcodes.GetValue == opcode) or (Opcodes.UnkRelatedToVariableAssignment == opcode):
+            elif (Opcodes.GetValue == opcode) or \
+                (Opcodes.AssignVariable == opcode) or \
+                (Opcodes.UnkRelatedToVariableAssignment == opcode):
                 variable_id = self.read_statement(stream)
                 # TODO: This is the same "4" literal that we see above.
                 unk = self.read_statement(stream)
                 statement = [opcode, variable_id, unk]
 
-            else:
+            elif (Opcodes.CallRoutine == opcode) or \
+                (Opcodes.CallMethod == opcode):
                 # These are always immediates.
                 # The scripting language doesn't seem to have
                 # support for virtual functions (thankfully).
                 function_id = maybe_cast_to_enum(Datum(stream).d, BuiltInFunction)
                 parameter_count = Datum(stream).d
                 statement = [opcode, function_id, parameter_count]
+
+            else:
+                unk1 = Datum(stream).d
+                unk2 = Datum(stream).d
+                statement = [opcode, unk1, unk2]
+
             iteratively_built_statement.extend(statement)
 
         elif InstructionType.Operand == instruction_type.d:
