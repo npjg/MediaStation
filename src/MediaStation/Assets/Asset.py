@@ -6,6 +6,7 @@ import os
 from asset_extraction_framework.Asserts import assert_equal
 from asset_extraction_framework.Exceptions import BinaryParsingError
 
+from .. import global_variables
 from ..Primitives.Datum import Datum
 from ..Primitives.Polygon import Polygon
 from .BitmapSet import BitmapSet, BitmapSetBitmapDeclaration
@@ -122,6 +123,7 @@ class Asset:
         self.type = Asset.AssetType(Datum(chunk).d)
         # The ID of this asset. Unique within each game.
         self.id: int = Datum(chunk).d
+        global_variables.application.logger.debug(f'*** ASSET {self.id} ({self.type.name}) ***')
         # The asset ID of the stage on which this asset is shown.
         # None if the asset does not belong to a stage.
         self.stage_id = None
@@ -408,7 +410,7 @@ class Asset:
             self.viewport_origin = Datum(chunk).d
 
         elif section_type == 0x0770: # CAM
-            self.lens_open = bool(Datum(chunk.d))
+            self.lens_open = bool(Datum(chunk).d)
 
         elif section_type == 0x0771: # STG
             self.unks.append({hex(section_type): Datum(chunk).d})
