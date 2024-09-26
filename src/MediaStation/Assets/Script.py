@@ -235,12 +235,18 @@ class CodeChunk:
                 rhs = self.read_statement(stream)
                 statement = [opcode, lhs, rhs]
 
-            elif (Opcodes.GetValue == opcode) or \
-                (Opcodes.AssignVariable == opcode):
+            elif Opcodes.GetValue == opcode:
                 variable_id = self.read_statement(stream)
                 # TODO: This is the same "4" literal that we see above.
                 unk = self.read_statement(stream)
                 statement = [opcode, variable_id, unk]
+
+            elif Opcodes.AssignVariable == opcode:
+                variable_id = self.read_statement(stream)
+                # TODO: This is the same "4" literal that we see above.
+                unk = self.read_statement(stream)
+                new_value = self.read_statement(stream)
+                statement = [opcode, variable_id, unk, new_value]
 
             elif (Opcodes.Add == opcode) or \
                 (Opcodes.Subtract == opcode) or \
