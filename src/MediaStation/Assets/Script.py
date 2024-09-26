@@ -42,6 +42,7 @@ class Opcodes(IntEnum):
     # For example, function parameter 1 is stored in slot [1]. 
     AssignVariable = 203
     GetValue = 207 # ? Got this from the if statement, not sure if right.
+    Unk1 = 210
     Add = 213
     Subtract = 214
     Divide = 216
@@ -231,6 +232,12 @@ class CodeChunk:
         if InstructionType.FunctionCall == instruction_type.d:
             opcode = maybe_cast_to_enum(Datum(stream).d, Opcodes)
             if Opcodes.TestEquality == opcode:
+                values_to_compare = self.read_statement(stream)
+                code_if_true = self.read_statement(stream)
+                code_if_false = self.read_statement(stream)
+                statement = [opcode, values_to_compare, code_if_true, code_if_false]
+
+            elif Opcodes.Unk1 == opcode:
                 lhs = self.read_statement(stream)
                 rhs = self.read_statement(stream)
                 statement = [opcode, lhs, rhs]
