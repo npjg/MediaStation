@@ -65,14 +65,24 @@ class BuiltInFunction(IntEnum):
     # TODO: Split out routines and methods into different enums.
     # ROUTINES.
     # effectTransitionOnSync = 13 # PARAMS: 1
+    drawing = 37 # PARAMS: 5
     EffectTransition = 102 # PARAMS: 1
     PrintStringToConsole = 180 # PARAMS: 1+
+    # TODO: What object types does CursorSet apply to?
+    # Currently it's only in var_7be1_cursor_currentTool in
+    # IBM/Crayola.
+    cursorSet = 200 # PARAMS: 0
     SpatialShow = 202 # PARAMS: 1
     TimePlay = 206 # PARAMS: 1
+    TimeStop = 207 # PARAMS: 0
 
     # HOTSPOT METHODS.
     mouseActivate = 210 # PARAMS: 1
     mouseDeactivate = 211 # PARAMS: 0
+    xPosition = 233 # PARAMS: 0
+    yPosiion = 234 # PARAMS: 0
+    TriggerAbsXPosition = 321 # PARAMS: 0
+    TriggerAbsYPosition = 322 # PARAMS: 0
 
     # IMAGE METHODS.
     Height = 236 # PARAMS: 0
@@ -151,11 +161,18 @@ class EventHandler(Script):
     class Type(IntEnum):
         Time = 0x05 # Timer
         MouseDown = 0x06 # Hotspot
+        MouseMoved = 0x08 # Hotspot
+        MouseEntered = 9 # Hotspot
+        MouseExited = 10 # Hotspot
         KeyDown = 13 # TODO: Where is the key actually stored?
         SoundEnd = 14
+        SoundFailure = 20 # Sound
+        SoundAbort = 19 # Sound
         MovieEnd = 21
         Entry = 17 # Screen
         Exit = 27 # Screen
+        PanAbort = 43 # Camera
+        PanEnd = 42 # Camera
 
     ## Reads a compiled script from a binary stream at is current position.
     ## \param[in] stream - A binary stream that supports the read method.
