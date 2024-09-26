@@ -249,14 +249,24 @@ class CodeChunk:
                 variable_2 = self.read_statement(stream)
                 statement = [opcode, variable_1, variable_2]
 
-            elif (Opcodes.CallRoutine == opcode) or \
-                (Opcodes.CallMethod == opcode):
+            elif (Opcodes.CallRoutine == opcode):
                 # These are always immediates.
                 # The scripting language doesn't seem to have
                 # support for virtual functions (thankfully).
                 function_id = maybe_cast_to_enum(Datum(stream).d, BuiltInFunction)
                 parameter_count = Datum(stream).d
-                statement = [opcode, function_id, parameter_count]
+                params = [self.read_statement(stream) for _ in range(parameter_count)]
+                statement = [opcode, function_id, parameter_count, params]
+
+            elif (Opcodes.CallMethod == opcode):
+                # These are always immediates.
+                # The scripting language doesn't seem to have
+                # support for virtual functions (thankfully).
+                function_id = maybe_cast_to_enum(Datum(stream).d, BuiltInFunction)
+                parameter_count = Datum(stream).d
+                this = self.read_statement(stream)
+                params = [self.read_statement(stream) for _ in range(parameter_count)]
+                statement = [opcode, function_id, parameter_count, this, params]
 
             else:
                 unk1 = Datum(stream).d
