@@ -131,8 +131,12 @@ def maybe_cast_to_enum(value, enum_class):
         return value
 
 def pprint_debug(object):
-    debugging_string = pprint.pformat(object)
-    global_variables.application.logger.debug(debugging_string)
+    if isinstance(object, CodeChunk):
+        global_variables.application.logger.debug("-- CHUNK --")
+        pprint_debug(object.statements)
+    else:
+        debugging_string = pprint.pformat(object)
+        global_variables.application.logger.debug(debugging_string)
 
 ## An abstract compiled script that executes in the Media Station bytecode interpreter.
 class Script:
@@ -158,7 +162,6 @@ class Function(Script):
 
         # READ THE BYTECODE.
         self._code = CodeChunk(chunk.stream)
-        global_variables.application.logger.debug("")
         if not global_variables.version.is_first_generation_engine:
             assert_equal(Datum(chunk).d, 0x00, "end-of-chunk flag")
 
@@ -188,13 +191,19 @@ class EventHandler(Script):
         # TODO: Understand what this is. I think it says when a given script
         # triggers (like when the asset is clicked, etc.)
         self.type = maybe_cast_to_enum(Datum(chunk).d, EventHandler.Type)
+        global_variables.application.logger.debug("*************** EVENT HANDLER ***************")
         global_variables.application.logger.debug(f'Event Handler TYPE: {self.type.__repr__()}')
         self.unk1 = Datum(chunk).d
+        global_variables.application.logger.debug(f'Unk1: {self.unk1}')
 
         # READ THE BYTECODE.
         self.length_in_bytes = Datum(chunk).d
         self._code = CodeChunk(chunk.stream)
 
+        # PRINT THE DBEUG STATEMENTS.
+        for statement in self._code.statements:
+            pprint_debug(statement)
+            
 ## TODO: Is this a whole function, or is it something else?
 class CodeChunk:
     def __init__(self, stream, length_in_bytes = None):
@@ -210,9 +219,7 @@ class CodeChunk:
         self.statements = []
         while not self._at_end:
             statement = self.read_statement(stream)
-            pprint_debug(statement)
             self.statements.append(statement)
-        global_variables.application.logger.debug("")
 
     @property
     def _end_offset(self):
