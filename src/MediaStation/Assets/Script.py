@@ -41,11 +41,15 @@ class Opcodes(IntEnum):
     # Parameters seem to be stored in the variable slots starting with "1".
     # For example, function parameter 1 is stored in slot [1]. 
     AssignVariable = 203
-    GetValue = 207 # ? Got this from the if statement, not sure if right.
-    Unk1 = 210
+    And = 206
+    Equals = 207
+    NotEquals = 208
+    LessThan = 209
+    GreaterThan = 210
     Add = 213
     Subtract = 214
     Divide = 216
+    Unk2 = 218
     # Routine calls have this form:
     #  [Opcode.CallRoutine, FunctionId, ParametersCount]
     # Followed by the actual parameters to pass to the function.
@@ -60,7 +64,7 @@ class Opcodes(IntEnum):
     #  [156, 123]    - [OperandType.AssetId, 123 (asset ID for self - this is pre-computed)]
     #  [151, 1]      - [OperandType.Literal, 1 (literal for TRUE)]
     CallMethod = 220
-    UnkSomethingWithFunctionCalls = 221
+    UnkSomethingWithFunctionCalls = 221 # Probably Assign Collection?
 
 class BuiltInFunction(IntEnum): 
     # TODO: Split out routines and methods into different enums.
@@ -86,6 +90,7 @@ class BuiltInFunction(IntEnum):
     TriggerAbsYPosition = 322 # PARAMS: 0
 
     # IMAGE METHODS.
+    Width = 235 # PARAMS: 0
     Height = 236 # PARAMS: 0
 
     # SPRITE METHODS.
@@ -224,7 +229,7 @@ class CodeChunk:
     def read_statement(self, stream):
         instruction_type = Datum(stream)
         if (Datum.Type.UINT32_1 == instruction_type.t):
-            return CodeChunk(stream, instruction_type.d)
+            return CodeChunk(stream, instruction_type.d).statements
 
         # Just like in real assembly language, different combinations of opcodes
         # have different available "addressing modes".
@@ -237,30 +242,29 @@ class CodeChunk:
                 code_if_false = self.read_statement(stream)
                 statement = [opcode, values_to_compare, code_if_true, code_if_false]
 
-            elif Opcodes.Unk1 == opcode:
+            elif Opcodes.Unk2 == opcode:
+                lhs = self.read_statement(stream)
+                statement = [opcode, lhs]
+
+            elif (Opcodes.Equals == opcode) or \
+                (Opcodes.NotEquals == opcode) or \
+                (Opcodes.Add == opcode) or \
+                (Opcodes.Subtract == opcode) or \
+                (Opcodes.Divide == opcode) or \
+                (Opcodes.And == opcode) or \
+                (Opcodes.LessThan == opcode) or \
+                (Opcodes.GreaterThan == opcode):
                 lhs = self.read_statement(stream)
                 rhs = self.read_statement(stream)
                 statement = [opcode, lhs, rhs]
 
-            elif Opcodes.GetValue == opcode:
-                variable_id = self.read_statement(stream)
-                # TODO: This is the same "4" literal that we see above.
-                unk = self.read_statement(stream)
-                statement = [opcode, variable_id, unk]
-
             elif Opcodes.AssignVariable == opcode:
                 variable_id = self.read_statement(stream)
                 # TODO: This is the same "4" literal that we see above.
+                # Maybe this is a variable scope, like local, screen, or global?
                 unk = self.read_statement(stream)
                 new_value = self.read_statement(stream)
                 statement = [opcode, variable_id, unk, new_value]
-
-            elif (Opcodes.Add == opcode) or \
-                (Opcodes.Subtract == opcode) or \
-                (Opcodes.Divide == opcode):
-                variable_1 = self.read_statement(stream)
-                variable_2 = self.read_statement(stream)
-                statement = [opcode, variable_1, variable_2]
 
             elif (Opcodes.CallRoutine == opcode):
                 # These are always immediates.
