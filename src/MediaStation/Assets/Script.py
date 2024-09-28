@@ -121,6 +121,10 @@ class OperandType(IntEnum):
     AssetId = 156
     Float = 157
 
+class VariableScope(IntEnum):
+    Local = 1
+    Global = 4
+
 # TODO: This is a debugging script to help decompile the bytecode 
 # when there are opcodes we have documented but still provide a
 # fall-through when there are undocuemnted opcodes.
@@ -268,11 +272,9 @@ class CodeChunk:
 
             elif Opcodes.AssignVariable == opcode:
                 variable_id = self.read_statement(stream)
-                # TODO: This is the same "4" literal that we see above.
-                # Maybe this is a variable scope, like local, screen, or global?
-                unk = self.read_statement(stream)
+                variable_scope = maybe_cast_to_enum(self.read_statement(stream), VariableScope)
                 new_value = self.read_statement(stream)
-                statement = [opcode, variable_id, unk, new_value]
+                statement = [opcode, variable_id, variable_scope, new_value]
 
             elif (Opcodes.CallRoutine == opcode):
                 # These are always immediates.
@@ -321,9 +323,9 @@ class CodeChunk:
             iteratively_built_statement.extend(statement)
 
         elif InstructionType.VariableReference == instruction_type.d:
-            s1 = Datum(stream).d
-            s2 = Datum(stream).d
-            statement = [s1, s2]
+            variable_id = Datum(stream).d
+            variable_scope = maybe_cast_to_enum(Datum(stream).d, VariableScope)
+            statement = [variable_id, variable_scope]
             iteratively_built_statement.extend(statement)
 
         else:
