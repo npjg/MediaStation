@@ -23,15 +23,16 @@ class InstructionType(IntEnum):
     VariableReference = 0x0065
 
 class Opcodes(IntEnum):
-    # Equality tests have this form:
-    #  [Opcode.TestEquality, [], []]
+    # TODO: Update this documentation based 
+    # on the new discoveries.
+    # Conditionals have this form:
+    #  [Opcode.IfElse, [], []]
     # for example, the code
     #  IF ( var_root_IsInteractive == TRUE )
     # compiles to this:
-    #  [Opcode.TestEquality, [Opcode.GetValue, [VariableId], 4],
+    #  [Opcode.IfElse, [Opcode.GetValue, [VariableId], 4],
     #  [OperandType.Literal, 1]]
-    # This seems to be the only opcode that accepts non-immediate values.
-    TestEquality = 202
+    IfElse = 202
     # Variable assignments have this form:
     #  [Opcode.VariableAssignment, VariableId, unknown (seems to be always 4)]
     #  [OperandType.(Literal|AssetId), Operand]
@@ -243,7 +244,7 @@ class CodeChunk:
         iteratively_built_statement = []
         if InstructionType.FunctionCall == instruction_type.d:
             opcode = maybe_cast_to_enum(Datum(stream).d, Opcodes)
-            if Opcodes.TestEquality == opcode:
+            if Opcodes.IfElse == opcode:
                 values_to_compare = self.read_statement(stream)
                 code_if_true = self.read_statement(stream)
                 code_if_false = self.read_statement(stream)
