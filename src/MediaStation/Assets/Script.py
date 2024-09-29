@@ -239,24 +239,27 @@ class CodeChunk:
     # And I don't want to imply that it is some sort of atomic thing. 
     ## \param[in] stream - A binary stream at the start of the statement.
     def read_statement(self, stream):
-        instruction_type = Datum(stream)
-        if (Datum.Type.UINT32_1 == instruction_type.t):
-            return CodeChunk(stream, instruction_type.d).statements
+        # TODO: Find a better way to figure out if we are expecting a code chunk. 
+        maybe_instruction_type_maybe_code_chunk_length = Datum(stream)
+        if (Datum.Type.UINT32_1 == maybe_instruction_type_maybe_code_chunk_length.t):
+            return CodeChunk(stream, length_in_bytes = maybe_instruction_type_maybe_code_chunk_length.d).statements
 
         # Just like in real assembly language, different combinations of opcodes
         # have different available "addressing modes".
+        instruction_type = maybe_instruction_type_maybe_code_chunk_length.d
         iteratively_built_statement = []
-        if InstructionType.FunctionCall == instruction_type.d:
+        if InstructionType.FunctionCall == instruction_type:
+            instruction_type = maybe_cast_to_enum(maybe_instruction_type_maybe_code_chunk_length.d, InstructionType)
             opcode = maybe_cast_to_enum(Datum(stream).d, Opcodes)
             if Opcodes.IfElse == opcode:
                 values_to_compare = self.read_statement(stream)
                 code_if_true = self.read_statement(stream)
                 code_if_false = self.read_statement(stream)
-                statement = [opcode, values_to_compare, code_if_true, code_if_false]
+                statement = [instruction_type, opcode, values_to_compare, code_if_true, code_if_false]
 
             elif Opcodes.Unk2 == opcode:
                 lhs = self.read_statement(stream)
-                statement = [opcode, lhs]
+                statement = [instruction_type, opcode, lhs]
 
             elif (Opcodes.Equals == opcode) or \
                 (Opcodes.NotEquals == opcode) or \
@@ -268,13 +271,13 @@ class CodeChunk:
                 (Opcodes.GreaterThan == opcode):
                 lhs = self.read_statement(stream)
                 rhs = self.read_statement(stream)
-                statement = [opcode, lhs, rhs]
+                statement = [instruction_type, opcode, lhs, rhs]
 
-            elif Opcodes.AssignVariable == opcode:
+            elif Opcodes.AssignVariable == opcode or Opcodes.UnkSomethingWithCollectionDeclaration == opcode:
                 variable_id = self.read_statement(stream)
                 variable_scope = maybe_cast_to_enum(self.read_statement(stream), VariableScope)
                 new_value = self.read_statement(stream)
-                statement = [opcode, variable_id, variable_scope, new_value]
+                statement = [instruction_type, opcode, variable_id, variable_scope, new_value]
 
             elif (Opcodes.CallRoutine == opcode):
                 # These are always immediates.
@@ -283,7 +286,7 @@ class CodeChunk:
                 function_id = maybe_cast_to_enum(Datum(stream).d, BuiltInFunction)
                 parameter_count = Datum(stream).d
                 params = [self.read_statement(stream) for _ in range(parameter_count)]
-                statement = [opcode, function_id, parameter_count, params]
+                statement = [instruction_type, opcode, function_id, parameter_count, params]
 
             elif (Opcodes.CallMethod == opcode):
                 # These are always immediates.
@@ -293,16 +296,17 @@ class CodeChunk:
                 parameter_count = Datum(stream).d
                 this = self.read_statement(stream)
                 params = [self.read_statement(stream) for _ in range(parameter_count)]
-                statement = [opcode, function_id, parameter_count, this, params]
+                statement = [instruction_type, opcode, function_id, parameter_count, this, params]
 
             else:
                 unk1 = Datum(stream).d
                 unk2 = Datum(stream).d
-                statement = [opcode, unk1, unk2]
+                statement = [instruction_type, opcode, unk1, unk2]
 
             iteratively_built_statement.extend(statement)
 
-        elif InstructionType.Operand == instruction_type.d:
+        elif InstructionType.Operand == instruction_type:
+            instruction_type = maybe_cast_to_enum(maybe_instruction_type_maybe_code_chunk_length.d, InstructionType)
             operand_type = maybe_cast_to_enum(Datum(stream).d, OperandType)
             if OperandType.String == operand_type:
                 # Note that this is not a datum with a type code 
@@ -319,16 +323,17 @@ class CodeChunk:
             else:
                 value = self.read_statement(stream)
                 
-            statement = [operand_type, value]
+            statement = [instruction_type, operand_type, value]
             iteratively_built_statement.extend(statement)
 
-        elif InstructionType.VariableReference == instruction_type.d:
+        elif InstructionType.VariableReference == instruction_type:
+            instruction_type = maybe_cast_to_enum(maybe_instruction_type_maybe_code_chunk_length.d, InstructionType)
             variable_id = Datum(stream).d
             variable_scope = maybe_cast_to_enum(Datum(stream).d, VariableScope)
-            statement = [variable_id, variable_scope]
+            statement = [instruction_type, variable_id, variable_scope]
             iteratively_built_statement.extend(statement)
 
         else:
-            iteratively_built_statement = instruction_type.d
+            iteratively_built_statement = instruction_type
 
         return iteratively_built_statement
