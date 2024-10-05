@@ -78,9 +78,15 @@ class BuiltInFunction(IntEnum):
     # Currently it's only in var_7be1_cursor_currentTool in
     # IBM/Crayola.
     cursorSet = 200 # PARAMS: 0
+    SpatialHide = 203 # PARAMS: 1
     SpatialShow = 202 # PARAMS: 1
     TimePlay = 206 # PARAMS: 1
     TimeStop = 207 # PARAMS: 0
+    GetAt = 253 # PARAMS: 1
+    # releaseConext 
+    # debugBeep
+    # quit
+    # DebugPrint
 
     # HOTSPOT METHODS.
     mouseActivate = 210 # PARAMS: 1
@@ -176,6 +182,7 @@ class EventHandler(Script):
     class Type(IntEnum):
         Time = 0x05 # Timer
         MouseDown = 0x06 # Hotspot
+        MouseUp = 0x07 # Hotspot
         MouseMoved = 0x08 # Hotspot
         MouseEntered = 9 # Hotspot
         MouseExited = 10 # Hotspot
@@ -183,9 +190,15 @@ class EventHandler(Script):
         SoundEnd = 14
         SoundFailure = 20 # Sound
         SoundAbort = 19 # Sound
+        # MovieFailure
+        # MovieAbort
+        # MovieEnd
+        # MovieBegin
+        # MovieStopped
         MovieEnd = 21
         Entry = 17 # Screen
         Exit = 27 # Screen
+        # LoadComplete "context_e4"
         PanAbort = 43 # Camera
         PanEnd = 42 # Camera
 
