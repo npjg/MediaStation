@@ -65,7 +65,7 @@ class Opcodes(IntEnum):
     #  [156, 123]    - [OperandType.AssetId, 123 (asset ID for self - this is pre-computed)]
     #  [151, 1]      - [OperandType.Literal, 1 (literal for TRUE)]
     CallMethod = 220
-    UnkSomethingWithFunctionCalls = 221 # Probably Assign Collection?
+    UnkSomethingWithCollectionDeclaration = 221 # Probably Assign Collection?
 
 class BuiltInFunction(IntEnum): 
     # TODO: Split out routines and methods into different enums.
@@ -120,6 +120,7 @@ class OperandType(IntEnum):
     DollarSignVariable = 155
     AssetId = 156
     Float = 157
+    Unk = 158 # Appears when we are declaring collections.
 
 class VariableScope(IntEnum):
     Local = 1
@@ -273,11 +274,17 @@ class CodeChunk:
                 rhs = self.read_statement(stream)
                 statement = [instruction_type, opcode, lhs, rhs]
 
-            elif Opcodes.AssignVariable == opcode or Opcodes.UnkSomethingWithCollectionDeclaration == opcode:
+            elif Opcodes.AssignVariable == opcode:
                 variable_id = self.read_statement(stream)
                 variable_scope = maybe_cast_to_enum(self.read_statement(stream), VariableScope)
                 new_value = self.read_statement(stream)
                 statement = [instruction_type, opcode, variable_id, variable_scope, new_value]
+
+            elif Opcodes.UnkSomethingWithCollectionDeclaration == opcode:
+                unk1 = self.read_statement(stream)
+                unk2 = self.read_statement(stream)
+                unk3 = self.read_statement(stream) # Is this number of elements to init?
+                statement = [instruction_type, opcode, unk1, unk2, unk3]
 
             elif (Opcodes.CallRoutine == opcode):
                 # These are always immediates.
