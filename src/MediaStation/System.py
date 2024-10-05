@@ -453,5 +453,13 @@ class System(DataFile):
             not_last_section = (System.SectionType.LAST != section_type)
 
         # READ THE ENDING DATA.
-        self.footer = chunk.read(chunk.bytes_remaining_count)
+        # TODO: These are actually datums in here. We should figure out what
+        # they are!
+        global_variables.application.logger.debug('FOOTER:')
+        self.footer = []
+        while not chunk.at_end:
+            datum = Datum(chunk)
+            global_variables.application.logger.debug(f'{datum.t}: {datum.d}')
+            self.footer.append(datum)
+        
         print('---')
