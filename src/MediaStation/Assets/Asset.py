@@ -58,7 +58,7 @@ class Asset:
 
     class SectionType(IntEnum):
         EMPTY = 0x0000
-        BYTECODE_TRIGGER = 0x0017
+        EVENT_HANDLER = 0x0017
         STAGE = 0x0019
         ASSET_ID = 0x001a
         CHUNK_REFERENCE = 0x001b
@@ -128,7 +128,7 @@ class Asset:
         # None if the asset does not belong to a stage.
         self.stage_id = None
         self.chunk_references = []
-        self.functions = []
+        self.event_handlers = []
 
         # READ THE SECTIONS IN THIS ASSET HEADER.
         # Due to the wide variation in fields that might be included, especially
@@ -170,11 +170,11 @@ class Asset:
 
     ## Reads all the various sections that can occur in an asset header.
     def _read_section(self, section_type, chunk):
-        if Asset.SectionType.BYTECODE_TRIGGER == section_type: # TMR, MOV
+        if Asset.SectionType.EVENT_HANDLER == section_type:
             # READ A BYTECODE TRIGGER.
             # TODO: Define what this is.
-            script = EventHandler(chunk)
-            self.functions.append(script)
+            event_handler = EventHandler(chunk)
+            self.event_handlers.append(event_handler)
 
         elif Asset.SectionType.STAGE == section_type: # All
             # READ A STAGE ASSET ID.
