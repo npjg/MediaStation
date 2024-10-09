@@ -35,9 +35,11 @@ class Font:
     ## Since the font is not an animation, each character in the font should
     ## always be exported separately.
     def export(self, root_directory_path, command_line_arguments):
+        # CREATE THE DIRECTORY.
         frame_export_directory_path = os.path.join(root_directory_path, self.name)
         Path(frame_export_directory_path).mkdir(parents = True, exist_ok = True) 
 
+        # EXPORT THE GLYPHS.
         for index, glyph in enumerate(self.glyphs):
             filename_without_extension = os.path.join(frame_export_directory_path, f'{index}')
             glyph.export(filename_without_extension, command_line_arguments)
