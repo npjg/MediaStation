@@ -293,13 +293,13 @@ class Asset:
             self.text.initial_text = Datum(chunk).d
 
         elif section_type == 0x025a: # TXT
-            self.text.maximum_width_in_pixels = Datum(chunk).d
+            self.text.max_length = Datum(chunk).d
 
         elif section_type == 0x025b: # TXT
             self.text.justification = Text.Justification(Datum(chunk).d)
 
         elif section_type == 0x025f: # TXT
-            self.unks.append({hex(section_type): Datum(chunk).d})
+            self.text.position = Text.Position(Datum(chunk).d)
 
         elif section_type == 0x0262: # TXT
             pass
