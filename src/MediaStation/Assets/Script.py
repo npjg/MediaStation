@@ -186,7 +186,7 @@ class EventHandler(Script):
         MouseMoved = 0x08 # Hotspot
         MouseEntered = 9 # Hotspot
         MouseExited = 10 # Hotspot
-        KeyDown = 13 # TODO: Where is the key actually stored?
+        KeyDown = 13 # Hotspot. PARAMS: 1 - ASCII code.
         SoundEnd = 14
         SoundFailure = 20 # Sound
         SoundAbort = 19 # Sound
@@ -202,6 +202,15 @@ class EventHandler(Script):
         PanAbort = 43 # Camera
         PanEnd = 42 # Camera
 
+    class ArgumentType(IntEnum):
+        # There is still an argument value provided when it's null, 
+        # it might well be the number of bytes in the bytecode. It doens't seem
+        # to be constant.
+        Null = 0
+        AsciiCode = 1 # TODO: Why is this datum type a float?
+        Time = 3
+        Context = 5 # LoadComplete
+
     ## Reads a compiled script from a binary stream at is current position.
     ## \param[in] stream - A binary stream that supports the read method.
     def __init__(self, chunk):
@@ -212,11 +221,41 @@ class EventHandler(Script):
         self.type = maybe_cast_to_enum(Datum(chunk).d, EventHandler.Type)
         global_variables.application.logger.debug("*************** EVENT HANDLER ***************")
         global_variables.application.logger.debug(f'Event Handler TYPE: {self.type.__repr__()}')
-        self.unk1 = Datum(chunk).d
-        global_variables.application.logger.debug(f'Unk1: {self.unk1}')
+
+        # READ THE ARGUMENT.
+        # Some event handlers seem to take exactly one "argument" that specifies
+        # the event further. The exact meaning depends on the event type. The following
+        # types have been observed:
+        #  - On LoadComplete "context_e1" (Context)
+        #    "context_e1" is the argument, and it is the name of a screen (context). In
+        #    the bytecode, it is the ID of that context.
+        #
+        #  - On KeyDown "\r" (Hotspot)
+        #    A keydown of 0 seems to indicate ANY key down will trigger the
+        #    event. Not sure yet if this includes 
+        #
+        #  - On Time 00:10.00 (Timer)
+        #    The argument here is the time value, which is stored in the
+        #    bytecode as a float of seconds.
+        # Seems like there is some "syntaxtic sugar" to be able to specify
+        # multiple events in a single block. For example:
+        #   On SoundFailure
+		#   On SoundAbort
+        #    ...
+		#   End
+        # 
+        # Or even the same event type with different params:
+        #   On KeyDown "A"
+		#   On KeyDown "B"
+        #    ...
+		#   End
+        #  
+        # In these cases, a separate event handler seems to be created for each
+        # event, and the bytecode is the same between them.
+        self.argument_type = maybe_cast_to_enum(Datum(chunk).d, EventHandler.ArgumentType)
+        self.argument = Datum(chunk).d
 
         # READ THE BYTECODE.
-        self.length_in_bytes = Datum(chunk).d
         self._code = CodeChunk(chunk.stream)
 
         # PRINT THE DBEUG STATEMENTS.
