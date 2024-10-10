@@ -1,6 +1,25 @@
 
-from dataclasses import dataclass
 from enum import IntEnum
+from typing import List
+
+from ..Primitives.Datum import Datum
+
+## Similar to a regex character class (e.g. `[A-Z]`).
+## Defines a contiguous range of ASCII characters
+## based on the ASCII code of the first and last 
+## characters, inclusive.
+class CharacterClass:
+    def __init__(self, chunk):
+        self.first_ascii_code = Datum(chunk).d
+        self.last_ascii_code = Datum(chunk).d
+
+    @property
+    def first_character(self):
+        return chr(self.first_ascii_code)
+    
+    @property
+    def last_character(self):
+        return chr(self.last_ascii_code)
 
 ## The horizontal alignment of the text.
 class Justification(IntEnum):
@@ -17,10 +36,12 @@ class Position(IntEnum):
 ## The text-related settings that can define an asset.
 ## This does not accept a stream because all the reading 
 ## is done through the asset header loop.
-@dataclass
+# TODO: Actually read the whole text object in here.
 class Text:
-    font: str = None
-    initial_text: str = None
-    max_length: int = None
-    justification: Justification = None
-    position: Position = None
+    def __init__(self):
+        self.font: str = None
+        self.initial_text: str = None
+        self.max_length: int = None
+        self.justification: Justification = None
+        self.position: Position = None
+        self.accepted_input = []

@@ -311,7 +311,8 @@ class Asset:
             [Datum(chunk) for _ in range(3)]
 
         elif section_type == 0x0266:
-            [Datum(chunk) for _ in range(2)]
+            character_class = Text.CharacterClass(chunk)
+            self.text.accepted_input.append(character_class)
 
         elif section_type >= 0x3a98 and section_type <= 0x3afb:
             self.id = section_type
