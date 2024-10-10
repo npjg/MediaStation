@@ -382,9 +382,8 @@ class Asset:
             # images of Dalmatians. So I will ignore it.
             self.unks.append({hex(section_type): Datum(chunk).d})
 
-        elif section_type == 0x05dd:
-            # I can't find an instance where this isn't 1. So I will ignore it.
-            self.unks.append({hex(section_type): Datum(chunk).d})
+        elif section_type == 0x05dd: # HOTSPOT
+            self.get_offstage_events = bool(Datum(chunk).d)
 
         elif section_type == 0x05de: # IMG
             self.x = Datum(chunk).d
