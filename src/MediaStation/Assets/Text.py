@@ -43,7 +43,7 @@ class Position(IntEnum):
 # TODO: Actually read the whole text object in here.
 class Text:
     def __init__(self):
-        self.font: str = None
+        self.font_asset_id: int = None
         self.initial_text: str = None
         self.max_length: int = None
         self.justification: Justification = None
