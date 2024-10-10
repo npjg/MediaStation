@@ -8,6 +8,10 @@ from ..Primitives.Datum import Datum
 ## Defines a contiguous range of ASCII characters
 ## based on the ASCII code of the first and last 
 ## characters, inclusive.
+##
+## Both the start and end characters can be the same,
+## in which case the character class consists of that
+## single character.
 class CharacterClass:
     def __init__(self, chunk):
         self.first_ascii_code = Datum(chunk).d
