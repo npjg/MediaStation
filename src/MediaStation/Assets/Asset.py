@@ -311,7 +311,8 @@ class Asset:
             pass
 
         elif section_type == 0x0265: # TXT
-            [Datum(chunk) for _ in range(3)]
+            # TODO: Is this also related to character classes?
+            self.unks.append({hex(section_type): [Datum(chunk) for _ in range(3)]})
 
         elif section_type == 0x0266:
             character_class = Text.CharacterClass(chunk)
