@@ -255,9 +255,9 @@ class Asset:
         elif section_type == 0x0021: # SND, MOV
             self._has_own_subfile = bool(Datum(chunk).d)
 
-        elif section_type == 0x0022: # SCR, TXT, CVS
-            # TODO: Determine what this is.
-            self.unks.append({hex(section_type): Datum(chunk).d})
+        elif section_type == 0x0022: # SCR, TXT, CVS, HSP
+            # This ID references the cursor declarations in BOOT.STM.
+            self.cursor_resource_id = Datum(chunk).d
 
         elif section_type == 0x0024: # SPR
             self.frame_rate = Datum(chunk).d
