@@ -290,7 +290,10 @@ class Asset:
             self.text.font_asset_id = Datum(chunk).d
 
         elif section_type == 0x0259: # TXT
-            self.text.initial_text = Datum(chunk).d
+            initial_text = Datum(chunk).d
+            # The text is prefaced on either side by embedded quotes,
+            # so we want to remove those.
+            self.text.initial_text = initial_text.strip('"')
 
         elif section_type == 0x025a: # TXT
             self.text.max_length = Datum(chunk).d
