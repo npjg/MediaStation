@@ -184,8 +184,8 @@ class EventHandler(Script):
 
         # SOUND EVENTS.
         SoundEnd = 14
-        SoundFailure = 2 
         SoundAbort = 19
+        SoundFailure = 20
         SoundStopped = 29
 
         # MOVIE EVENTS.
