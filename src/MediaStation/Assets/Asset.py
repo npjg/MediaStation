@@ -249,8 +249,9 @@ class Asset:
             self.startup = Datum(chunk).d
 
         elif section_type == 0x0020: # IMG, SPR, CVS
-            # TODO: Determine what this is.
-            self.unks.append({hex(section_type): Datum(chunk).d})
+            # Depending on the asset type, this can either mean we HAVE
+            # transparency (image, etc.) or that we support transparency (canvas).
+            self.transparency = bool(Datum(chunk).d)
 
         elif section_type == 0x0021: # SND, MOV
             self._has_own_subfile = bool(Datum(chunk).d)
