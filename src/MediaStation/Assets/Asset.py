@@ -268,8 +268,8 @@ class Asset:
         #    self.unks.append({hex(section_type): Datum(chunk).d})
 
         elif section_type == 0x0032: # IMG, SPR
-            # TODO: Determine what this is.
-            self.unks.append({hex(section_type): Datum(chunk).d})
+            # TODO: I think 0 means $Memory and 1 means $Disk.
+            self.load_type = Datum(chunk).d
 
         elif section_type == 0x0033: # SND, MOV
             # READ THE 
