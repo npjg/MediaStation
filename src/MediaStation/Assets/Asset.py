@@ -393,19 +393,19 @@ class Asset:
             self.y = Datum(chunk).d
 
         elif section_type == 0x060e: # PTH
-            self.start = [Datum(chunk).d]
+            self.start_point = Datum(chunk).d
 
         elif section_type == 0x060f: # PTH
-            self.end = [Datum(chunk).d]
+            self.end_point = Datum(chunk).d
 
         elif section_type == 0x0610: # PTH
             self.unks.append({hex(section_type): Datum(chunk).d})
 
         elif section_type == 0x0611: # PTH
-            self.end.append(Datum(chunk).d)
+            self.step_rate = Datum(chunk).d
 
         elif section_type == 0x0612: # PTH
-            self.start.append(Datum(chunk).d)
+            self.duration = Datum(chunk).d # Set before each timePlay.
 
         elif section_type == 0x06ac:
             self.unks.append({hex(section_type): Datum(chunk).d})
