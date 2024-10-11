@@ -65,7 +65,12 @@ class Opcodes(IntEnum):
     #  [156, 123]    - [OperandType.AssetId, 123 (asset ID for self - this is pre-computed)]
     #  [151, 1]      - [OperandType.Literal, 1 (literal for TRUE)]
     CallMethod = 220
-    UnkSomethingWithCollectionDeclaration = 221 # Probably Assign Collection?
+    # This seems to appear at the start of a function to declare the number of
+    # local variables used in the function. It seems to be the `Declare`
+    # keyword. In the observed examples, the number of variables to create is
+    # given, then the next instructions are variable assignments for that number
+    # of variables.
+    DeclareVariables = 221
 
 class BuiltInFunction(IntEnum): 
     # TODO: Split out routines and methods into different enums.
@@ -350,11 +355,9 @@ class CodeChunk:
                 new_value = self.read_statement(stream)
                 statement = [instruction_type, opcode, variable_id, variable_scope, new_value]
 
-            elif Opcodes.UnkSomethingWithCollectionDeclaration == opcode:
-                unk1 = self.read_statement(stream)
-                unk2 = self.read_statement(stream)
-                unk3 = self.read_statement(stream) # Is this number of elements to init?
-                statement = [instruction_type, opcode, unk1, unk2, unk3]
+            elif Opcodes.DeclareVariables == opcode:
+                count = self.read_statement(stream)
+                statement = [instruction_type, opcode, count]
 
             elif (Opcodes.CallRoutine == opcode):
                 # These are always immediates.
