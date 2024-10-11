@@ -23,24 +23,7 @@ class InstructionType(IntEnum):
     VariableReference = 0x0065
 
 class Opcodes(IntEnum):
-    # TODO: Update this documentation based 
-    # on the new discoveries.
-    # Conditionals have this form:
-    #  [Opcode.IfElse, [], []]
-    # for example, the code
-    #  IF ( var_root_IsInteractive == TRUE )
-    # compiles to this:
-    #  [Opcode.IfElse, [Opcode.GetValue, [VariableId], 4],
-    #  [OperandType.Literal, 1]]
     IfElse = 202
-    # Variable assignments have this form:
-    #  [Opcode.VariableAssignment, VariableId, unknown (seems to be always 4)]
-    #  [OperandType.(Literal|AssetId), Operand]
-    # For example, this puts the literal integer 0 in variable 118: 
-    #  [203, 118, 4]
-    #  [153, 0]
-    # Parameters seem to be stored in the variable slots starting with "1".
-    # For example, function parameter 1 is stored in slot [1]. 
     AssignVariable = 203
     And = 206
     Equals = 207
@@ -51,19 +34,10 @@ class Opcodes(IntEnum):
     Subtract = 214
     Divide = 216
     Unk2 = 218
-    # Routine calls have this form:
-    #  [Opcode.CallRoutine, FunctionId, ParametersCount]
-    # Followed by the actual parameters to pass to the function.
-    # Functions with low ID numbers are "built-in" functions, and 
-    # functions with large ID numbers are user-defined functions.
     CallRoutine = 219
-    # Method calls are like function calls, but they have an implicit "self"
+    # Method calls are like routine calls, but they have an implicit "self"
     # parameter that is always the first. For example:
     #  @self . mouseActivate ( TRUE ) ;
-    # compiles to:
-    #  [220, 210, 0] - [Opcode.CallMethod, BuiltInFunction.MouseActivate, 0 parameters]
-    #  [156, 123]    - [OperandType.AssetId, 123 (asset ID for self - this is pre-computed)]
-    #  [151, 1]      - [OperandType.Literal, 1 (literal for TRUE)]
     CallMethod = 220
     # This seems to appear at the start of a function to declare the number of
     # local variables used in the function. It seems to be the `Declare`
@@ -173,6 +147,8 @@ class Function(Script):
         self.name = None
         # The script ID is only populated if the script is in its own chunk.
         # If it is instead attached to an asset header, it takes on the ID of that asset.
+        # Functions with low ID numbers are "built-in" functions, and 
+        # functions with large ID numbers are user-defined functions.
         self.id = Datum(chunk).d + 19900
         # TODO: Actually verify the file ID.
         self.file_id = Datum(chunk)
