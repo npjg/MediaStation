@@ -62,7 +62,7 @@ class BuiltInFunction(IntEnum):
     TimePlay = 206 # PARAMS: 1
     TimeStop = 207 # PARAMS: 0
     GetAt = 253 # PARAMS: 1
-    # releaseConext 
+    isPlaying = 372
     # debugBeep
     # quit
     # DebugPrint
@@ -91,6 +91,16 @@ class BuiltInFunction(IntEnum):
     viewportMoveTo = 352 # PARAMS: 2    
     yViewportPosition = 357 # PARAMS: 0
     panTo = 370 # PARAMS: 4
+
+    # CANVAS METHODS.
+    clearToPalette = 379 # PARAMS: 1
+
+    # DOCUMENT METHODS.
+    loadContext = 374 # PARAMS: 1
+    releaseContext = 375 # PARAMS: 1
+
+    # PATH METHODS.
+    percentComplete = 263
 
 class OperandType(IntEnum):
     # TODO: Figure out the difference between these two.
@@ -179,12 +189,12 @@ class EventHandler(Script):
         SoundStopped = 29
 
         # MOVIE EVENTS.
-        # MovieFailure
-        # MovieAbort
-        # MovieEnd
-        # MovieBegin
-        # MovieStopped
-        MovieEnd = 23
+        MovieBegin = 32
+        MovieFailure = 22
+        MovieAbort = 21
+        # TODO: I had 23 for MovieEnd before. Was that wrong?
+        MovieEnd = 15
+        MovieStopped = 31
 
         # SCREEN EVENTS.
         Entry = 17
@@ -200,6 +210,11 @@ class EventHandler(Script):
         # CAMERA EVENTS.
         PanAbort = 43
         PanEnd = 42
+
+        # PATH EVENTS.
+        Step = 28
+        PathStopped = 33
+        PathEnd = 16
 
     class ArgumentType(IntEnum):
         # There is still an argument value provided when it's null, 
