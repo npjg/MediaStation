@@ -180,27 +180,45 @@ class Function(Script):
 ## A compiled event handler that executes in the Media Station bytecode interpreter.
 class EventHandler(Script):
     class Type(IntEnum):
-        Time = 0x05 # Timer
-        MouseDown = 0x06 # Hotspot
-        MouseUp = 0x07 # Hotspot
-        MouseMoved = 0x08 # Hotspot
-        MouseEntered = 9 # Hotspot
-        MouseExited = 10 # Hotspot
-        KeyDown = 13 # Hotspot. PARAMS: 1 - ASCII code.
+        # TIMER EVENTS.
+        Time = 5
+
+        # HOTSPOT EVENTS.
+        MouseDown = 6
+        MouseUp = 7
+        MouseMoved = 8
+        MouseEntered = 9
+        MouseExited = 10
+        KeyDown = 13 # PARAMS: 1 - ASCII code.
+
+        # SOUND EVENTS.
         SoundEnd = 14
-        SoundFailure = 20 # Sound
-        SoundAbort = 19 # Sound
+        SoundFailure = 2 
+        SoundAbort = 19
+        SoundStopped = 29
+
+        # MOVIE EVENTS.
         # MovieFailure
         # MovieAbort
         # MovieEnd
         # MovieBegin
         # MovieStopped
-        MovieEnd = 21
-        Entry = 17 # Screen
-        Exit = 27 # Screen
-        # LoadComplete "context_e4"
-        PanAbort = 43 # Camera
-        PanEnd = 42 # Camera
+        MovieEnd = 23
+
+        # SCREEN EVENTS.
+        Entry = 17
+        Exit = 27
+
+        # CONTEXT EVENTS. 
+        LoadComplete = 44 # PARAMS: 1 - Context ID
+
+        # TEXT EVENTS.
+        Input = 37 # Text
+        Error = 38 # Text
+
+        # CAMERA EVENTS.
+        PanAbort = 43
+        PanEnd = 42
 
     class ArgumentType(IntEnum):
         # There is still an argument value provided when it's null, 
