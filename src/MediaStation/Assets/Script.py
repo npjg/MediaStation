@@ -192,9 +192,12 @@ class EventHandler(Script):
         MovieBegin = 32
         MovieFailure = 22
         MovieAbort = 21
-        # TODO: I had 23 for MovieEnd before. Was that wrong?
         MovieEnd = 15
         MovieStopped = 31
+
+        # SPRITE EVENTS.
+        # Just "MovieEnd" in source.
+        SpriteMovieEnd = 23
 
         # SCREEN EVENTS.
         Entry = 17
