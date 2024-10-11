@@ -75,7 +75,12 @@ class Datum:
         elif (self.t == Datum.Type.UINT32_1) or (self.t == Datum.Type.UINT32_2):
             self.d = struct.unpack.uint32_le(stream)
 
-        elif (self.t == Datum.Type.FLOAT64_1) or (self.t == Datum.Type.FLOAT64_2):
+        elif (self.t == Datum.Type.FLOAT64_1):
+            # TODO: Add a self-documenting struct entry for this.
+            self.d = struct.unpack.raw("<d", stream.read(8))[0]
+
+        elif (self.t == Datum.Type.FLOAT64_2):
+            # TODO: Add a self-documenting struct entry for this.
             self.d = struct.unpack.raw("<d", stream.read(8))[0]
 
         elif (self.t == Datum.Type.STRING) or (self.t == Datum.Type.FILENAME):
