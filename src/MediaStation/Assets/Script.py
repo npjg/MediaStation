@@ -188,13 +188,13 @@ class Function(Script):
         # The name might be assigned later based on a PROFILE._ST, so we need a
         # place to store it.
         self.name = None
+        # TODO: Actually verify the file ID.
+        self.file_id = Datum(chunk)
         # The script ID is only populated if the script is in its own chunk.
         # If it is instead attached to an asset header, it takes on the ID of that asset.
         # Functions with low ID numbers are "built-in" functions, and 
         # functions with large ID numbers are user-defined functions.
         self.id = Datum(chunk).d + 19900
-        # TODO: Actually verify the file ID.
-        self.file_id = Datum(chunk)
 
         # READ THE BYTECODE.
         self._code = CodeChunk(chunk.stream)
