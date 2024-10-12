@@ -30,10 +30,13 @@ class Opcodes(IntEnum):
     NotEquals = 208
     LessThan = 209
     GreaterThan = 210
+    LessThanOrEqualTo = 211
+    GreaterThanOrEqualTo = 212
     Add = 213
     Subtract = 214
     Divide = 216
-    Unk2 = 218
+    Modulo = 217
+    Unk2 = 218 # TODO: Likely something with ## constants like ##DOWN?
     CallRoutine = 219
     # Method calls are like routine calls, but they have an implicit "self"
     # parameter that is always the first. For example:
@@ -45,6 +48,8 @@ class Opcodes(IntEnum):
     # given, then the next instructions are variable assignments for that number
     # of variables.
     DeclareVariables = 221
+    While = 224
+    Return = 222
 
 class BuiltInFunction(IntEnum): 
     # TODO: Split out routines and methods into different enums.
@@ -57,11 +62,12 @@ class BuiltInFunction(IntEnum):
     # Currently it's only in var_7be1_cursor_currentTool in
     # IBM/Crayola.
     cursorSet = 200 # PARAMS: 0
-    SpatialHide = 203 # PARAMS: 1
-    SpatialShow = 202 # PARAMS: 1
-    TimePlay = 206 # PARAMS: 1
-    TimeStop = 207 # PARAMS: 0
-    GetAt = 253 # PARAMS: 1
+    spatialHide = 203 # PARAMS: 1
+    spatialMoveTo = 204 # PARAMS: 2
+    # spatialZMoveTo
+    spatialShow = 202 # PARAMS: 1
+    timePlay = 206 # PARAMS: 1
+    timeStop = 207 # PARAMS: 0
     isPlaying = 372
     # debugBeep
     # quit
@@ -74,10 +80,12 @@ class BuiltInFunction(IntEnum):
     yPosiion = 234 # PARAMS: 0
     TriggerAbsXPosition = 321 # PARAMS: 0
     TriggerAbsYPosition = 322 # PARAMS: 0
+    isActive = 371 # PARAMS: 0
 
     # IMAGE METHODS.
     Width = 235 # PARAMS: 0
     Height = 236 # PARAMS: 0
+    # isVisible
 
     # SPRITE METHODS.
     movieReset = 219 # PARAMS: 0
@@ -98,9 +106,32 @@ class BuiltInFunction(IntEnum):
     # DOCUMENT METHODS.
     loadContext = 374 # PARAMS: 1
     releaseContext = 375 # PARAMS: 1
+    branchToScreen = 201 # PARAMS: 1
+    isLoaded = 376 # PARAMS: 1
 
     # PATH METHODS.
     percentComplete = 263
+
+    # TEXT METHODS.
+    text = 290
+    setText = 291
+    setMaximumTextLength = 293 # PARAM: 1
+
+    # COLLECTION METHODS.
+    # These aren't assets but arrays used in Media Script.
+    # isEmpty
+    empty = 252 # PARAMS: 0
+    append = 247 # PARAMS: 1+
+    getAt = 253 # PARAMS: 1
+    count = 249 # PARAMS: 0
+    # Looks like this lets you call a method on all the items in a collection.
+    # Examples look like : var_7be1_collect_shapes.send(spatialHide);
+    send = 257 # PARAMS: 1+. Looks like the first param is the function, 
+               # and the next params are any arguments you want to send.
+    # Seeking seems to be finding the index where a certain item is.
+    seek = 256 # PARAMS: 1
+    sort = 266 # PARAMS: 0
+    deleteAt = 258 # PARAMS: 1 
 
 class OperandType(IntEnum):
     # TODO: Figure out the difference between these two.
@@ -115,10 +146,12 @@ class OperandType(IntEnum):
     DollarSignVariable = 155
     AssetId = 156
     Float = 157
-    Unk = 158 # Appears when we are declaring collections.
+    VariableType = 158
+    Function = 160
 
 class VariableScope(IntEnum):
     Local = 1
+    Parameter = 2
     Global = 4
 
 # TODO: This is a debugging script to help decompile the bytecode 
@@ -327,6 +360,15 @@ class CodeChunk:
                 code_if_false = self.read_statement(stream)
                 statement = [instruction_type, opcode, values_to_compare, code_if_true, code_if_false]
 
+            elif Opcodes.While == opcode:
+                condition = self.read_statement(stream)
+                code = self.read_statement(stream)
+                statement = [instruction_type, opcode, condition, code]
+
+            elif Opcodes.Return == opcode:
+                value = self.read_statement(stream)
+                statement = [instruction_type, opcode, value]
+
             elif Opcodes.Unk2 == opcode:
                 lhs = self.read_statement(stream)
                 statement = [instruction_type, opcode, lhs]
@@ -336,9 +378,12 @@ class CodeChunk:
                 (Opcodes.Add == opcode) or \
                 (Opcodes.Subtract == opcode) or \
                 (Opcodes.Divide == opcode) or \
+                (Opcodes.Modulo == opcode) or \
                 (Opcodes.And == opcode) or \
                 (Opcodes.LessThan == opcode) or \
-                (Opcodes.GreaterThan == opcode):
+                (Opcodes.LessThanOrEqualTo == opcode) or \
+                (Opcodes.GreaterThan == opcode) or \
+                (Opcodes.GreaterThanOrEqualTo == opcode):
                 lhs = self.read_statement(stream)
                 rhs = self.read_statement(stream)
                 statement = [instruction_type, opcode, lhs, rhs]
@@ -393,6 +438,11 @@ class CodeChunk:
 
             elif OperandType.AssetId == operand_type:
                 value = Datum(stream).d
+
+            elif OperandType.Function == operand_type:
+                # TODO: Can we replace this with just a datum? Is there any
+                # instance where the function is an expression?
+                value = maybe_cast_to_enum(self.read_statement(stream), BuiltInFunction)
 
             else:
                 value = self.read_statement(stream)
