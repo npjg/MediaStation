@@ -1,6 +1,7 @@
 from dataclasses import dataclass
 from enum import IntEnum
 import pprint
+import os
 
 from asset_extraction_framework.Asserts import assert_equal
 
@@ -172,15 +173,8 @@ def pprint_debug(object):
         debugging_string = pprint.pformat(object)
         global_variables.application.logger.debug(debugging_string)
 
-## An abstract compiled script that executes in the Media Station bytecode interpreter.
-class Script:
-    ## TODO: Export these to individual JSONs rather than putting them in the 
-    ## main JSON export (that will make analyzing them much easier!)
-    def export(self, root_directory_path, command_line_arguments):
-        return
-
 ## A compiled function that executes in the Media Station bytecode interpreter.
-class Function(Script):
+class Function:
     ## Reads a compiled script from a binary stream at is current position.
     ## \param[in] stream - A binary stream that supports the read method.
     def __init__(self, chunk):
@@ -201,8 +195,18 @@ class Function(Script):
         if not global_variables.version.is_first_generation_engine:
             assert_equal(Datum(chunk).d, 0x00, "end-of-chunk flag")
 
+    def export(self, root_directory_path, command_line_arguments):
+        if self.name is None:
+            self.name = self.id
+        script_dump_filename = f"{self.name}_script.txt"
+        script_dump_filepath = os.path.join(root_directory_path, script_dump_filename)
+        global_variables.application.logger.debug(f'Dumping function to {script_dump_filepath}')
+        with open(script_dump_filepath, 'w') as script_dump_file:
+            for statement in self._code.statements:
+                script_dump_file.write(pprint.pformat(statement) + '\n')
+
 ## A compiled event handler that executes in the Media Station bytecode interpreter.
-class EventHandler(Script):
+class EventHandler:
     class Type(IntEnum):
         # TIMER EVENTS.
         Time = 5
@@ -311,8 +315,21 @@ class EventHandler(Script):
         # PRINT THE DBEUG STATEMENTS.
         for statement in self._code.statements:
             pprint_debug(statement)
-            
-## TODO: Is this a whole function, or is it something else?
+
+    def export(self, root_directory_path, command_line_arguments):
+        # GET THE CORRECT EVENT NAME.
+        # This gives the event name if we know it, otherwise just the number.
+        script_dump_filename = f"event_{self.type.name if hasattr(self.type, 'name') else self.type}_{self.argument}.txt"
+
+        # EXPORT THE SCRIPT.
+        script_dump_filepath = os.path.join(root_directory_path, script_dump_filename)
+        global_variables.application.logger.debug(f'Dumping event handler to {script_dump_filepath}')
+        with open(script_dump_filepath, 'w') as script_dump_file:
+            # TODO: Write the argument type.
+            script_dump_file.write(f'ARGUMENT: {self.argument} (type: {self.argument_type.name if hasattr(self.argument, "name") else self.argument_type})\n')
+            for statement in self._code.statements:
+                script_dump_file.write(pprint.pformat(statement) + '\n')
+
 class CodeChunk:
     def __init__(self, stream, length_in_bytes = None):
         # GET THE LENGTH.
