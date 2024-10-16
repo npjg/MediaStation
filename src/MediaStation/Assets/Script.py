@@ -134,6 +134,10 @@ class BuiltInFunction(IntEnum):
     sort = 266 # PARAMS: 0
     deleteAt = 258 # PARAMS: 1 
 
+    # PRINTER METHODS.
+    openLens = 346 # PARAMS: 0
+    closeLens = 347 # PARAMS: 0
+
 class OperandType(IntEnum):
     # TODO: Figure out the difference between these two.
     Literal = 151
