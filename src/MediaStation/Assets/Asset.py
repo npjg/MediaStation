@@ -380,9 +380,7 @@ class Asset:
             self.palette = chunk.read(0x300)
 
         elif section_type == 0x05dc:
-            # It's only not 0.0 in the 'Read to me' and 'Read and play'
-            # images of Dalmatians. So I will ignore it.
-            self.unks.append({hex(section_type): Datum(chunk).d})
+            self.dissolve_factor = Datum(chunk).d
 
         elif section_type == 0x05dd: # HOTSPOT
             self.get_offstage_events = bool(Datum(chunk).d)
