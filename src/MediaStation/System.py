@@ -313,8 +313,12 @@ class CursorDeclaration:
 ##  - 
 class System(DataFile):
     class SectionType(IntEnum):
-        EMPTY = 0x0000
-        LAST = 0x002e
+        LAST = 0x0000
+        # This semems to separate the cursor declarations from whatever comes
+        # after it (what I formerly called the "footer"), but it has no data
+        # itself.
+        EMPTY = 0x002e 
+        ENTRY_SCREEN = 0x002f
         CONTEXT_DECLARATION = 0x0002
         VERSION_INFORMATION = 0x0190
         UNK1 = 0x0191
@@ -326,6 +330,9 @@ class System(DataFile):
         FILE_DECLARATION = 0x000a
         SUBFILE_DECLARATION = 0x000b
         CURSOR_DECLARATION = 0x0015
+        ALLOW_MULTIPLE_SOUNDS = 0x0035
+        ALLOW_MULTIPLE_STREAMS = 0x0036
+        UNK4 = 0x057b
 
     ## Reads a system specification from the given location.
     ## \param[in] - filepath: The filepath of the file, if it exists on the filesystem.
@@ -376,7 +383,7 @@ class System(DataFile):
         unk = Datum(chunk, Datum.Type.UINT16_1).d # Usually 0x0001
         global_variables.application.logger.debug(f'[System] unk = 0x{unk:0x}')
         section_type = Datum(chunk, Datum.Type.UINT16_1).d
-        not_last_section = (System.SectionType.EMPTY != section_type)
+        not_last_section = (System.SectionType.LAST != section_type)
         global_variables.version = VersionInfo()
         while not_last_section:
             if section_type == System.SectionType.VERSION_INFORMATION: 
@@ -398,6 +405,11 @@ class System(DataFile):
                     (System.SectionType.UNK3 == section_type):
                 unk = Datum(chunk, Datum.Type.UINT16_1).d
                 global_variables.application.logger.debug(f"[System] unk = (section_type: 0x{section_type:0x}) 0x{unk:0x}")
+                self.unks.append(unk)
+
+            elif (System.SectionType.UNK4 == section_type):
+                unk = Datum(chunk, Datum.Type.FLOAT64_1).d
+                global_variables.application.logger.debug(f"[System] unk = (section_type: 0x{section_type:0x}) {unk}")
                 self.unks.append(unk)
 
             elif section_type == System.SectionType.ENGINE_RESOURCE_NAME:
@@ -444,6 +456,18 @@ class System(DataFile):
                 cursor_declaration = CursorDeclaration(chunk)
                 self.cursor_declarations.append(cursor_declaration)
 
+            elif section_type == System.SectionType.ENTRY_SCREEN:
+                self.entry_context_id = Datum(chunk).d
+
+            elif section_type == System.SectionType.ALLOW_MULTIPLE_SOUNDS:
+                self.allow_multiple_sounds = bool(Datum(chunk).d)
+
+            elif section_type == System.SectionType.ALLOW_MULTIPLE_STREAMS:
+                self.allow_multiple_streams = bool(Datum(chunk).d)
+
+            elif section_type == System.SectionType.EMPTY:
+                pass
+
             else:
                 # SIGNAL AN UNKNOWN SECTION.
                 global_variables.application.logger.warning(f'[System] Detected unknown section 0x{section_type:04x}')
@@ -451,15 +475,5 @@ class System(DataFile):
             # READ THE NEXT SECTION TYPE.
             section_type = Datum(chunk, Datum.Type.UINT16_1).d
             not_last_section = (System.SectionType.LAST != section_type)
-
-        # READ THE ENDING DATA.
-        # TODO: These are actually datums in here. We should figure out what
-        # they are!
-        global_variables.application.logger.debug('FOOTER:')
-        self.footer = []
-        while not chunk.at_end:
-            datum = Datum(chunk)
-            global_variables.application.logger.debug(f'{datum.t}: {datum.d}')
-            self.footer.append(datum)
         
         print('---')
