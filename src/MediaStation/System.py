@@ -329,6 +329,7 @@ class System(DataFile):
         UNKNOWN_DECLARATION = 0x0007
         FILE_DECLARATION = 0x000a
         SUBFILE_DECLARATION = 0x000b
+        UNK5 = 0x000c
         CURSOR_DECLARATION = 0x0015
         ALLOW_MULTIPLE_SOUNDS = 0x0035
         ALLOW_MULTIPLE_STREAMS = 0x0036
@@ -464,6 +465,11 @@ class System(DataFile):
 
             elif section_type == System.SectionType.ALLOW_MULTIPLE_STREAMS:
                 self.allow_multiple_streams = bool(Datum(chunk).d)
+
+            elif section_type == System.SectionType.UNK5:
+                unk1 = Datum(chunk).d
+                unk2 = Datum(chunk).d
+                global_variables.application.logger.warning(f'[System] unk = (section_type: 0x{section_type:0x}) [{unk1} {unk2}]')
 
             elif section_type == System.SectionType.EMPTY:
                 pass
