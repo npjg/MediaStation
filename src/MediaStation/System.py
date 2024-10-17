@@ -405,13 +405,13 @@ class System(DataFile):
                     (System.SectionType.UNK2 == section_type) or \
                     (System.SectionType.UNK3 == section_type):
                 unk = Datum(chunk, Datum.Type.UINT16_1).d
+                self.unks.append({hex(section_type): unk})
                 global_variables.application.logger.debug(f"[System] unk = (section_type: 0x{section_type:0x}) 0x{unk:0x}")
-                self.unks.append(unk)
 
             elif (System.SectionType.UNK4 == section_type):
                 unk = Datum(chunk, Datum.Type.FLOAT64_1).d
+                self.unks.append({hex(section_type): unk})
                 global_variables.application.logger.debug(f"[System] unk = (section_type: 0x{section_type:0x}) {unk}")
-                self.unks.append(unk)
 
             elif section_type == System.SectionType.ENGINE_RESOURCE_NAME:
                 # READ THE NAME OF AN ENGINE RESOURCE.
@@ -469,6 +469,7 @@ class System(DataFile):
             elif section_type == System.SectionType.UNK5:
                 unk1 = Datum(chunk).d
                 unk2 = Datum(chunk).d
+                self.unks.append({hex(section_type): [unk1, unk2]})
                 global_variables.application.logger.warning(f'[System] unk = (section_type: 0x{section_type:0x}) [{unk1} {unk2}]')
 
             elif section_type == System.SectionType.EMPTY:
