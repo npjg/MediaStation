@@ -229,6 +229,10 @@ class EventHandler:
         SoundAbort = 19
         SoundFailure = 20
         SoundStopped = 29
+        # TODO: Crayola doesn't have any of these, but 
+        # by process of elimination comparing to the movies,
+        # this is likely correct.
+        SoundBegin = 30 
 
         # MOVIE EVENTS.
         MovieBegin = 32
