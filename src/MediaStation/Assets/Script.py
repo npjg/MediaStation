@@ -235,11 +235,11 @@ class EventHandler:
         SoundBegin = 30 
 
         # MOVIE EVENTS.
-        MovieBegin = 32
-        MovieFailure = 22
-        MovieAbort = 21
         MovieEnd = 15
+        MovieAbort = 21
+        MovieFailure = 22
         MovieStopped = 31
+        MovieBegin = 32
 
         # SPRITE EVENTS.
         # Just "MovieEnd" in source.
