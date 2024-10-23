@@ -197,6 +197,11 @@ class Function:
         global_variables.application.logger.debug(f'Function(): Reading function {self.id}')
 
         # READ THE BYTECODE.
+        # TODO: Here as well, I don't really get why we have two lengths - one
+        # here and one in the code chunk. It's almost like there are nested code
+        # chunks. I wonder if that's what the end-of-chunk flag is for, and if
+        # that should actually be part of the code chunk.
+        self._length_in_bytes = Datum(chunk, Datum.Type.UINT32_1).d
         self._code = CodeChunk(chunk.stream)
         if not global_variables.version.is_first_generation_engine:
             assert_equal(Datum(chunk).d, 0x00, "end-of-chunk flag")
@@ -321,6 +326,12 @@ class EventHandler:
         global_variables.application.logger.debug(f'Event Handler ARGUMENT: {self.argument} (type: {self.argument_type.name if hasattr(self.argument_type, "name") else self.argument_type})')
 
         # READ THE BYTECODE.
+        if self.argument_type != EventHandler.ArgumentType.Null:
+            # TODO: I don't understand why there are two lengths for other types
+            # of event handlers - one here and one in the code chunk. It's
+            # almost like there are nested code chunks, but I'm not treating it
+            # that way. Is this so un-needed event handlers can be stepped over?
+            self._length_in_bytes = Datum(chunk, Datum.Type.UINT32_1).d
         self._code = CodeChunk(chunk.stream)
 
         # PRINT THE DBEUG STATEMENTS.
@@ -342,13 +353,10 @@ class EventHandler:
                 script_dump_file.write(pprint.pformat(statement) + '\n')
 
 class CodeChunk:
-    def __init__(self, stream, length_in_bytes = None):
+    def __init__(self, stream):
         # GET THE LENGTH.
         self._stream = stream
-        if not length_in_bytes:
-            self._length_in_bytes = Datum(stream).d
-        else:
-            self._length_in_bytes = length_in_bytes
+        self._length_in_bytes = Datum(stream, Datum.Type.UINT32_1).d
         self._start_offset = stream.tell()
 
         # READ THE BYTECODE.
@@ -373,7 +381,7 @@ class CodeChunk:
         # TODO: Find a better way to figure out if we are expecting a code chunk. 
         maybe_instruction_type_maybe_code_chunk_length = Datum(stream)
         if (Datum.Type.UINT32_1 == maybe_instruction_type_maybe_code_chunk_length.t):
-            return CodeChunk(stream, length_in_bytes = maybe_instruction_type_maybe_code_chunk_length.d).statements
+            raise ValueError("Expected code statement, but got code chunk!")
 
         # Just like in real assembly language, different combinations of opcodes
         # have different available "addressing modes".
@@ -384,13 +392,13 @@ class CodeChunk:
             opcode = maybe_cast_to_enum(Datum(stream).d, Opcodes)
             if Opcodes.IfElse == opcode:
                 values_to_compare = self.read_statement(stream)
-                code_if_true = self.read_statement(stream)
-                code_if_false = self.read_statement(stream)
+                code_if_true = CodeChunk(stream)
+                code_if_false = CodeChunk(stream)
                 statement = [instruction_type, opcode, values_to_compare, code_if_true, code_if_false]
 
             elif Opcodes.While == opcode:
                 condition = self.read_statement(stream)
-                code = self.read_statement(stream)
+                code = CodeChunk(stream)
                 statement = [instruction_type, opcode, condition, code]
 
             elif Opcodes.Return == opcode:
