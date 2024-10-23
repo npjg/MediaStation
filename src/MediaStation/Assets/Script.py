@@ -194,6 +194,7 @@ class Function:
         # Functions with low ID numbers are "built-in" functions, and 
         # functions with large ID numbers are user-defined functions.
         self.id = Datum(chunk).d + 19900
+        global_variables.application.logger.debug(f'Function(): Reading function {self.id}')
 
         # READ THE BYTECODE.
         self._code = CodeChunk(chunk.stream)
@@ -317,6 +318,7 @@ class EventHandler:
         # event, and the bytecode is the same between them.
         self.argument_type = maybe_cast_to_enum(Datum(chunk).d, EventHandler.ArgumentType)
         self.argument = Datum(chunk).d
+        global_variables.application.logger.debug(f'Event Handler ARGUMENT: {self.argument} (type: {self.argument_type.name if hasattr(self.argument_type, "name") else self.argument_type})')
 
         # READ THE BYTECODE.
         self._code = CodeChunk(chunk.stream)
