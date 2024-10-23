@@ -26,6 +26,7 @@ class InstructionType(IntEnum):
 class Opcodes(IntEnum):
     IfElse = 202
     AssignVariable = 203
+    Or = 204
     And = 206
     Equals = 207
     NotEquals = 208
@@ -401,6 +402,7 @@ class CodeChunk:
                 (Opcodes.Divide == opcode) or \
                 (Opcodes.Modulo == opcode) or \
                 (Opcodes.And == opcode) or \
+                (Opcodes.Or == opcode) or \
                 (Opcodes.LessThan == opcode) or \
                 (Opcodes.LessThanOrEqualTo == opcode) or \
                 (Opcodes.GreaterThan == opcode) or \
