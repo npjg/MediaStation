@@ -36,6 +36,7 @@ class Opcodes(IntEnum):
     GreaterThanOrEqualTo = 212
     Add = 213
     Subtract = 214
+    Multiply = 215
     Divide = 216
     Modulo = 217
     Unk2 = 218 # TODO: Likely something with ## constants like ##DOWN?
@@ -121,7 +122,7 @@ class BuiltInFunction(IntEnum):
 
     # COLLECTION METHODS.
     # These aren't assets but arrays used in Media Script.
-    # isEmpty
+    isEmpty = 254 # PARAMS: 0
     empty = 252 # PARAMS: 0
     append = 247 # PARAMS: 1+
     getAt = 253 # PARAMS: 1
@@ -469,6 +470,7 @@ class CodeChunk:
                 (Opcodes.NotEquals == opcode) or \
                 (Opcodes.Add == opcode) or \
                 (Opcodes.Subtract == opcode) or \
+                (Opcodes.Multiply == opcode) or \
                 (Opcodes.Divide == opcode) or \
                 (Opcodes.Modulo == opcode) or \
                 (Opcodes.And == opcode) or \
