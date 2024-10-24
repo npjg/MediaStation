@@ -54,9 +54,15 @@ class Parameters:
         section_type: int = Datum(stream, Datum.Type.UINT16_1).d
         while section_type != Parameters.SectionType.NULL:            
             if section_type == Parameters.SectionType.NAME:
+                # TODO: Can this repeated file number stuff be consolidated
+                # above the loop? Looks like every type uses it (though for the
+                # function it's hidden away in the Function class).
                 repeated_file_number = Datum(stream, Datum.Type.UINT16_1).d
                 assert_equal(repeated_file_number, self.file_number)
                 self.name = Datum(stream, Datum.Type.STRING).d
+                # TODO: Is this an end flag that we can abstract out of the
+                # loop? Seems to happen everywhere (even though it's abstracted
+                # away in some classes here).
                 unk1 = Datum(stream, Datum.Type.UINT16_1).d # Always 0x0000
 
             elif section_type == Parameters.SectionType.FILE_NUMBER:
