@@ -111,7 +111,7 @@ class Variable:
             self.id = Datum(stream, Datum.Type.UINT16_1).d
         # These variables don't seem to appear in the variables section of
         # PROFILE._ST. They seem to be internal to each context.
-        self.type = Datum(stream, Datum.Type.UINT8).d
+        self.type = maybe_cast_to_enum(Datum(stream, Datum.Type.UINT8).d, Variable.Type)
         self.value = None
 
         # Some of these seem to be the asset IDs that are groups
