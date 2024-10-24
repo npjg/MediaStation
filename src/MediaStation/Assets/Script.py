@@ -484,7 +484,7 @@ class CodeChunk:
                 statement = [instruction_type, opcode, lhs, rhs]
 
             elif Opcodes.AssignVariable == opcode:
-                variable_id = self.read_statement(stream)
+                variable_id = Datum(stream).d
                 variable_scope = maybe_cast_to_enum(self.read_statement(stream), VariableScope)
                 new_value = self.read_statement(stream)
                 statement = [instruction_type, opcode, variable_id, variable_scope, new_value]
