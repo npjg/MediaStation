@@ -11,7 +11,7 @@ from . import global_variables
 from .Assets.Bitmap import Bitmap
 from .Assets.BitmapSet import BitmapSet
 from .Assets.Asset import Asset
-from .Assets.Script import Function, EventHandler
+from .Assets.Script import Function, EventHandler, maybe_cast_to_enum
 from .Primitives.Datum import Datum
 from .Riff.DataFile import DataFile
 
@@ -73,9 +73,8 @@ class Parameters:
 
                 # READ THE VARIABLE DECLARATION.
                 # Any dclared variables seem to always need a value.
-                id = Datum(stream, Datum.Type.UINT16_1).d
                 variable = Variable(stream)
-                self.variables.update({id: variable})
+                self.variables.update({variable.id: variable})
 
             elif section_type == Parameters.SectionType.BYTECODE:
                 init_script = Function(stream)
@@ -107,7 +106,9 @@ class Variable:
         BOOLEAN = 0x0002
         LITERAL = 0x0001
 
-    def __init__(self, stream):
+    def __init__(self, stream, read_id = True):
+        if read_id:
+            self.id = Datum(stream, Datum.Type.UINT16_1).d
         # These variables don't seem to appear in the variables section of
         # PROFILE._ST. They seem to be internal to each context.
         self.type = Datum(stream, Datum.Type.UINT8).d
@@ -122,7 +123,7 @@ class Variable:
             size = Datum(stream).d
             self.value = []
             for _ in range(size):
-                collection = Variable(stream)
+                collection = Variable(stream, read_id = False)
                 self.value.append(collection)
 
         elif Variable.Type.STRING == self.type:
