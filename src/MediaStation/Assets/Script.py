@@ -142,8 +142,11 @@ class BuiltInFunction(IntEnum):
 
 class OperandType(IntEnum):
     # TODO: Figure out the difference between these two.
-    Literal = 151
+    Literal1 = 151
     Literal2 = 153
+    # TODO: Figure out the difference between these two.
+    Float1 = 152
+    Float2 = 157
     String = 154
     # TODO: This only seems to be used in effectTransition:
     #  effectTransition ( $FadeToPalette )
@@ -152,7 +155,6 @@ class OperandType(IntEnum):
     #  [155, 301]
     DollarSignVariable = 155
     AssetId = 156
-    Float = 157
     VariableDeclaration = 158
     Function = 160
 
@@ -335,7 +337,8 @@ class EventHandler:
         Null = 0
         AsciiCode = 1 # TODO: Why is this datum type a float?
         Time = 3
-        Context = 5 # LoadComplete
+        Unk1 = 4 # Appars to happen with MovieStart?
+        Context = 5
 
     ## Reads a compiled script from a binary stream at is current position.
     ## \param[in] stream - A binary stream that supports the read method.
