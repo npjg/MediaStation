@@ -152,7 +152,7 @@ class OperandType(IntEnum):
     DollarSignVariable = 155
     AssetId = 156
     Float = 157
-    VariableType = 158
+    VariableDeclaration = 158
     Function = 160
 
 class VariableScope(IntEnum):
@@ -177,6 +177,62 @@ def pprint_debug(object):
     else:
         debugging_string = pprint.pformat(object)
         global_variables.application.logger.debug(debugging_string)
+
+class VariableDeclaration:
+    class Type(IntEnum):
+        # This is an "array", but the IMT sources 
+        # use the term "collection".
+        COLLECTION = 0x0007
+        STRING = 0x0006
+        ASSET_ID = 0x0005
+        # These seem to be used in Dalmatians, but I don't know what they are
+        # used for.
+        UNK1 = 0x0004
+        # These seem to be constants of some sort? This is what some of these
+        # IDs look like in PROFILE._ST:
+        #  - $downEar 10026
+        #  - $sitDown 10027
+        # Seems like these can also reference variables:
+        #  - var_6c14_bool_FirstThingLev3 315
+        #  - var_6c14_NextEncouragementSound 316
+        UNK2 = 0x0003
+        BOOLEAN = 0x0002
+        LITERAL = 0x0001
+
+    def __init__(self, stream, read_id = True):
+        if read_id:
+            self.id = Datum(stream, Datum.Type.UINT16_1).d
+        # These variables don't seem to appear in the variables section of
+        # PROFILE._ST. They seem to be internal to each context.
+        self.type = maybe_cast_to_enum(Datum(stream, Datum.Type.UINT8).d, VariableDeclaration.Type)
+        self.value = None
+
+        # Some of these seem to be the asset IDs that are groups
+        # of images, hilites, and outlines. For example,
+        #   - img_6c16_ArmorHilite 2385 2672
+        #   - img_6c16_ArmorOutline 2383 2673
+        #   - img_6c16_ArmorHelp 2384 2674
+        if VariableDeclaration.Type.COLLECTION == self.type:
+            size = Datum(stream).d
+            self.value = []
+            for _ in range(size):
+                collection = VariableDeclaration(stream, read_id = False)
+                self.value.append(collection)
+
+        elif VariableDeclaration.Type.STRING == self.type:
+            size = Datum(stream).d
+            string = stream.read(size).decode('latin-1')
+            self.value = string
+
+        elif (VariableDeclaration.Type.ASSET_ID == self.type) or \
+            (VariableDeclaration.Type.BOOLEAN == self.type) or \
+            (VariableDeclaration.Type.LITERAL == self.type):
+            self.value = Datum(stream).d
+
+        else:
+            global_variables.application.logger.warning(f'Got unknown variable type: 0x{self.type:04x}')
+            self.value = Datum(stream).d
+            global_variables.application.logger.warning(f' > Value: {self.value}')
 
 ## A compiled function that executes in the Media Station bytecode interpreter.
 class Function:
@@ -480,6 +536,12 @@ class CodeChunk:
                 # TODO: Can we replace this with just a datum? Is there any
                 # instance where the function is an expression?
                 value = maybe_cast_to_enum(self.read_statement(stream), BuiltInFunction)
+
+            elif OperandType.VariableDeclaration == operand_type:
+                # TODO: This is a bit of a special case. There isn't a statement
+                # for this, becuase we jump right away into the variable
+                # declaration. Is there a way to make this more intuitive?
+                value = VariableDeclaration(stream, read_id = False)
 
             else:
                 value = self.read_statement(stream)

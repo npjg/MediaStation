@@ -11,7 +11,7 @@ from . import global_variables
 from .Assets.Bitmap import Bitmap
 from .Assets.BitmapSet import BitmapSet
 from .Assets.Asset import Asset
-from .Assets.Script import Function, EventHandler, maybe_cast_to_enum
+from .Assets.Script import Function, EventHandler, VariableDeclaration
 from .Primitives.Datum import Datum
 from .Riff.DataFile import DataFile
 
@@ -79,7 +79,7 @@ class Parameters:
 
                 # READ THE VARIABLE DECLARATION.
                 # Any dclared variables seem to always need a value.
-                variable = Variable(stream)
+                variable = VariableDeclaration(stream)
                 self.variables.update({variable.id: variable})
 
             elif section_type == Parameters.SectionType.BYTECODE:
@@ -90,62 +90,6 @@ class Parameters:
                 raise ValueError(f'GlobalParameters: Got unexpected section type 0x{section_type:04x}')
             
             section_type: int = Datum(stream, Datum.Type.UINT16_1).d
-
-class Variable:
-    class Type(IntEnum):
-        # This is an "array", but the IMT sources 
-        # use the term "collection".
-        COLLECTION = 0x0007
-        STRING = 0x0006
-        ASSET_ID = 0x0005
-        # These seem to be used in Dalmatians, but I don't know what they are
-        # used for.
-        UNK1 = 0x0004
-        # These seem to be constants of some sort? This is what some of these
-        # IDs look like in PROFILE._ST:
-        #  - $downEar 10026
-        #  - $sitDown 10027
-        # Seems like these can also reference variables:
-        #  - var_6c14_bool_FirstThingLev3 315
-        #  - var_6c14_NextEncouragementSound 316
-        UNK2 = 0x0003
-        BOOLEAN = 0x0002
-        LITERAL = 0x0001
-
-    def __init__(self, stream, read_id = True):
-        if read_id:
-            self.id = Datum(stream, Datum.Type.UINT16_1).d
-        # These variables don't seem to appear in the variables section of
-        # PROFILE._ST. They seem to be internal to each context.
-        self.type = maybe_cast_to_enum(Datum(stream, Datum.Type.UINT8).d, Variable.Type)
-        self.value = None
-
-        # Some of these seem to be the asset IDs that are groups
-        # of images, hilites, and outlines. For example,
-        #   - img_6c16_ArmorHilite 2385 2672
-        #   - img_6c16_ArmorOutline 2383 2673
-        #   - img_6c16_ArmorHelp 2384 2674
-        if Variable.Type.COLLECTION == self.type:
-            size = Datum(stream).d
-            self.value = []
-            for _ in range(size):
-                collection = Variable(stream, read_id = False)
-                self.value.append(collection)
-
-        elif Variable.Type.STRING == self.type:
-            size = Datum(stream).d
-            string = stream.read(size).decode('latin-1')
-            self.value = string
-
-        elif (Variable.Type.ASSET_ID == self.type) or \
-            (Variable.Type.BOOLEAN == self.type) or \
-            (Variable.Type.LITERAL == self.type):
-            self.value = Datum(stream).d
-
-        else:
-            global_variables.application.logger.warning(f'Got unknown variable type: 0x{self.type:04x}')
-            self.value = Datum(stream).d
-            global_variables.application.logger.warning(f' > Value: {self.value}')
 
 ## I don't know what this structure is, but it's in every old-style game.
 ## The fields aside from the file numbers are constant.
