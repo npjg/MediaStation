@@ -169,7 +169,7 @@ class MediaStationEngine(Application):
             self.correlate_asset_ids_to_names()
 
     def export_assets(self, command_line_arguments):
-        application_export_subdirectory: str = os.path.join(command_line_arguments.export, self.application_name)
+        application_export_subdirectory = self.__get_export_folder_path(command_line_arguments)
         # TODO: Check if the directory already exists, and issue a warning if
         # so. I would like to introduce a command-line argument `--force` to
         # force writing to a directory that already exists.
@@ -183,8 +183,7 @@ class MediaStationEngine(Application):
     # This is in a separate function becuase even on fast computers it 
     # can take a very long time and often isn't necessary.
     def export_metadata(self, command_line_arguments):
-        application_export_subdirectory: str = os.path.join(command_line_arguments.export, self.application_name)
-
+        application_export_subdirectory = self.__get_export_folder_path(command_line_arguments)
         self.logger.info(f'Exporting metadata for {self.system.filename}')
         self.system.export_metadata(application_export_subdirectory)
         for context in self.contexts:
@@ -193,6 +192,39 @@ class MediaStationEngine(Application):
         if self.profile is not None:
             self.logger.info(f'Exporting metadata for {self.profile.filename}')
             self.profile.export_metadata(application_export_subdirectory)
+
+    def __get_export_folder_path(self, command_line_arguments):
+        if self.system.game_title is not None:
+            game_title = self.system.game_title
+        else:
+            # Early games like Lion King don't have game title metadata in the
+            # BOOT.STM, so we must figure it out from context instead.
+            # Currently, we just get a meaningful name from the folder where the
+            # data files live. For example, if the input argument was
+            #  ~/Media Station/Lion King - NA - 2.0GB - German - Windows/DATA,
+            # we would name the export folder "Lion King - NA - 2.0GB - German - Windows".
+            # TODO: Can we also try to get the name of the 
+            # game executable if it's available?
+            input_filepath = command_line_arguments.input[0]
+            # Get the lowest directory in the path.
+            if os.path.isfile(input_filepath):
+                input_filepath = os.path.dirname(input_filepath)
+            last_folder = os.path.basename(input_filepath)
+            # The "data" folder isn't descriptive; we want to get the parent
+            # folder if just the "data" folder was passed in.
+            if last_folder.lower() == "data":
+                game_title = os.path.basename(os.path.dirname(input_filepath))
+            else:
+                game_title = last_folder
+
+        return os.path.join(
+            command_line_arguments.export, 
+            self.__make_name_filepath_safe(self.application_name), 
+            self.__make_name_filepath_safe(game_title))
+
+    ## A small helper function to remove any odd characters from a name.
+    def __make_name_filepath_safe(self, name: str) -> str:
+        return "".join([c if c.isalnum() or c in (' ', '.', '_') else '_' for c in name])
 
 class MediaStationCommandLineArguments(CommandLineArguments):
     def __init__(self, application_name: str, application_description: str):
