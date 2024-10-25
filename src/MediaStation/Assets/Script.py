@@ -88,7 +88,7 @@ class BuiltInFunction(IntEnum):
     # IMAGE METHODS.
     Width = 235 # PARAMS: 0
     Height = 236 # PARAMS: 0
-    # isVisible
+    isVisible = 269
 
     # SPRITE METHODS.
     movieReset = 219 # PARAMS: 0
