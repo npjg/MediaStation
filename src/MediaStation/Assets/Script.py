@@ -67,11 +67,12 @@ class BuiltInFunction(IntEnum):
     cursorSet = 200 # PARAMS: 0
     spatialHide = 203 # PARAMS: 1
     spatialMoveTo = 204 # PARAMS: 2
-    # spatialZMoveTo
+    spatialZMoveTo = 216
     spatialShow = 202 # PARAMS: 1
     timePlay = 206 # PARAMS: 1
     timeStop = 207 # PARAMS: 0
-    isPlaying = 372
+    isPlaying = 372 # PARAMS: 0
+    setDissolveFactor = 241 # PARAMS: 1
     # debugBeep
     # quit
     # DebugPrint
