@@ -122,6 +122,20 @@ class MediaStationEngine(Application):
         self.logger.info(f'Processing {system_filepath}')
         self.system = System(system_filepath)
 
+        # READ THE PROFILE.
+        self.profile = None
+        matched_profile_st_files = self.find_matching_files(input_paths, r'profile\._st$', case_sensitive = False)
+        if len(matched_profile_st_files) == 0:
+            self.logger.info('A PROFILE._ST is not available for this title, so nice-to-have information like asset names might not be available.')
+        else:
+            profile_filepath = matched_profile_st_files[0]
+            self.logger.info(f'Processing {profile_filepath}')
+            try:
+                self.profile = Profile(profile_filepath)
+            except:
+                self.logger.warning(f'An error occurred when parsing {profile_filepath}. Export will continue, but assets will not have names.')
+                self.profile = None
+
         # READ THE MAIN CONTEXTS.
         # TODO: It really would be great to read one CXT and then export it,
         # rather than saving exporting to the end. That gives as much data as 
@@ -158,14 +172,7 @@ class MediaStationEngine(Application):
             self.contexts.append(context)
 
         # RESOLVE ASSET NAMES.
-        matched_profile_st_files = self.find_matching_files(input_paths, r'profile\._st$', case_sensitive = False)
-        self.profile = None
-        if len(matched_profile_st_files) == 0:
-            self.logger.info('A PROFILE._ST is not available for this title, so nice-to-have information like asset names might not be available.')
-        else:
-            profile_filepath = matched_profile_st_files[0]
-            self.logger.info(f'Processing {profile_filepath}')
-            self.profile = Profile(profile_filepath)
+        if self.profile is not None:
             self.correlate_asset_ids_to_names()
 
     def export_assets(self, command_line_arguments):
