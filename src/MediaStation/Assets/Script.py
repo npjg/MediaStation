@@ -266,6 +266,10 @@ class Function:
         if not global_variables.version.is_first_generation_engine:
             assert_equal(Datum(chunk).d, 0x00, "end-of-chunk flag")
 
+        # PRINT THE DBEUG STATEMENTS.
+        for statement in self._code.statements:
+            pprint_debug(statement)
+
     def export(self, root_directory_path, command_line_arguments):
         if self.name is None:
             self.name = self.id
