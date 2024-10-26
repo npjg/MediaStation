@@ -202,6 +202,7 @@ class FileDeclaration:
     class IntendedFileLocation(IntEnum):
         # Usually all files that have numbers remain on the CD-ROM.
         CD_ROM = 0x0007
+        # I wonder if one of these means it's loaded in memory at all times?
         UNK1 = 0x0008
         UNK2 = 0x0009
         # Usually only INSTALL.CXT is copied to the hard disk.
@@ -387,6 +388,7 @@ class System(DataFile):
         not_last_section = (System.SectionType.LAST != section_type)
         global_variables.version = VersionInfo()
         while not_last_section:
+            global_variables.application.logger.debug(f'[System] Got section type: 0x{section_type:0x}')
             if section_type == System.SectionType.VERSION_INFORMATION: 
                 self.game_title = Datum(chunk, Datum.Type.STRING).d
                 print('---')
