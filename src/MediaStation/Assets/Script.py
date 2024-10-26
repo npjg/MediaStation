@@ -493,12 +493,12 @@ class CodeChunk:
 
             elif Opcodes.AssignVariable == opcode:
                 variable_id = Datum(stream).d
-                variable_scope = maybe_cast_to_enum(self.read_statement(stream), VariableScope)
+                variable_scope = maybe_cast_to_enum(Datum(stream).d, VariableScope)
                 new_value = self.read_statement(stream)
                 statement = [instruction_type, opcode, variable_id, variable_scope, new_value]
 
             elif Opcodes.DeclareVariables == opcode:
-                count = self.read_statement(stream)
+                count = Datum(stream).d
                 statement = [instruction_type, opcode, count]
 
             elif (Opcodes.CallRoutine == opcode):
@@ -545,7 +545,7 @@ class CodeChunk:
             elif OperandType.Function == operand_type:
                 # TODO: Can we replace this with just a datum? Is there any
                 # instance where the function is an expression?
-                value = maybe_cast_to_enum(self.read_statement(stream), BuiltInFunction)
+                value = maybe_cast_to_enum(Datum(stream).d, BuiltInFunction)
 
             elif OperandType.VariableDeclaration == operand_type:
                 # TODO: This is a bit of a special case. There isn't a statement
@@ -554,7 +554,7 @@ class CodeChunk:
                 value = VariableDeclaration(stream, read_id = False)
 
             else:
-                value = self.read_statement(stream)
+                value = Datum(stream).d
                 
             statement = [instruction_type, operand_type, value]
             iteratively_built_statement.extend(statement)
