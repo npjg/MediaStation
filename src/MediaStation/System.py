@@ -457,6 +457,9 @@ class System(DataFile):
                 cursor_declaration = CursorDeclaration(chunk)
                 self.cursor_declarations.append(cursor_declaration)
 
+            elif section_type == System.SectionType.EMPTY:
+                pass
+
             elif section_type == System.SectionType.ENTRY_SCREEN:
                 self.entry_context_id = Datum(chunk).d
 
@@ -471,9 +474,6 @@ class System(DataFile):
                 unk2 = Datum(chunk).d
                 self.unks.append({hex(section_type): [unk1, unk2]})
                 global_variables.application.logger.warning(f'[System] unk = (section_type: 0x{section_type:0x}) [{unk1} {unk2}]')
-
-            elif section_type == System.SectionType.EMPTY:
-                pass
 
             else:
                 # SIGNAL AN UNKNOWN SECTION.
