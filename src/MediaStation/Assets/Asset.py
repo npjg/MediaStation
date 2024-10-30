@@ -62,6 +62,8 @@ class Asset:
         STAGE = 0x0019
         ASSET_ID = 0x001a
         CHUNK_REFERENCE = 0x001b
+        MOVIE_AUDIO_CHUNK_REFERENCE = 0x06a4
+        MOVIE_VIDEO_CHUNK_REFERENCE = 0x06a5
         ASSET_REFERENCE = 0x077b
         BOUNDING_BOX = 0x001c
         POLYGON = 0x001d
@@ -188,34 +190,28 @@ class Asset:
             assert_equal(duplicate_asset_id, self.id, 'asset ID')
 
         elif Asset.SectionType.CHUNK_REFERENCE == section_type: # SND, IMG, SPR, MOV, FON
-            # READ THE CHUNK REFERENCES.
             # These are references to the chunk(s) that hold the data for this asset.
             # The references and the chunks have the following format "a501".
             # There is no guarantee where these chunk(s) might actually be located:
             # - They might be in the same RIFF subfile as this header,
             # - They might be in a different RIFF subfile in the same CXT file,
             # - They might be in a different CXT file entirely.
-            if self.type == Asset.AssetType.MOVIE:
-                # READ THE HEADER REFERENCE.
-                header_reference = Datum(chunk).d.chunk_id
-                self.chunk_references.append(header_reference)
-                # TODO: Find out what this is and why we have to skip it.
-                self.unks.append({hex(section_type): Datum(chunk).d})
+            #
+            # Movies have three chunk references. This is just the first one;
+            # that contains header information; the other two, for audio and
+            # video, are the next two sections.
+            chunk_reference = Datum(chunk).d.chunk_id
+            self.chunk_references.append(chunk_reference)
 
-                # READ THE AUDIO REFERENCE.
-                audio_reference = Datum(chunk).d.chunk_id
-                self.chunk_references.append(audio_reference)
-                # TODO: Find out what this is and why we have to skip it.
-                self.unks.append({hex(section_type): Datum(chunk).d})
+        elif Asset.SectionType.MOVIE_AUDIO_CHUNK_REFERENCE == section_type:
+            # READ THE MOVIE AUDIO REFERENCE.
+            audio_reference = Datum(chunk).d.chunk_id
+            self.chunk_references.append(audio_reference)
 
-                # READ THE VIDEO REFERENCE.
-                video_reference = Datum(chunk).d.chunk_id
-                self.chunk_references.append(video_reference)
-                # TODO: Find out what this is and why we have to skip it.
-            else: 
-                # READ A SINGLE REFERENCE.
-                chunk_reference = Datum(chunk).d.chunk_id
-                self.chunk_references.append(chunk_reference)
+        elif Asset.SectionType.MOVIE_VIDEO_CHUNK_REFERENCE == section_type:
+            # READ THE MOVIE VIDEO REFERENCE.
+            video_reference = Datum(chunk).d.chunk_id
+            self.chunk_references.append(video_reference)
 
         elif Asset.SectionType.BOUNDING_BOX == section_type: # STG, IMG, HSP, SPR, MOV, TXT, CAM, CVS
             self.bounding_box = Datum(chunk).d
