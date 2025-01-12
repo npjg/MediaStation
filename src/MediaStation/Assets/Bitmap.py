@@ -7,6 +7,7 @@ from asset_extraction_framework.Asserts import assert_equal
 from asset_extraction_framework.Asset.Image import RectangularBitmap
 from asset_extraction_framework.Exceptions import BinaryParsingError
 
+from .. import global_variables
 from ..Primitives.Datum import Datum
 
 # ATTEMPT TO IMPORT THE C-BASED DECOMPRESSION LIBRARY.
@@ -26,12 +27,15 @@ class BitmapHeader:
     def __init__(self, stream):
         self._header_size_in_bytes = Datum(stream).d
         self.dimensions = Datum(stream).d
+        global_variables.application.logger.debug(f'BitmapHeader(): Dimensions: ({self.dimensions.x}, {self.dimensions.y})')
         self.compression_type = Bitmap.CompressionType(Datum(stream).d)
+        global_variables.application.logger.debug(f'BitmapHeader(): Compression Type: {self.compression_type}')
         # TODO: Figure out what this is.
         # This has something to do with the width of the bitmap but is always
         # a few pixels off from the width. And in rare cases it seems to be 
         # the true width!
         self.unk2 = Datum(stream).d
+        global_variables.application.logger.debug(f'BitmapHeader(): Unk2: {self.unk2})')
 
     @property
     def _is_compressed(self) -> bool:
