@@ -2,6 +2,7 @@
 from dataclasses import dataclass
 from enum import IntEnum
 import os
+from pathlib import Path
 
 from asset_extraction_framework.Asserts import assert_equal
 from asset_extraction_framework.Exceptions import BinaryParsingError
@@ -62,12 +63,26 @@ class Asset:
         STAGE = 0x0019
         ASSET_ID = 0x001a
         CHUNK_REFERENCE = 0x001b
-        MOVIE_AUDIO_CHUNK_REFERENCE = 0x06a4
-        MOVIE_VIDEO_CHUNK_REFERENCE = 0x06a5
+        MOVIE_VIDEO_CHUNK_REFERENCE = 0x06a4
+        MOVIE_AUDIO_CHUNK_REFERENCE = 0x06a5
         ASSET_REFERENCE = 0x077b
         BOUNDING_BOX = 0x001c
         POLYGON = 0x001d
         Z_INDEX = 0x001e
+        STARTUP = 0x001f
+        TRANSPARENCY = 0x0020
+        HAS_OWN_SUBFILE = 0x0021
+        CURSOR_RESORCE_ID = 0x0022
+        FRAME_RATE = 0x0024
+        LOAD_TYPE = 0x0032
+        SOUND_INFO = 0x0033
+        MOVIE_LOAD_TYPE = 0x0037
+        PALETTE = 0x05aa
+        DISSOLVE_FACTOR = 0x05dc
+        GET_OFFSTAGE_EVENTS = 0x05dd
+        START_POINT = 0x060e
+        END_POINT = 0x060f
+        SPRITE_CHUNK_COUNT = 0x03e8
 
     def export(self, directory_path, command_line_arguments):
         asset_references_data_from_other_asset = hasattr(self, 'asset_reference')
@@ -75,27 +90,33 @@ class Asset:
             # TODO: Copy the referenced asset's data to this asset rather than just skipping export.
             return
 
+        # EXPORT ALL EVENT HANDLERS.
+        export_directory_path = os.path.join(directory_path, self.name)
+        Path(export_directory_path).mkdir(parents = True, exist_ok = True)
+        for event_handler in self.event_handlers:
+            event_handler.export(export_directory_path, command_line_arguments)
+
         # These are the only asset types known to be "exportable"
         # (to have data that can't be represented well in JSON like images or sound).
         # If any more are discovered, they should be added here.
         if (Asset.AssetType.IMAGE == self.type):
             self.image.name = self.name
-            self.image.export(directory_path, command_line_arguments)
+            self.image.export(export_directory_path, command_line_arguments)
         elif (Asset.AssetType.SOUND == self.type) or (Asset.AssetType.XSND == self.type):
             self.sound.name = self.name
-            self.sound.export(directory_path, command_line_arguments)
+            self.sound.export(export_directory_path, command_line_arguments)
         elif (Asset.AssetType.SPRITE == self.type):
             self.sprite.name = self.name
-            self.sprite.export(directory_path, command_line_arguments)
+            self.sprite.export(export_directory_path, command_line_arguments)
         elif (Asset.AssetType.FONT == self.type):
             self.font.name = self.name
-            self.font.export(directory_path, command_line_arguments)
+            self.font.export(export_directory_path, command_line_arguments)
         elif (Asset.AssetType.MOVIE == self.type):
             self.movie.name = self.name
-            self.movie.export(directory_path, command_line_arguments)
+            self.movie.export(export_directory_path, command_line_arguments)
         elif (Asset.AssetType.IMAGE_SET == self.type):
             self.image_set.name = self.name
-            self.image_set.export(directory_path, command_line_arguments)
+            self.image_set.export(export_directory_path, command_line_arguments)
         elif (Asset.AssetType.STAGE == self.type):
             pass
 
@@ -132,11 +153,15 @@ class Asset:
         self.chunk_references = []
         self.event_handlers = []
 
+        if (Asset.AssetType.TEXT == self.type):
+                    self.text = Text.Text()
+
         # READ THE SECTIONS IN THIS ASSET HEADER.
         # Due to the wide variation in fields that might be included, especially
         # when we are considering games that run different versions of the engine,
         # it was simplest to read each of the sections in a loop and populate
         # whatever the asset header contains.
+        # TODO: Rename sections to fields! That is much more intuitive!
         section_type: int = Datum(chunk).d
         more_sections_to_read = (Asset.SectionType.EMPTY != section_type)
         while more_sections_to_read:
@@ -146,6 +171,9 @@ class Asset:
             # READ THE NEXT SECTION TYPE.
             section_type = Datum(chunk).d
             more_sections_to_read = (Asset.SectionType.EMPTY != section_type)
+
+        if len(self.unks) > 0:
+            print()
 
         # CREATE THE FIELDS FOR THIS ASSET.
         # TODO: Would this be better polymorphic, where each of these are
@@ -173,8 +201,6 @@ class Asset:
     ## Reads all the various sections that can occur in an asset header.
     def _read_section(self, section_type, chunk):
         if Asset.SectionType.EVENT_HANDLER == section_type:
-            # READ A BYTECODE TRIGGER.
-            # TODO: Define what this is.
             event_handler = EventHandler(chunk)
             self.event_handlers.append(event_handler)
 
@@ -183,7 +209,6 @@ class Asset:
             self.stage_id = Datum(chunk).d
 
         elif Asset.SectionType.ASSET_ID == section_type:
-            # READ THE ASSET ID.
             # We already have this asset's ID, so we will just verify it is the same
             # as the ID we have already read.
             duplicate_asset_id = Datum(chunk).d
@@ -214,6 +239,9 @@ class Asset:
             self.chunk_references.append(video_reference)
 
         elif Asset.SectionType.BOUNDING_BOX == section_type: # STG, IMG, HSP, SPR, MOV, TXT, CAM, CVS
+            # In various asset types this has other names.
+            #  - Stage: WorldSpace.
+            #  - Camera: TargetBounds.
             self.bounding_box = Datum(chunk).d
 
         elif Asset.SectionType.POLYGON == section_type:
@@ -222,7 +250,7 @@ class Asset:
         elif Asset.SectionType.Z_INDEX == section_type:
             self.z_index = Datum(chunk).d
 
-        elif section_type == Asset.SectionType.ASSET_REFERENCE: # IMG
+        elif Asset.SectionType.ASSET_REFERENCE == section_type: # IMG
             # This is the asset ID of the asset that has the same 
             # image/sound data as this asset. For example, in Tonka Garage
             # the asset img_7x51gg009all_GearFourHigh has this field
@@ -232,7 +260,7 @@ class Asset:
             # reference could have been the same rather than an entire asset reference.
             self.asset_reference = Datum(chunk).d
 
-        elif section_type == 0x001f: # IMG, HSP, SPR, MOV, TXT, CVS
+        elif Asset.SectionType.STARTUP == section_type: # IMG, HSP, SPR, MOV, TXT, CVS
             # TODO: This seems like a constant that we can cast to an enum based
             # on the asset type.
             # Known values are:
@@ -244,46 +272,48 @@ class Asset:
             #  Startup	: [ $Show ] 
             self.startup = Datum(chunk).d
 
-        elif section_type == 0x0020: # IMG, SPR, CVS
+        elif Asset.SectionType.TRANSPARENCY == section_type: # IMG, SPR, CVS
             # Depending on the asset type, this can either mean we HAVE
             # transparency (image, etc.) or that we support transparency (canvas).
             self.transparency = bool(Datum(chunk).d)
 
-        elif section_type == 0x0021: # SND, MOV
+        elif Asset.SectionType.HAS_OWN_SUBFILE == section_type: # SND, MOV
             self._has_own_subfile = bool(Datum(chunk).d)
 
-        elif section_type == 0x0022: # SCR, TXT, CVS, HSP
+        elif Asset.SectionType.CURSOR_RESORCE_ID == section_type: # SCR, TXT, CVS, HSP
             # This ID references the cursor declarations in BOOT.STM.
             self.cursor_resource_id = Datum(chunk).d
 
-        elif section_type == 0x0024: # SPR
+        elif Asset.SectionType.FRAME_RATE == section_type: # SPR
             self.frame_rate = Datum(chunk).d
 
         #elif section_type == 0x0026: # TXT
         #    # TODO: This seems to only occur in Ariel.
         #    self.unks.append({hex(section_type): Datum(chunk).d})
 
-        elif section_type == 0x0032: # IMG, SPR
+        elif Asset.SectionType.LOAD_TYPE == section_type: # IMG, SPR
             # TODO: I think 0 means $Memory and 1 means $Disk.
             self.load_type = Datum(chunk).d
 
-        elif section_type == 0x0033: # SND, MOV
-            # READ THE 
-            # These assets are 
+        elif Asset.SectionType.SOUND_INFO == section_type: # SND, MOV
             self.total_chunks = Datum(chunk).d
             self.rate = Datum(chunk).d
 
         elif section_type == 0x0034:
-            self.unks.append({hex(section_type): Datum(chunk).d})
-
-        elif section_type == 0x0037:
             # TODO: Determine what this is.
             self.unks.append({hex(section_type): Datum(chunk).d})
+
+        elif Asset.SectionType.MOVIE_LOAD_TYPE == section_type: # MOV
+            # This seems to be a different load type field for movies.
+            # The other field doesn't seem to be used for movies.
+            # TODO: Make sure we aren't overwriting an existing load type.
+            self.load_type = Datum(chunk).d
 
         elif section_type == 0x0258: # TXT
             # This should always be the first entry
             # that defines a text stream.
-            self.text = Text.Text()
+            # TODO: Move text into its own asset.
+            # self.text = Text.Text()
             self.text.font_asset_id = Datum(chunk).d
 
         elif section_type == 0x0259: # TXT
@@ -302,6 +332,7 @@ class Asset:
             self.text.position = Text.Position(Datum(chunk).d)
 
         elif section_type == 0x0262: # TXT
+            # TODO: Why do we have to skip these?
             pass
 
         elif section_type == 0x0263:
@@ -319,7 +350,7 @@ class Asset:
             self.id = section_type
             self.unks.append({hex(section_type): Datum(chunk).d})
 
-        elif section_type == 0x03e8: # SPR
+        elif Asset.SectionType.SPRITE_CHUNK_COUNT == section_type: # SPR
             self.chunks = Datum(chunk).d
 
         elif section_type == 0x03e9: # SPR
@@ -372,13 +403,13 @@ class Asset:
             for _ in range(3):
                 self.unks.append({hex(section_type): Datum(chunk).d})
 
-        elif section_type == 0x05aa: # PAL
+        elif Asset.SectionType.PALETTE == section_type: # PAL
             self.palette = chunk.read(0x300)
 
-        elif section_type == 0x05dc:
+        elif Asset.SectionType.DISSOLVE_FACTOR == section_type:
             self.dissolve_factor = Datum(chunk).d
 
-        elif section_type == 0x05dd: # HOTSPOT
+        elif Asset.SectionType.GET_OFFSTAGE_EVENTS == section_type: # HOTSPOT
             self.get_offstage_events = bool(Datum(chunk).d)
 
         elif section_type == 0x05de: # IMG
@@ -387,10 +418,10 @@ class Asset:
         elif section_type == 0x05df: # IMG
             self.y = Datum(chunk).d
 
-        elif section_type == 0x060e: # PTH
+        elif Asset.SectionType.START_POINT == section_type: # PTH
             self.start_point = Datum(chunk).d
 
-        elif section_type == 0x060f: # PTH
+        elif Asset.SectionType.END_POINT == section_type: # PTH
             self.end_point = Datum(chunk).d
 
         elif section_type == 0x0610: # PTH
